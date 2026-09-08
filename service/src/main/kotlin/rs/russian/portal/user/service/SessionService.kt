@@ -14,6 +14,10 @@ class SessionService(
     private val sessionRepository: FindByIndexNameSessionRepository<out Session>
 ) {
 
+    fun invalidate(username: String) {
+        sessionRepository.findByPrincipalName(username).keys.forEach(sessionRepository::deleteById)
+    }
+
     /**
      * Invalidates the session(s) based on the specified criteria.
      *
@@ -23,11 +27,7 @@ class SessionService(
      */
     fun invalidate(all: Boolean) {
         if (all) {
-            val sessionIds =
-                sessionRepository.findByPrincipalName(currentUser()?.nickName ?: throw NotAuthorizedException()).keys
-            sessionIds.forEach { sessionId ->
-                sessionRepository.deleteById(sessionId)
-            }
+            invalidate(currentUser()?.nickName ?: throw NotAuthorizedException())
         } else {
             val requestAttributes = RequestContextHolder.currentRequestAttributes() as ServletRequestAttributes
             val session: HttpSession = requestAttributes.request.getSession(false)

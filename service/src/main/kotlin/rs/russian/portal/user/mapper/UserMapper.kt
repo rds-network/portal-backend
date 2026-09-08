@@ -67,7 +67,7 @@ abstract class UserMapper {
     @Mapping(target = "residencePermits", ignore = true)
     @Mapping(target = "depersonalizationStatus", ignore = true)
     @Mapping(target = "depersonalizedAt", ignore = true)
-    @Mapping(target = "active", constant = "true")
+    @Mapping(target = "active", ignore = true)
     @Mapping(target = "username", source = "nickName")
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])

@@ -319,6 +319,12 @@ The API follows an API-first approach:
 
 ## Security
 
+### Account deactivation
+
+OIDC login verifies the current Authentik status before creating a portal session and does not reactivate disabled local accounts. Every authenticated user request checks the local account status; remote status is cached for at most 60 seconds per backend instance. Deactivation directly in Authentik therefore blocks subsequent requests within that window, without waiting for the hourly profile sync. Local deactivation blocks the next request and revokes the user's portal sessions, including when applied by the sync scheduler.
+
+Inactive, missing, or depersonalized accounts receive HTTP 401. If a required status lookup fails, the request receives HTTP 503 without discarding the session or using an expired cached status. Explicit service-account JWTs retain their existing authorization rules because they have no local volunteer account. The `no-auth` development profile bypasses these checks.
+
 ### Pre-commit Checks
 
 Enable automatic security checks:

@@ -7,6 +7,8 @@ interface AuthentikService {
 
     fun getUser(email: String): User?
 
+    fun getUser(id: Int): User?
+
     fun getAllUsers(): List<User>
 
     fun createUser(username: String, name: String, email: String): User

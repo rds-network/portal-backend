@@ -3,11 +3,14 @@ package rs.russian.portal.user.service
 import io.authentik.model.User
 import jakarta.persistence.EntityManager
 import jakarta.persistence.EntityNotFoundException
+import java.util.*
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -29,7 +32,6 @@ import rs.russian.portal.user.mapper.ResidencePermitMapper
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.authentik.AuthentikService
-import java.util.*
 
 @Service
 class AccountService(
@@ -42,6 +44,7 @@ class AccountService(
     private val accountRepository: AccountRepository,
     private val authentikUserService: AuthentikService,
     private val entityManager: EntityManager,
+    private val sessionService: SessionService,
 ) {
 
     @Transactional(readOnly = true)
@@ -68,7 +71,9 @@ class AccountService(
 
     @Transactional
     fun save(account: Account): Account {
-        return accountRepository.saveAndFlush(account)
+        val saved = accountRepository.saveAndFlush(account)
+        if (!saved.active) sessionService.invalidate(saved.username)
+        return saved
     }
 
     @Transactional
@@ -94,9 +99,15 @@ class AccountService(
     @Transactional
     fun createOrUpdateAccount(oidcUser: OidcUser) {
         val email = oidcUser.userInfo.email
-        val id = authentikUserService.getUser(email)!!.pk
+        val ssoUser = email?.takeIf { it.isNotBlank() }?.let(authentikUserService::getUser)
+        if (ssoUser?.isActive != true || ssoUser.username != oidcUser.userInfo.nickName) {
+            throw OAuth2AuthenticationException(OAuth2Error("access_denied"))
+        }
+        val id = ssoUser.pk
         accountRepository.findById(id).ifPresentOrElse({
-            if (isDepersonalized(it)) return@ifPresentOrElse
+            if (!it.active || isDepersonalized(it)) {
+                throw OAuth2AuthenticationException(OAuth2Error("access_denied"))
+            }
             userMapper.update(oidcUser.userInfo, it)
             it.info = it.info ?: UserInfo.default(it)
             accountRepository.saveAndFlush(it)
@@ -160,6 +171,7 @@ class AccountService(
     fun switchActiveState(id: Int, isActive: Boolean): Account {
         val account = getAccount(id)
         if (account.active == isActive) {
+            if (!isActive) sessionService.invalidate(account.username)
             return account
         }
         account.active = isActive
@@ -167,6 +179,7 @@ class AccountService(
             resetPendingDepersonalization(account)
         }
         authentikUserService.switchActiveState(account, isActive)
+        if (!isActive) sessionService.invalidate(account.username)
         return account
     }
 

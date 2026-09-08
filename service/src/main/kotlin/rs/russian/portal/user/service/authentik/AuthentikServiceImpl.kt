@@ -1,6 +1,7 @@
 package rs.russian.portal.user.service.authentik
 
 import io.authentik.api.CoreAuthentikApi
+import io.authentik.infrastructure.ClientException
 import io.authentik.model.PatchedUserRequest
 import io.authentik.model.User
 import io.authentik.model.UserRequest
@@ -17,6 +18,12 @@ class AuthentikServiceImpl(
     override fun getUser(email: String): User? {
         val pageResult = coreAuthentikApi.coreUsersList(email = email)
         return pageResult.results.find { it.email == email }
+    }
+
+    override fun getUser(id: Int): User? = try {
+        coreAuthentikApi.coreUsersRetrieve(id)
+    } catch (exception: ClientException) {
+        if (exception.statusCode == 404) null else throw exception
     }
 
     /**

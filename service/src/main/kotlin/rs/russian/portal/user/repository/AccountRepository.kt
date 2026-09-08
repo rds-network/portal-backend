@@ -26,6 +26,10 @@ interface AccountRepository : JpaRepository<Account, Int> {
     @EntityGraph(value = GRAPH_FULL)
     override fun findById(id: Int): Optional<Account>
 
+    // Authentication needs only scalar fields, without the full profile/contract graph.
+    @Query("SELECT a FROM Account a WHERE a.username = :username")
+    fun findForAuthenticationByUsername(@Param("username") username: String): Account?
+
     @EntityGraph(value = GRAPH_FULL)
     fun findByUsername(username: String): Optional<Account>
 

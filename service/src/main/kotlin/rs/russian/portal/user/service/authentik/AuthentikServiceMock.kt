@@ -17,6 +17,8 @@ class AuthentikServiceMock : AuthentikService {
         return getDefaultUser(email.split("@").first(), email)
     }
 
+    override fun getUser(id: Int): User? = null
+
     override fun getAllUsers(): List<User> {
         log.info("Mock get all users")
         return emptyList()
