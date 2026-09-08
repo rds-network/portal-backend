@@ -1,18 +1,21 @@
 # Volunteer Portal Backend
 
 [![License: GNU GPL v3](https://img.shields.io/badge/License-GNU-yellow.svg)](https://opensource.org/license/gpl-3-0)
-[![Security Checks](https://github.com/russian-rs/portal-ui/actions/workflows/security-checks.yml/badge.svg)](https://github.com/russian-rs/portal-backend/actions/workflows/security-checks.yml)
+[![Security Checks](https://github.com/rds-network/portal-ui/actions/workflows/security-checks.yml/badge.svg)](https://github.com/russian-rs/portal-backend/actions/workflows/security-checks.yml)
 
-
-A production-ready backend for volunteer management portals built with Kotlin and Spring Boot. Features include volunteer application processing, user management with SSO integration, file storage, email notifications, and reporting.
+A production-ready backend for volunteer management portals built with Kotlin and Spring Boot. Features include
+volunteer application processing, user management with SSO integration, file storage, email notifications, and
+reporting.
 
 ## Features
 
-- **[Volunteer Application Processing](#volunteer-application-workflow)** - Multi-stage workflow for onboarding new volunteers
+- **[Volunteer Application Processing](#volunteer-application-workflow)** - Multi-stage workflow for onboarding new
+  volunteers
 - **SSO Integration** - OAuth2/OIDC authentication via Authentik
 - **[Weekly Reports & Task Tracking](#weekly-reports--task-tracking)** - Time tracking system with heatmap visualization
 - **[Programs & Projects](#programs--projects)** - Organizational structure for volunteer activities
-- **[External Service Integrations](#external-service-integrations)** - Unified role system synced across Authentik, WordPress, Outline, and Helpdesk
+- **[External Service Integrations](#external-service-integrations)** - Unified role system synced across Authentik,
+  WordPress, Outline, and Helpdesk
 - **User Management** - Role-based access control (18 roles including Volunteer, Mentor, Admin)
 - **File Storage** - S3-compatible storage (MinIO/AWS S3)
 - **Email Notifications** - Template-based emails with outbox pattern for reliability
@@ -34,7 +37,8 @@ Application States include CREATED, IN_PROGRESS, CLARIFICATION, DOCS_SENT and mo
 
 #### Workflow Features
 
-- **Automatic Account Creation** - When application reaches `DONE` status, a user account is automatically created (or reactivated for prolongations)
+- **Automatic Account Creation** - When application reaches `DONE` status, a user account is automatically created (or
+  reactivated for prolongations)
 - **Contract Management** - Contract dates and type are set before completion
 - **Internal Notes** - Staff can add private notes for tracking decisions and required actions
 - **Auto-Expiration** - Applications inactive for 1 month are automatically denied (except `PAUSED`)
@@ -122,7 +126,8 @@ MEDIA Program
 
 #### Multilingual Support
 
-We have support  3 languages:
+We have support 3 languages:
+
 - Russian (`nameRu`)
 - English (`nameEn`)
 - Serbian (`nameSr`)
@@ -131,7 +136,8 @@ We have support  3 languages:
 
 ### External Service Integrations
 
-The portal integrates with multiple external services using a **unified role system**. User accounts and roles are synchronized automatically across all platforms.
+The portal integrates with multiple external services using a **unified role system**. User accounts and roles are
+synchronized automatically across all platforms.
 
 #### Architecture Overview
 
@@ -163,17 +169,20 @@ All roles are defined once in the portal and automatically synced to external se
 #### Integrated Services
 
 **Authentik SSO** (Identity Provider)
+
 - OAuth2/OIDC authentication
 - Single Sign-On across all services
 - User and group management
 - Password recovery link generation
 
 **Outline** (Knowledge Base)
+
 - User provisioning with role-based access
 - Automatic group creation and membership sync
 - User suspension on deactivation
 
 **WordPress** (CMS - Multiple Instances)
+
 - Multi-site support with independent sync
 - Role mapping to WordPress roles
 - Automatic token refresh (every 12 hours)
@@ -260,28 +269,28 @@ portal-backend/
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DB_HOST` | PostgreSQL host:port | Yes |
-| `DB_NAME` | Database name | Yes |
-| `DB_USER` | Database username | Yes |
-| `DB_PASS` | Database password | Yes |
-| `REDIS_HOST` | Redis host | Yes |
-| `REDIS_PORT` | Redis port | Yes |
-| `REDIS_PASS` | Redis password | Yes |
-| `S3_ENDPOINT` | S3/MinIO endpoint | Yes |
-| `S3_ACCESS_KEY` | S3 access key | Yes |
-| `S3_SECRET_KEY` | S3 secret key | Yes |
-| `S3_BUCKET` | S3 bucket name | Yes |
-| `AUTHENTIK_BASE_URL` | Authentik SSO URL | For SSO |
-| `AUTHENTIK_API_KEY` | Authentik API key | For SSO |
-| `CLANOVI_API_KEY` | Permanent header key for the Clanovi office app (`X-Clanovi-Key`) | For `/api/clanovi/**` |
-| `OAUTH2_CLIENT_ID` | OAuth2 client ID | For SSO |
-| `OAUTH2_CLIENT_SECRET` | OAuth2 client secret | For SSO |
-| `SMTP_HOST` | SMTP server host | For email |
-| `SMTP_PORT` | SMTP server port | For email |
-| `SMTP_USERNAME` | SMTP username | For email |
-| `SMTP_PASSWORD` | SMTP password | For email |
+| Variable               | Description                                                       | Required              |
+|------------------------|-------------------------------------------------------------------|-----------------------|
+| `DB_HOST`              | PostgreSQL host:port                                              | Yes                   |
+| `DB_NAME`              | Database name                                                     | Yes                   |
+| `DB_USER`              | Database username                                                 | Yes                   |
+| `DB_PASS`              | Database password                                                 | Yes                   |
+| `REDIS_HOST`           | Redis host                                                        | Yes                   |
+| `REDIS_PORT`           | Redis port                                                        | Yes                   |
+| `REDIS_PASS`           | Redis password                                                    | Yes                   |
+| `S3_ENDPOINT`          | S3/MinIO endpoint                                                 | Yes                   |
+| `S3_ACCESS_KEY`        | S3 access key                                                     | Yes                   |
+| `S3_SECRET_KEY`        | S3 secret key                                                     | Yes                   |
+| `S3_BUCKET`            | S3 bucket name                                                    | Yes                   |
+| `AUTHENTIK_BASE_URL`   | Authentik SSO URL                                                 | For SSO               |
+| `AUTHENTIK_API_KEY`    | Authentik API key                                                 | For SSO               |
+| `CLANOVI_API_KEY`      | Permanent header key for the Clanovi office app (`X-Clanovi-Key`) | For `/api/clanovi/**` |
+| `OAUTH2_CLIENT_ID`     | OAuth2 client ID                                                  | For SSO               |
+| `OAUTH2_CLIENT_SECRET` | OAuth2 client secret                                              | For SSO               |
+| `SMTP_HOST`            | SMTP server host                                                  | For email             |
+| `SMTP_PORT`            | SMTP server port                                                  | For email             |
+| `SMTP_USERNAME`        | SMTP username                                                     | For email             |
+| `SMTP_PASSWORD`        | SMTP password                                                     | For email             |
 
 ### Spring Profiles
 
@@ -321,9 +330,16 @@ The API follows an API-first approach:
 
 ### Account deactivation
 
-OIDC login verifies the current Authentik status before creating a portal session and does not reactivate disabled local accounts. Every authenticated user request checks the local account status; remote status is cached for at most 60 seconds per backend instance. Deactivation directly in Authentik therefore blocks subsequent requests within that window, without waiting for the hourly profile sync. Local deactivation blocks the next request and revokes the user's portal sessions, including when applied by the sync scheduler.
+OIDC login verifies the current Authentik status before creating a portal session and does not reactivate disabled local
+accounts. Every authenticated user request checks the local account status; remote status is cached for at most 60
+seconds per backend instance. Deactivation directly in Authentik therefore blocks subsequent requests within that
+window, without waiting for the hourly profile sync. Local deactivation blocks the next request and revokes the user's
+portal sessions, including when applied by the sync scheduler.
 
-Inactive, missing, or depersonalized accounts receive HTTP 401. If a required status lookup fails, the request receives HTTP 503 without discarding the session or using an expired cached status. Explicit service-account JWTs retain their existing authorization rules because they have no local volunteer account. The `no-auth` development profile bypasses these checks.
+Inactive, missing, or depersonalized accounts receive HTTP 401. If a required status lookup fails, the request receives
+HTTP 503 without discarding the session or using an expired cached status. Explicit service-account JWTs retain their
+existing authorization rules because they have no local volunteer account. The `no-auth` development profile bypasses
+these checks.
 
 ### Pre-commit Checks
 
@@ -357,6 +373,7 @@ export SKIP_OPTIONAL_TOOLS=false
 Report: `service/build/reports/dependency-check-report.html`
 
 **NVD API Key** (optional, speeds up checks):
+
 1. Get key: https://nvd.nist.gov/developers/request-an-api-key
 2. Local: `export NVD_API_KEY=your-key`
 3. GitHub Actions: Settings → Secrets → `NVD_API_KEY`

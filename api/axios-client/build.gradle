@@ -6,7 +6,7 @@ plugins {
 group = "rs.russian.api"
 
 def openApiPath = "$projectDir/../openapi.yaml"
-def npmName = "@russian-rs/portal-api-axios"
+def npmName = "@rds-network/portal-api-axios"
 def npmVersion = resolveApiVersion(openApiPath)
 def npmRepository = "https://npm.pkg.github.com"
 
