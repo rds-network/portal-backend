@@ -1,13 +1,13 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.38.1
+  version: 1.39.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
 
 servers:
-  - url: https://REDACTED_HOST/api
+  - url: https://portal-test.russian.rs/api
     description: Test Environment
   - url: https://portal.russian.rs/api
     description: Prod Environment
