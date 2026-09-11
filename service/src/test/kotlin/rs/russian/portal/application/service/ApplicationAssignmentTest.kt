@@ -21,7 +21,6 @@ import rs.russian.portal.application.repository.ApplicationRepository
 import rs.russian.portal.note.domain.Note
 import rs.russian.portal.note.service.NoteService
 import rs.russian.portal.shared.exception.InvalidRequestException
-import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup.*
 import rs.russian.portal.user.repository.AccountRepository
