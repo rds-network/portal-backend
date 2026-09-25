@@ -3,6 +3,7 @@ package rs.russian.portal.user.domain.specification
 import jakarta.persistence.criteria.Join
 import jakarta.persistence.criteria.JoinType
 import org.springframework.data.jpa.domain.Specification
+import rs.russian.generated.model.ContractTypeEnum
 import rs.russian.generated.model.UserSearchFilter
 import rs.russian.portal.program.domain.Program
 import rs.russian.portal.program.domain.Program_
@@ -13,8 +14,10 @@ import rs.russian.portal.shared.jpa.equal
 import rs.russian.portal.shared.jpa.like
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.Account_
+import rs.russian.portal.user.domain.Contract
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.UserInfo_
+import java.time.LocalDate
 
 fun searchSpecification(query: String, filter: UserSearchFilter?): Specification<Account> {
     var resultSpec: Specification<Account> = empty()
@@ -56,6 +59,20 @@ fun searchSpecification(query: String, filter: UserSearchFilter?): Specification
 
     return resultSpec
 }
+
+fun hasActiveRegularContract(on: LocalDate = LocalDate.now()): Specification<Account> =
+    Specification { root, query, cb ->
+        val subquery = query!!.subquery(Long::class.java)
+        val contract = subquery.from(Contract::class.java)
+        subquery.select(cb.literal(1L))
+        subquery.where(
+            cb.equal(contract.get<Account>("account"), root),
+            cb.equal(contract.get<ContractTypeEnum>("type"), ContractTypeEnum.REGULAR),
+            cb.lessThanOrEqualTo(contract.get("startDate"), on),
+            cb.greaterThanOrEqualTo(contract.get("endDate"), on),
+        )
+        cb.exists(subquery)
+    }
 
 private fun programEqual(programCode: String) = Specification { root, _, builder ->
     val infoJoin: Join<Account, UserInfo> = root.join(Account_.info, JoinType.LEFT)

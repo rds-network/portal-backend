@@ -26,6 +26,7 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.ResidencePermit
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.DepersonalizationStatus
+import rs.russian.portal.user.domain.specification.hasActiveRegularContract
 import rs.russian.portal.user.domain.specification.searchSpecification
 import rs.russian.portal.user.mapper.ContractMapper
 import rs.russian.portal.user.mapper.ResidencePermitMapper
@@ -151,6 +152,16 @@ class AccountService(
     @Transactional(readOnly = true)
     fun search(query: String, pageRequest: PageRequest, filter: UserSearchFilter?): Page<Account> {
         val specification = searchSpecification(query, filter)
+        return findAllFull(specification, convert(pageRequest))
+    }
+
+    @Transactional(readOnly = true)
+    fun searchWithActiveRegularContract(
+        query: String,
+        pageRequest: PageRequest,
+        filter: UserSearchFilter?,
+    ): Page<Account> {
+        val specification = searchSpecification(query, filter).and(hasActiveRegularContract())
         return findAllFull(specification, convert(pageRequest))
     }
 
