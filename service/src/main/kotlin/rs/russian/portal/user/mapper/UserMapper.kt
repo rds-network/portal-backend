@@ -44,6 +44,7 @@ abstract class UserMapper {
     @Mapping(target = "contracts", expression = "java(new HashSet<>())")
     @Mapping(target = "residencePermits", expression = "java(new HashSet<>())")
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun map(oidcUserInfo: OidcUserInfo): Account
@@ -57,6 +58,7 @@ abstract class UserMapper {
     @Mapping(target = "residencePermits", expression = "java(new HashSet<>())")
     @Mapping(target = "fullName", source = "ssoUser", qualifiedByName = ["nameSso"])
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun map(ssoUser: User): Account
 
@@ -70,6 +72,7 @@ abstract class UserMapper {
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "username", source = "nickName")
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun update(oidcUserInfo: OidcUserInfo, @MappingTarget account: Account)
@@ -82,6 +85,7 @@ abstract class UserMapper {
     @Mapping(target = "depersonalizationStatus", ignore = true)
     @Mapping(target = "depersonalizedAt", ignore = true)
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
     @Mapping(target = "fullName", source = "ssoUser", qualifiedByName = ["nameSso"])
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun update(ssoUser: User, @MappingTarget account: Account)
