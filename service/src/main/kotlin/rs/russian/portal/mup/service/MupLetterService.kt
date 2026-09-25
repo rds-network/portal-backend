@@ -2,6 +2,7 @@ package rs.russian.portal.mup.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.generated.model.ContractTypeEnum
 import rs.russian.portal.application.repository.ApplicationRepository
 import rs.russian.portal.mail.domain.EmailOutbox
 import rs.russian.portal.mail.repository.EmailOutboxRepository
@@ -9,14 +10,18 @@ import rs.russian.portal.mail.service.EmailService
 import rs.russian.portal.mup.api.MupLetterDraft
 import rs.russian.portal.mup.api.MupLetterDto
 import rs.russian.portal.mup.api.MupLetterSendRequest
+import rs.russian.portal.report.domain.enums.ReportStatus
+import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.user.service.AccountService
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Service
 class MupLetterService(
     private val accountService: AccountService,
     private val applicationRepository: ApplicationRepository,
+    private val reportRepository: ReportRepository,
     private val emailService: EmailService,
     private val emailOutboxRepository: EmailOutboxRepository,
 ) {
@@ -37,6 +42,25 @@ class MupLetterService(
         ).filter { it.isNotBlank() }.joinToString(", ")
         val phone = info?.phone ?: application?.phone.orEmpty()
         val email = account.email
+        val citizenship = application?.citizenship?.takeIf { it.isNotBlank() }
+            ?: account.residencePermits.maxByOrNull { it.validUntil }?.nationality.orEmpty()
+        val today = LocalDate.now()
+        val lastAccepted = reportRepository
+            .findTopByAccountUsernameAndStatusOrderByCreateTimeDesc(username, ReportStatus.ACCEPTED)
+            ?.createTime
+            ?.toLocalDate()
+        val contractStart = account.contracts
+            .filter { it.type == ContractTypeEnum.REGULAR }
+            .maxByOrNull { it.startDate }
+            ?.startDate
+        val periodFrom = when {
+            lastAccepted != null -> lastAccepted.plusDays(1).let { if (it.isAfter(today)) lastAccepted else it }
+            contractStart != null -> contractStart
+            else -> today.withDayOfYear(1)
+        }
+        val termination = today.format(DATE)
+        val from = periodFrom.format(DATE)
+        val to = today.format(DATE)
         return MupLetterDraft(
             username = account.username,
             fullName = fullName,
@@ -46,8 +70,8 @@ class MupLetterService(
             phone = phone,
             email = email,
             to = "upravazastrance@mup.gov.rs",
-            subject = "Обавештење о раскиду уговора о волонтирању – $fullName",
-            body = letter(fullName, passport, birth, address, phone, email),
+            subject = "Обавештење о престанку уговора о волонтирању – $fullName",
+            body = letter(fullName, birth, citizenship, passport, termination, from, to),
         )
     }
 
@@ -76,7 +100,11 @@ class MupLetterService(
     @Transactional(readOnly = true)
     fun list(): List<MupLetterDto> =
         emailOutboxRepository.findAllByOrderByCreateTimeDesc()
-            .filter { it.properties.subject.contains("раскиду уговора", ignoreCase = true) }
+            .filter { letter ->
+                val subject = letter.properties.subject
+                subject.contains("престанку уговора", ignoreCase = true) ||
+                    subject.contains("раскиду уговора", ignoreCase = true)
+            }
             .map(::toDto)
 
     private fun toDto(item: EmailOutbox) = MupLetterDto(
@@ -93,35 +121,27 @@ class MupLetterService(
 
         fun letter(
             fullName: String,
-            passport: String,
             birthDate: String,
-            address: String,
-            phone: String,
-            email: String,
+            citizenship: String,
+            passport: String,
+            terminationDate: String,
+            periodFrom: String,
+            periodTo: String,
         ): String = """
-            ПРЕДМЕТ: Обавештење о раскиду уговора о волонтирању – $fullName
+            Удружење „Руска дијаспора у Србији“ обавештава вас да је дана ${terminationDate.ifBlank { "—" }} раскинут уговор о волонтирању закључен са следећим лицем:
 
-            Поштовани,
-
-            Овим путем Вас обавештавамо да је Удружење „РУСКА ДИЈАСПОРА У СРБИЈИ“ донело одлуку о једностраном раскиду уговора о волонтирању са следећим лицем:
-
-            Име и презиме: $fullName
-            Број пасоша: ${passport.ifBlank { "—" }}
+            Име и презиме: ${fullName.ifBlank { "—" }}
             Датум рођења: ${birthDate.ifBlank { "—" }}
-            Место боравка: ${address.ifBlank { "—" }}
-            Телефон: ${phone.ifBlank { "—" }}
-            Е-маил: ${email.ifBlank { "—" }}
+            Држављанство: ${citizenship.ifBlank { "—" }}
+            Број пасоша: ${passport.ifBlank { "—" }}
 
-            Разлог за раскид је одсуство активности и непостојање стварног ангажовања у оквиру волонтерских програма удружења, односно неиспуњење обавеза из уговора о волонтирању у вези са боравком (ВНЖ). Уговор сматрати неважећим.
+            Волонтер није доставио извештаје о активностима за период од ${periodFrom.ifBlank { "—" }} до ${periodTo.ifBlank { "—" }}. Након упућених обавештења и провере волонтерског ангажовања, Организатор је утврдио да волонтер не испуњава уговорене обавезе. Уговор је раскинут на основу члана 5.2 тачка 3) уговора, у вези са чланом 19. тачка 3) и чланом 20. став 2. тачка 3) Закона о волонтирању.
 
-            Молимо да се ово унесе у евиденцију и узме у обзир приликом евентуалних административних поступака у вези са боравком наведеног лица.
+            О престанку уговора који је послужио као основ за одобрење привременог боравка обавештавамо вас у складу са чланом 8. став 1. Закона о странцима. Молимо да ову чињеницу евидентирате.
 
             С поштовањем,
             Леонид Стеценко
             Председник удружења „Руска дијаспора у Србији“
-            Šarplaninska 54, Нови Сад
-            Тел: +381 62 154 78 93
-            Email: ruskadijasporausrbiji@gmail.com
         """.trimIndent()
     }
 }

@@ -43,10 +43,12 @@ class ReportOverdueService(
     )
 
     @Transactional
-    fun notifyDue(): Int {
+    fun notifyDue(exclude: Collection<String> = emptyList()): Int {
+        val skip = exclude.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
         val weekKey = LocalDate.now().with(java.time.DayOfWeek.MONDAY).format(WEEK_KEY)
         var sent = 0
         for (item in list()) {
+            if (item.username.lowercase() in skip) continue
             val level = noticeLevel(item)
             val periodKey = if (level == 0) HOURS_SNAPSHOT_KEY else weekKey
             val already = reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(

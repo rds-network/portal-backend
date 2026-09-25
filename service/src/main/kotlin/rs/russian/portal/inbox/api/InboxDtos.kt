@@ -69,3 +69,7 @@ data class OverdueTemplateDto(
     val subject: String,
     val body: String,
 )
+
+data class OverdueNotifyRequest(
+    val exclude: List<String> = emptyList(),
+)
