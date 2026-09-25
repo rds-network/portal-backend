@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import rs.russian.portal.report.domain.Report
 import rs.russian.portal.report.domain.Report.Companion.GRAPH_FULL
+import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.projections.ProgramStatProjection
 import java.time.OffsetDateTime
 import java.util.*
@@ -25,6 +26,11 @@ interface ReportRepository : JpaRepository<Report, UUID> {
     fun findAllByIdIn(values: Collection<UUID>, sort: Sort): List<Report>
 
     fun findAll(specification: Specification<Report>, pageable: Pageable): Page<Report>
+
+    fun findTopByAccountUsernameAndStatusOrderByCreateTimeDesc(
+        username: String,
+        status: ReportStatus,
+    ): Report?
 
     @Query(
         """

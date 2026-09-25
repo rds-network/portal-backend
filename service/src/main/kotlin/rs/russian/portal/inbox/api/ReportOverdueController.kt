@@ -3,6 +3,7 @@ package rs.russian.portal.inbox.api
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.portal.inbox.service.ReportOverdueService
@@ -29,6 +30,6 @@ class ReportOverdueController(
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping("/notify")
-    fun notifyNow(): ResponseEntity<Map<String, Int>> =
-        ResponseEntity.ok(mapOf("sent" to reportOverdueService.notifyDue()))
+    fun notifyNow(@RequestBody(required = false) request: OverdueNotifyRequest?): ResponseEntity<Map<String, Int>> =
+        ResponseEntity.ok(mapOf("sent" to reportOverdueService.notifyDue(request?.exclude.orEmpty())))
 }
