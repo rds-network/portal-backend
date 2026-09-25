@@ -22,6 +22,7 @@ import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.ai.domain.AiProfileCode.SERBIAN_TRANSLATOR
 import rs.russian.portal.shared.ai.service.TextTranslationService
 import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
@@ -41,6 +42,7 @@ class ReportService(
     private val textTranslationService: TextTranslationService,
     private val workAssignmentService: WorkAssignmentService,
     private val inboxService: InboxService,
+    private val programCuratorService: ProgramCuratorService,
 ) {
 
     @Transactional(readOnly = true)
@@ -160,6 +162,12 @@ class ReportService(
     private fun requireCustomers(reportDto: ReportDto) {
         if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {
             throw InvalidRequestException("Укажите заказчика задачи")
+        }
+        if (!programCuratorService.hasAny()) return
+        reportDto.tasks.mapNotNull { it.customer }.distinct().forEach { login ->
+            if (!programCuratorService.isCurator(login)) {
+                throw InvalidRequestException("Заказчик должен быть куратором программы")
+            }
         }
     }
 
