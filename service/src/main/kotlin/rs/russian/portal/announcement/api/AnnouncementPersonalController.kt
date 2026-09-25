@@ -11,6 +11,7 @@ import rs.russian.portal.shared.security.Authorized
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
+import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 
 data class PersonalAnnouncementRequest(
     val title: String,
@@ -24,7 +25,7 @@ class AnnouncementPersonalController(
     private val announcementService: AnnouncementService,
 ) {
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO, MAIN_VOLUNTEER])
     @PostMapping("/personal")
     fun createPersonal(@RequestBody request: PersonalAnnouncementRequest): ResponseEntity<AnnouncementDto> =
         ResponseEntity.ok(announcementService.createForUser(request.username, request.title, request.body))

@@ -48,6 +48,16 @@ class ProgramCuratorService(
     }
 
     @Transactional(readOnly = true)
+    fun programCodesOf(username: String): List<String> =
+        curatorRepository.findAllByUsernameIgnoreCase(username).map { it.programCode }
+
+    @Transactional(readOnly = true)
+    fun programCodesOfCurrentUser(): List<String> {
+        val login = currentUserLogin() ?: return emptyList()
+        return programCodesOf(login)
+    }
+
+    @Transactional(readOnly = true)
     fun hasAny(): Boolean = curatorRepository.count() > 0
 
     @Transactional

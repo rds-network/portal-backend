@@ -26,8 +26,13 @@ class ProgramCuratorController(
         ResponseEntity.ok(programCuratorService.list())
 
     @GetMapping("/me")
-    fun me(): ResponseEntity<Map<String, Boolean>> =
-        ResponseEntity.ok(mapOf("curator" to programCuratorService.isCurrentCurator()))
+    fun me(): ResponseEntity<Map<String, Any>> =
+        ResponseEntity.ok(
+            mapOf(
+                "curator" to programCuratorService.isCurrentCurator(),
+                "programs" to programCuratorService.programCodesOfCurrentUser(),
+            )
+        )
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO, MAIN_VOLUNTEER])
     @PostMapping
