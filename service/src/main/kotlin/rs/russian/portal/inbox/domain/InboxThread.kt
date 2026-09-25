@@ -41,5 +41,6 @@ class InboxThread(
         const val KIND_OVERDUE_1 = "OVERDUE_1"
         const val KIND_OVERDUE_2 = "OVERDUE_2"
         const val KIND_OVERDUE_3 = "OVERDUE_3"
+        const val KIND_REPORT_CUSTOMER = "REPORT_CUSTOMER"
     }
 }

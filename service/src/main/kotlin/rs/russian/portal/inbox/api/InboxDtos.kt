@@ -66,6 +66,7 @@ data class ReportOverdueDto(
     val recentWeeks: List<OverdueWeekDto> = emptyList(),
     val level: String,
     val lastReportWeek: LocalDate?,
+    val warningCount: Int = 0,
     val subject: String? = null,
     val body: String? = null,
 )

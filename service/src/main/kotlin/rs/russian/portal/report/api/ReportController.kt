@@ -57,7 +57,6 @@ class ReportController(
         return ResponseEntity.ok(noteMapper.map(note))
     }
 
-    @Authorized(allowed = [ADMIN_VOLUNTEER])
     override fun changeStatus(id: UUID, changeReportStatusRequest: ChangeReportStatusRequest): ResponseEntity<Unit> {
         reportService.changeStatus(
             id,
