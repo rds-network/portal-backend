@@ -11,7 +11,6 @@ import rs.russian.portal.mup.service.MupLetterService
 import rs.russian.portal.shared.security.Authorized
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
-import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 
 @RestController
 @RequestMapping("/mup-letters")
@@ -19,17 +18,17 @@ class MupLetterController(
     private val mupLetterService: MupLetterService,
 ) {
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_SSO])
     @GetMapping
     fun list(): ResponseEntity<List<MupLetterDto>> =
         ResponseEntity.ok(mupLetterService.list())
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_SSO])
     @GetMapping("/draft/{username}")
     fun draft(@PathVariable username: String): ResponseEntity<MupLetterDraft> =
         ResponseEntity.ok(mupLetterService.draft(username))
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_SSO])
     @PostMapping
     fun send(@RequestBody request: MupLetterSendRequest): ResponseEntity<MupLetterDto> =
         ResponseEntity.ok(mupLetterService.send(request))
