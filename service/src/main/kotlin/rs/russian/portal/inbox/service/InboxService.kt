@@ -62,6 +62,7 @@ class InboxService(
             kind = thread.kind,
             createdBy = thread.createdBy,
             heatmapUser = heatmapUser(thread),
+            reportId = reportId(thread),
             messages = thread.messages.map {
                 InboxMessageDto(it.id!!, it.author, it.body, it.createTime)
             },
@@ -215,6 +216,7 @@ class InboxService(
             .map { it.username }
             .firstOrNull { !it.equals(username, ignoreCase = true) },
         heatmapUser = heatmapUser(thread),
+        reportId = reportId(thread),
     )
 
     private fun heatmapUser(thread: InboxThread): String? {
@@ -225,6 +227,16 @@ class InboxService(
             ?: thread.participants.lastOrNull()?.username
     }
 
+    private fun reportId(thread: InboxThread): String? {
+        if (thread.kind != InboxThread.KIND_REPORT_CUSTOMER) return null
+        val body = thread.messages.lastOrNull()?.body.orEmpty()
+        return REPORT_PATH.find(body)?.groupValues?.get(1)
+    }
+
     private fun isManager(groups: Set<rs.russian.portal.user.domain.enums.UserGroup>): Boolean =
         groups.any { it == ADMIN || it == ADMIN_VOLUNTEER || it == MAIN_VOLUNTEER }
+
+    companion object {
+        private val REPORT_PATH = Regex("/report/([0-9a-fA-F-]{36})")
+    }
 }

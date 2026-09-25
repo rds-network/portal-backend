@@ -32,8 +32,13 @@ class ReportOverdueController(
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping("/notify")
-    fun notifyNow(@RequestBody(required = false) request: OverdueNotifyRequest?): ResponseEntity<Map<String, Int>> =
-        ResponseEntity.ok(mapOf("sent" to reportOverdueService.notifyDue(request?.exclude.orEmpty())))
+    fun notifyNow(@RequestBody(required = false) request: OverdueNotifyRequest?): ResponseEntity<OverdueNotifyResultDto> =
+        ResponseEntity.ok(reportOverdueService.notifyDue(request?.exclude.orEmpty()))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/notices")
+    fun notices(): ResponseEntity<List<OverdueNoticePersonDto>> =
+        ResponseEntity.ok(reportOverdueService.noticeLedger())
 
     @GetMapping("/warnings/{username}")
     fun warningCount(@PathVariable username: String): ResponseEntity<Map<String, Int>> =

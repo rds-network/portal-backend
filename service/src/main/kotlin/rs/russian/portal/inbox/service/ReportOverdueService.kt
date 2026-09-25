@@ -3,6 +3,8 @@ package rs.russian.portal.inbox.service
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.inbox.api.OverdueNoticePersonDto
+import rs.russian.portal.inbox.api.OverdueNotifyResultDto
 import rs.russian.portal.inbox.api.OverduePreviewDto
 import rs.russian.portal.inbox.api.OverdueTemplateDto
 import rs.russian.portal.inbox.api.ReportOverdueDto
@@ -15,6 +17,7 @@ import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 @Service
@@ -29,7 +32,10 @@ class ReportOverdueService(
     @Transactional(readOnly = true)
     fun list(): List<ReportOverdueDto> {
         val counts = warningCountsMap()
-        return reportOverdueJdbc.findOverdue().map { withText(it.copy(warningCount = counts[it.username] ?: 0)) }
+        return reportOverdueJdbc.findOverdue().map { item ->
+            val count = counts[item.username] ?: 0
+            withText(item.copy(warningCount = count, notified = count >= 1, watchlist = count >= 2))
+        }
     }
 
     @Transactional(readOnly = true)
@@ -74,11 +80,33 @@ class ReportOverdueService(
         body = bodyFor(item, item.warningCount + 1),
     )
 
+    @Transactional(readOnly = true)
+    fun noticeLedger(): List<OverdueNoticePersonDto> {
+        val notices = reportOverdueNoticeRepository.findAllByOrderBySentAtDesc()
+        if (notices.isEmpty()) return emptyList()
+        val accounts = accountService.resolve(notices.map { it.username }.distinct())
+            .associateBy { it.username.lowercase() }
+        return notices.groupBy { it.username.lowercase() }.map { (key, items) ->
+            val account = accounts[key]
+            val warnings = items.count { it.level < MUP_LEVEL }
+            OverdueNoticePersonDto(
+                username = account?.username ?: items.first().username,
+                fullName = account?.fullName ?: items.first().username,
+                program = account?.info?.program?.code,
+                warningCount = warnings,
+                lastSentAt = items.maxOf { it.sentAt },
+                notified = warnings >= 1,
+                watchlist = warnings >= 2,
+                mupSent = items.any { it.level >= MUP_LEVEL },
+            )
+        }.sortedWith(compareByDescending<OverdueNoticePersonDto> { it.watchlist }.thenByDescending { it.warningCount })
+    }
+
     @Transactional
-    fun notifyDue(exclude: Collection<String> = emptyList()): Int {
+    fun notifyDue(exclude: Collection<String> = emptyList()): OverdueNotifyResultDto {
         val skip = exclude.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
         val weekKey = LocalDate.now().with(java.time.DayOfWeek.MONDAY).format(WEEK_KEY)
-        var sent = 0
+        val recipients = mutableListOf<OverdueNoticePersonDto>()
         for (item in list()) {
             if (item.username.lowercase() in skip) continue
             val level = noticeLevel(item)
@@ -98,13 +126,23 @@ class ReportOverdueService(
                     periodKey = periodKey,
                 )
             )
-            if (nextCount >= 3 && !alreadySentMup(item.username)) {
+            val mup = nextCount >= 3 && !alreadySentMup(item.username)
+            if (mup) {
                 sendMup(item.username)
             }
-            sent += 1
+            recipients += OverdueNoticePersonDto(
+                username = item.username,
+                fullName = item.fullName,
+                program = item.program,
+                warningCount = nextCount,
+                lastSentAt = OffsetDateTime.now(),
+                notified = true,
+                watchlist = nextCount >= 2,
+                mupSent = mup || alreadySentMup(item.username),
+            )
         }
-        log.info("[SCHEDULER] Overdue report notices sent: {}", sent)
-        return sent
+        log.info("[SCHEDULER] Overdue report notices sent: {}", recipients.size)
+        return OverdueNotifyResultDto(sent = recipients.size, recipients = recipients)
     }
 
     private fun alreadySentMup(username: String): Boolean =

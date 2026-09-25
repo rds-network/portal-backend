@@ -25,6 +25,10 @@ class ProgramCuratorController(
     fun list(): ResponseEntity<List<ProgramCuratorDto>> =
         ResponseEntity.ok(programCuratorService.list())
 
+    @GetMapping("/me")
+    fun me(): ResponseEntity<Map<String, Boolean>> =
+        ResponseEntity.ok(mapOf("curator" to programCuratorService.isCurrentCurator()))
+
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO, MAIN_VOLUNTEER])
     @PostMapping
     fun assign(@RequestBody request: ProgramCuratorWriteRequest): ResponseEntity<ProgramCuratorDto> =
