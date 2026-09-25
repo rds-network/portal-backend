@@ -23,9 +23,12 @@ import rs.russian.portal.announcement.repository.AnnouncementReadRepository
 import rs.russian.portal.announcement.repository.AnnouncementRepository
 import rs.russian.portal.program.domain.Program
 import rs.russian.portal.program.repository.ProgramRepository
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.service.AccountService
@@ -39,6 +42,7 @@ class AnnouncementServiceTest {
     private lateinit var announcementMapper: AnnouncementMapper
     private lateinit var accountService: AccountService
     private lateinit var programRepository: ProgramRepository
+    private lateinit var programCuratorService: ProgramCuratorService
     private lateinit var announcementService: AnnouncementService
 
     @BeforeEach
@@ -48,12 +52,14 @@ class AnnouncementServiceTest {
         announcementMapper = mockk()
         accountService = mockk()
         programRepository = mockk()
+        programCuratorService = mockk()
         announcementService = AnnouncementService(
             announcementRepository,
             announcementReadRepository,
             announcementMapper,
             accountService,
             programRepository,
+            programCuratorService,
         )
     }
 
@@ -252,6 +258,8 @@ class AnnouncementServiceTest {
 
     @Test
     fun `create should throw InvalidRequestException when program code is not found`() {
+        mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { programRepository.findByCode("UNKNOWN") } returns null
 
         val request = AnnouncementCreateRequest(
@@ -268,6 +276,7 @@ class AnnouncementServiceTest {
     @Test
     fun `create should throw NotAuthorizedException when no authenticated user`() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { currentUserLogin() } returns null
 
         val request = AnnouncementCreateRequest(
@@ -283,6 +292,7 @@ class AnnouncementServiceTest {
     @Test
     fun `create should save announcement with ALL audience and trim whitespace`() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { currentUserLogin() } returns "admin"
 
         val saved = announcement(audience = AnnouncementAudience.ALL)
@@ -312,6 +322,7 @@ class AnnouncementServiceTest {
     @Test
     fun `create should save announcement with PROGRAM audience and resolved program`() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { currentUserLogin() } returns "admin"
 
         val program = program("IT")

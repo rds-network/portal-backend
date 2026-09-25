@@ -13,6 +13,7 @@ interface AnnouncementRepository : JpaRepository<Announcement, UUID> {
     @Query("""
         SELECT * FROM announcement
         WHERE active = true
+          AND COALESCE(banner, false) = false
           AND (
             audience = 'ALL'
             OR (audience = 'PROGRAM' AND program_code = :programCode)
@@ -30,6 +31,7 @@ interface AnnouncementRepository : JpaRepository<Announcement, UUID> {
         LEFT JOIN announcement_read ar
             ON ar.announcement_id = a.id AND ar.account_id = :accountId
         WHERE a.active = true
+          AND COALESCE(a.banner, false) = false
           AND (
             a.audience = 'ALL'
             OR (a.audience = 'PROGRAM' AND a.program_code = :programCode)
@@ -42,4 +44,25 @@ interface AnnouncementRepository : JpaRepository<Announcement, UUID> {
         @Param("username") username: String,
         @Param("accountId") accountId: Int,
     ): Long
+
+    @Query("""
+        SELECT a.* FROM announcement a
+        LEFT JOIN announcement_read ar
+            ON ar.announcement_id = a.id AND ar.account_id = :accountId
+        WHERE a.active = true
+          AND COALESCE(a.banner, false) = true
+          AND (
+            a.audience = 'ALL'
+            OR (a.audience = 'PROGRAM' AND a.program_code = :programCode)
+            OR (a.audience = 'USER' AND a.target_username = :username)
+          )
+          AND ar.announcement_id IS NULL
+        ORDER BY a.create_time DESC
+        LIMIT 1
+    """, nativeQuery = true)
+    fun findLatestUnreadBanner(
+        @Param("programCode") programCode: String?,
+        @Param("username") username: String,
+        @Param("accountId") accountId: Int,
+    ): Announcement?
 }

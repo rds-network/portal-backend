@@ -39,6 +39,8 @@ class Announcement(
 
     var targetUsername: String? = null,
 
+    var banner: Boolean = false,
+
     var active: Boolean = true,
 ) : JpaEntity<UUID>() {
 
