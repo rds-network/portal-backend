@@ -24,6 +24,7 @@ import rs.russian.portal.shared.ai.service.TextTranslationService
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.workassignment.service.WorkAssignmentService
 import java.util.*
 
 @Service
@@ -35,6 +36,7 @@ class ReportService(
     private val reportRepository: ReportRepository,
     private val entityManager: EntityManager,
     private val textTranslationService: TextTranslationService,
+    private val workAssignmentService: WorkAssignmentService,
 ) {
 
     @Transactional(readOnly = true)
@@ -63,7 +65,9 @@ class ReportService(
                 }
             }
         }
-        return reportRepository.save(report.also { it.tasks = tasks.toMutableSet() })
+        val saved = reportRepository.save(report.also { it.tasks = tasks.toMutableSet() })
+        workAssignmentService.markFromReport(saved)
+        return saved
     }
 
     @Transactional
@@ -91,7 +95,9 @@ class ReportService(
         }
         report.status = ReportStatus.CREATED
         report.tasks.clear()
-        return reportRepository.save(report.also { it.tasks.addAll(tasks) })
+        val saved = reportRepository.save(report.also { it.tasks.addAll(tasks) })
+        workAssignmentService.markFromReport(saved)
+        return saved
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +143,7 @@ class ReportService(
         }
         report.status = status
         report.moderator = moderator
+        workAssignmentService.markFromReport(report)
     }
 
     /**
