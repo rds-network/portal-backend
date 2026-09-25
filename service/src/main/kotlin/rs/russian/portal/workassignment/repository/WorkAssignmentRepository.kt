@@ -9,4 +9,5 @@ import java.util.UUID
 interface WorkAssignmentRepository : JpaRepository<WorkAssignment, UUID> {
     fun findAllByOrderByCreateTimeDesc(): List<WorkAssignment>
     fun findByAssigneeOrderByCreateTimeDesc(assignee: String): List<WorkAssignment>
+    fun findByCustomerOrderByCreateTimeDesc(customer: String): List<WorkAssignment>
 }
