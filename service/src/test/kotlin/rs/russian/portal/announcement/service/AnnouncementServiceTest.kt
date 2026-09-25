@@ -71,7 +71,7 @@ class AnnouncementServiceTest {
         val result = announcementService.getForCurrentUser()
 
         assertTrue(result.isEmpty())
-        verify(exactly = 0) { announcementRepository.findForUser(any()) }
+        verify(exactly = 0) { announcementRepository.findForUser(any(), any()) }
     }
 
     @Test
@@ -82,13 +82,13 @@ class AnnouncementServiceTest {
 
         every { accountService.getCurrentAccount() } returns account
         every { announcementReadRepository.findAnnouncementIdsByAccountId(ACCOUNT_ID) } returns emptyList()
-        every { announcementRepository.findForUser(null) } returns listOf(announcement)
+        every { announcementRepository.findForUser(null, "user") } returns listOf(announcement)
         every { announcementMapper.map(announcement, false) } returns dto
 
         val result = announcementService.getForCurrentUser()
 
         assertEquals(listOf(dto), result)
-        verify(exactly = 1) { announcementRepository.findForUser(null) }
+        verify(exactly = 1) { announcementRepository.findForUser(null, "user") }
     }
 
     @Test
@@ -99,7 +99,7 @@ class AnnouncementServiceTest {
 
         every { accountService.getCurrentAccount() } returns account
         every { announcementReadRepository.findAnnouncementIdsByAccountId(ACCOUNT_ID) } returns listOf(announcement.id!!)
-        every { announcementRepository.findForUser(null) } returns listOf(announcement)
+        every { announcementRepository.findForUser(null, "user") } returns listOf(announcement)
         every { announcementMapper.map(announcement, true) } returns dto
 
         val result = announcementService.getForCurrentUser()
@@ -117,13 +117,13 @@ class AnnouncementServiceTest {
 
         every { accountService.getCurrentAccount() } returns account
         every { announcementReadRepository.findAnnouncementIdsByAccountId(ACCOUNT_ID) } returns emptyList()
-        every { announcementRepository.findForUser("IT") } returns listOf(announcement)
+        every { announcementRepository.findForUser("IT", "user") } returns listOf(announcement)
         every { announcementMapper.map(announcement, false) } returns dto
 
         val result = announcementService.getForCurrentUser()
 
         assertEquals(listOf(dto), result)
-        verify(exactly = 1) { announcementRepository.findForUser("IT") }
+        verify(exactly = 1) { announcementRepository.findForUser("IT", "user") }
     }
 
 
@@ -135,19 +135,19 @@ class AnnouncementServiceTest {
         val result = announcementService.getUnreadCount()
 
         assertEquals(UnreadAnnouncementsCountDto(0), result)
-        verify(exactly = 0) { announcementRepository.countUnreadForUser(any(), any()) }
+        verify(exactly = 0) { announcementRepository.countUnreadForUser(any(), any(), any()) }
     }
 
     @Test
     fun `getUnreadCount should return count from repository for active account without program`() {
         val account = account()
         every { accountService.getCurrentAccount() } returns account
-        every { announcementRepository.countUnreadForUser(null, ACCOUNT_ID) } returns 3L
+        every { announcementRepository.countUnreadForUser(null, "user", ACCOUNT_ID) } returns 3L
 
         val result = announcementService.getUnreadCount()
 
         assertEquals(UnreadAnnouncementsCountDto(3), result)
-        verify(exactly = 1) { announcementRepository.countUnreadForUser(null, ACCOUNT_ID) }
+        verify(exactly = 1) { announcementRepository.countUnreadForUser(null, "user", ACCOUNT_ID) }
     }
 
     @Test
@@ -155,12 +155,12 @@ class AnnouncementServiceTest {
         val program = program("IT")
         val account = accountWithProgram(program)
         every { accountService.getCurrentAccount() } returns account
-        every { announcementRepository.countUnreadForUser("IT", ACCOUNT_ID) } returns 5L
+        every { announcementRepository.countUnreadForUser("IT", "user", ACCOUNT_ID) } returns 5L
 
         val result = announcementService.getUnreadCount()
 
         assertEquals(UnreadAnnouncementsCountDto(5), result)
-        verify(exactly = 1) { announcementRepository.countUnreadForUser("IT", ACCOUNT_ID) }
+        verify(exactly = 1) { announcementRepository.countUnreadForUser("IT", "user", ACCOUNT_ID) }
     }
 
 

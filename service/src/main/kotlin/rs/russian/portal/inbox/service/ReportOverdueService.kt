@@ -4,31 +4,21 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.inbox.api.ReportOverdueDto
-import rs.russian.portal.inbox.domain.InboxThread
 import rs.russian.portal.inbox.domain.ReportOverdueNotice
+import rs.russian.portal.inbox.repository.ReportOverdueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueNoticeRepository
-import rs.russian.portal.inbox.repository.ReportOverdueRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Service
 class ReportOverdueService(
-    private val reportOverdueRepository: ReportOverdueRepository,
+    private val reportOverdueJdbc: ReportOverdueJdbc,
     private val reportOverdueNoticeRepository: ReportOverdueNoticeRepository,
     private val inboxService: InboxService,
 ) {
 
     @Transactional(readOnly = true)
-    fun list(): List<ReportOverdueDto> = reportOverdueRepository.findOverdue().map { row ->
-        ReportOverdueDto(
-            username = row.username,
-            fullName = row.fullName,
-            program = row.program,
-            weeksMissed = row.weeksMissed,
-            level = if (row.weeksMissed >= 3) InboxThread.KIND_OVERDUE_3 else InboxThread.KIND_OVERDUE_2,
-            lastReportWeek = row.lastReportWeek,
-        )
-    }
+    fun list(): List<ReportOverdueDto> = reportOverdueJdbc.findOverdue()
 
     @Transactional
     fun notifyDue(): Int {

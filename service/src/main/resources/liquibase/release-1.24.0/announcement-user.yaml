@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.24.0-announcement-target-username
+      author: portal
+      changes:
+        - addColumn:
+            tableName: announcement
+            columns:
+              - column:
+                  name: target_username
+                  type: VARCHAR(255)
+        - addForeignKeyConstraint:
+            baseTableName: announcement
+            baseColumnNames: target_username
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_announcement_target_user

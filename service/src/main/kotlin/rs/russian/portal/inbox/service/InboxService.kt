@@ -119,6 +119,20 @@ class InboxService(
     }
 
     @Transactional
+    fun notifyAssigned(username: String, title: String, details: String?, createdBy: String) {
+        val extra = details?.trim()?.takeIf { it.isNotEmpty() }?.let { "\n\n$it" } ?: ""
+        openThread(
+            subject = "Вам назначена задача",
+            body = "Вам назначена задача: $title$extra\n\nОткройте раздел «Задачи», чтобы взять её в работу.",
+            kind = InboxThread.KIND_TASK,
+            createdBy = createdBy,
+            recipient = username,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
     fun notifyOverdue(username: String, level: Int, subject: String, body: String): InboxThread {
         val extra = accountRepository.findAllActiveByGroup(ADMIN_VOLUNTEER.name).map { it.username }
         return openThread(
