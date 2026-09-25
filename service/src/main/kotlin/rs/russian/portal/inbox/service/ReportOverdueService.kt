@@ -3,6 +3,8 @@ package rs.russian.portal.inbox.service
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.inbox.api.OverduePreviewDto
+import rs.russian.portal.inbox.api.OverdueTemplateDto
 import rs.russian.portal.inbox.api.ReportOverdueDto
 import rs.russian.portal.inbox.domain.ReportOverdueNotice
 import rs.russian.portal.inbox.repository.ReportOverdueJdbc
@@ -18,7 +20,27 @@ class ReportOverdueService(
 ) {
 
     @Transactional(readOnly = true)
-    fun list(): List<ReportOverdueDto> = reportOverdueJdbc.findOverdue()
+    fun list(): List<ReportOverdueDto> = reportOverdueJdbc.findOverdue().map { withText(it) }
+
+    @Transactional(readOnly = true)
+    fun preview(): OverduePreviewDto {
+        val items = list()
+        return OverduePreviewDto(
+            count = items.size,
+            templates = listOf(
+                OverdueTemplateDto("HOURS", SUBJECT_HOURS, TEMPLATE_HOURS),
+                OverdueTemplateDto("WEEK_1", SUBJECT_1, TEMPLATE_1),
+                OverdueTemplateDto("WEEK_2", SUBJECT_2, TEMPLATE_2),
+                OverdueTemplateDto("WEEK_3", SUBJECT_3, TEMPLATE_3),
+            ),
+            samples = items.take(8),
+        )
+    }
+
+    private fun withText(item: ReportOverdueDto) = item.copy(
+        subject = subjectFor(item),
+        body = bodyFor(item),
+    )
 
     @Transactional
     fun notifyDue(): Int {
@@ -97,5 +119,13 @@ class ReportOverdueService(
         const val SUBJECT_1 = "Напоминание: не сдан отчёт за прошлую неделю"
         const val SUBJECT_2 = "Напоминание: не сдан отчёт 2 недели"
         const val SUBJECT_3 = "Предупреждение: блокировка аккаунта и расторжение договора"
+        const val TEMPLATE_HOURS =
+            "Здравствуйте, {имя}.\n\nПо текущему срезу у вас недосдача больше 20 часов. Просим закрыть отчётность и нагнать часы.\n\nДальше учитываются пропущенные недели: +1, +2, затем предупреждение о блокировке."
+        const val TEMPLATE_1 =
+            "Здравствуйте, {имя}.\n\nЗа прошлую неделю нет принятого отчёта (+1 неделя). Просим сдать отчёт в личном кабинете."
+        const val TEMPLATE_2 =
+            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 2 недели подряд. Просим закрыть отчётность."
+        const val TEMPLATE_3 =
+            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут."
     }
 }

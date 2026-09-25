@@ -1,6 +1,7 @@
 package rs.russian.portal.workassignment.api
 
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -36,4 +37,16 @@ class WorkAssignmentController(
         @RequestBody request: WorkAssignmentPatchRequest,
     ): ResponseEntity<WorkAssignmentDto> =
         ResponseEntity.ok(workAssignmentService.patch(id, request))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @PostMapping("/{id}/archive")
+    fun archive(@PathVariable id: UUID): ResponseEntity<WorkAssignmentDto> =
+        ResponseEntity.ok(workAssignmentService.archive(id))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @DeleteMapping("/{id}")
+    fun delete(@PathVariable id: UUID): ResponseEntity<Void> {
+        workAssignmentService.delete(id)
+        return ResponseEntity.noContent().build()
+    }
 }

@@ -23,6 +23,8 @@ import org.springframework.security.web.header.HeaderWriterFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import rs.russian.portal.activity.ActivityLoggingFilter
+import rs.russian.portal.activity.service.ActivityService
 import rs.russian.portal.clanovi.ClanoviApiKeyFilter
 import rs.russian.portal.shared.security.AccountAccessService
 import rs.russian.portal.shared.security.ActiveAccountFilter
@@ -62,6 +64,7 @@ class SecurityConfig(
         httpSecurity: HttpSecurity,
         accountAccessService: AccountAccessService,
         sessionService: SessionService,
+        activityService: ActivityService,
     ): SecurityFilterChain = httpSecurity
         .cors {
             it.configurationSource(corsConfigurationSource())
@@ -128,6 +131,7 @@ class SecurityConfig(
             it.jwt {}
         }
         .addFilterBefore(ActiveAccountFilter(accountAccessService, sessionService), AuthorizationFilter::class.java)
+        .addFilterAfter(ActivityLoggingFilter(activityService), AuthorizationFilter::class.java)
         .addFilterAfter(ServiceAccountLoggingFilter(), HeaderWriterFilter::class.java)
         .addFilterAfter(clanoviApiKeyFilter, HeaderWriterFilter::class.java)
         .headers {

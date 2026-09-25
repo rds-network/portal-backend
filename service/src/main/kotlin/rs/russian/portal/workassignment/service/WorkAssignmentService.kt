@@ -37,7 +37,7 @@ class WorkAssignmentService(
         } else {
             workAssignmentRepository.findByAssigneeOrderByCreateTimeDesc(account.username)
         }
-        return items.map(::toDto)
+        return items.filter { it.status != WorkAssignmentStatus.ARCHIVED }.map(::toDto)
     }
 
     @Transactional
@@ -83,6 +83,7 @@ class WorkAssignmentService(
         if (!manager && !item.assignee.equals(account.username, ignoreCase = true)) {
             throw NotAuthorizedException()
         }
+        val previousAssignee = item.assignee
         if (manager) {
             request.title?.trim()?.takeIf { it.isNotEmpty() }?.let { item.title = it }
             request.body?.let { item.body = it.trim().takeIf { text -> text.isNotEmpty() } }
@@ -106,7 +107,35 @@ class WorkAssignmentService(
             }
             item.status = next
         }
+        val nextAssignee = item.assignee
+        if (manager && !nextAssignee.isNullOrBlank() && !nextAssignee.equals(previousAssignee, ignoreCase = true)) {
+            try {
+                inboxService.notifyAssigned(nextAssignee, item.title, item.body, account.username)
+            } catch (ex: Exception) {
+                log.warn("Could not notify assignee {} about task {}", nextAssignee, item.id, ex)
+            }
+        }
         return toDto(item)
+    }
+
+    @Transactional
+    fun archive(id: UUID): WorkAssignmentDto {
+        val account = accountService.getCurrentAccount()
+        if (!isManager(account.groups)) throw NotAuthorizedException()
+        val item = workAssignmentRepository.findById(id)
+            .orElseThrow { EntityNotFoundException("Work assignment $id not found") }
+        item.status = WorkAssignmentStatus.ARCHIVED
+        return toDto(item)
+    }
+
+    @Transactional
+    fun delete(id: UUID) {
+        val account = accountService.getCurrentAccount()
+        if (!isManager(account.groups)) throw NotAuthorizedException()
+        if (!workAssignmentRepository.existsById(id)) {
+            throw EntityNotFoundException("Work assignment $id not found")
+        }
+        workAssignmentRepository.deleteById(id)
     }
 
     @Transactional
@@ -114,7 +143,7 @@ class WorkAssignmentService(
         if (names.isEmpty()) return
         val assignments = workAssignmentRepository.findByAssigneeOrderByCreateTimeDesc(username)
         for (assignment in assignments) {
-            if (assignment.status == WorkAssignmentStatus.DONE) continue
+            if (assignment.status == WorkAssignmentStatus.DONE || assignment.status == WorkAssignmentStatus.ARCHIVED) continue
             if (names.none { matches(it, assignment.title) }) continue
             assignment.reportId = reportId ?: assignment.reportId
             assignment.status = when (reportStatus) {
