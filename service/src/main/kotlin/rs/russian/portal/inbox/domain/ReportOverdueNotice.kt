@@ -20,6 +20,12 @@ class ReportOverdueNotice(
     var periodKey: String,
 
     var sentAt: OffsetDateTime = OffsetDateTime.now(),
+
+    var cancelledAt: OffsetDateTime? = null,
+
+    var cancelledBy: String? = null,
+
+    var cancelReason: String? = null,
 ) : JpaEntity<UUID>() {
 
     override fun equalityProperties() = setOf(ReportOverdueNotice::id)
