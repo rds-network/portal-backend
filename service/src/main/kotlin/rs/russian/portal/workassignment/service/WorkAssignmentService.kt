@@ -1,8 +1,11 @@
 package rs.russian.portal.workassignment.service
 
 import jakarta.persistence.EntityNotFoundException
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.report.domain.Report
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.shared.exception.InvalidRequestException
@@ -11,9 +14,6 @@ import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
-import org.slf4j.LoggerFactory
-import rs.russian.portal.inbox.service.InboxService
-import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.workassignment.api.WorkAssignmentCreateRequest
 import rs.russian.portal.workassignment.api.WorkAssignmentDto
@@ -21,6 +21,9 @@ import rs.russian.portal.workassignment.api.WorkAssignmentPatchRequest
 import rs.russian.portal.workassignment.domain.WorkAssignment
 import rs.russian.portal.workassignment.domain.enums.WorkAssignmentStatus
 import rs.russian.portal.workassignment.repository.WorkAssignmentRepository
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @Service
@@ -37,7 +40,10 @@ class WorkAssignmentService(
         val items = if (canManage()) {
             workAssignmentRepository.findAllByOrderByCreateTimeDesc()
         } else {
-            workAssignmentRepository.findByAssigneeOrderByCreateTimeDesc(account.username)
+            val asAssignee = workAssignmentRepository.findByAssigneeOrderByCreateTimeDesc(account.username)
+            val asCustomer = workAssignmentRepository.findByCustomerOrderByCreateTimeDesc(account.username)
+            (asAssignee + asCustomer).distinctBy { it.id }
+                .sortedByDescending { it.createTime }
         }
         return items.filter { it.status != WorkAssignmentStatus.ARCHIVED }.map(::toDto)
     }
@@ -55,7 +61,9 @@ class WorkAssignmentService(
             accountService.findAccountByLogin(login)
                 ?: throw InvalidRequestException("Assignee '$login' not found")
         }
-        val assigneeName = assigneeAccount?.fullName
+        val customerLogin = request.customer?.trim()?.takeIf { it.isNotEmpty() } ?: createdBy
+        val customerAccount = accountService.findAccountByLogin(customerLogin)
+            ?: throw InvalidRequestException("Customer '$customerLogin' not found")
         val body = request.body?.trim()?.takeIf { it.isNotEmpty() }
         val saved = workAssignmentRepository.save(
             WorkAssignment(
@@ -63,7 +71,9 @@ class WorkAssignmentService(
                 title = title,
                 body = body,
                 assignee = assigneeLogin,
-                assigneeName = assigneeName,
+                assigneeName = assigneeAccount?.fullName,
+                customer = customerLogin,
+                customerName = customerAccount.fullName,
                 dueDate = request.dueDate,
             )
         )
@@ -83,7 +93,9 @@ class WorkAssignmentService(
         val item = workAssignmentRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Work assignment $id not found") }
         val manager = canManage()
-        if (!manager && !item.assignee.equals(account.username, ignoreCase = true)) {
+        val isAssignee = item.assignee.equals(account.username, ignoreCase = true)
+        val isCustomer = item.customer.equals(account.username, ignoreCase = true)
+        if (!manager && !isAssignee && !isCustomer) {
             throw NotAuthorizedException()
         }
         val previousAssignee = item.assignee
@@ -99,16 +111,18 @@ class WorkAssignmentService(
                         ?: throw InvalidRequestException("Assignee '$found' not found")
                 }
             }
+            request.customer?.let { raw ->
+                val login = raw.trim().takeIf { it.isNotEmpty() }
+                    ?: throw InvalidRequestException("Customer is required")
+                item.customer = login
+                item.customerName = accountService.findAccountByLogin(login)?.fullName
+                    ?: throw InvalidRequestException("Customer '$login' not found")
+            }
         }
         request.status?.let { raw ->
             val next = parseStatus(raw)
-            if (!manager) {
-                val allowed = next == WorkAssignmentStatus.TODO || next == WorkAssignmentStatus.DOING
-                if (!allowed) {
-                    throw NotAuthorizedException()
-                }
-            }
-            item.status = next
+            assertCanSetStatus(manager, isAssignee, isCustomer, next)
+            applyStatusChange(item, next)
         }
         val nextAssignee = item.assignee
         if (manager && !nextAssignee.isNullOrBlank() && !nextAssignee.equals(previousAssignee, ignoreCase = true)) {
@@ -147,11 +161,12 @@ class WorkAssignmentService(
             if (assignment.status == WorkAssignmentStatus.DONE || assignment.status == WorkAssignmentStatus.ARCHIVED) continue
             if (names.none { matches(it, assignment.title) }) continue
             assignment.reportId = reportId ?: assignment.reportId
-            assignment.status = when (reportStatus) {
+            val next = when (reportStatus) {
                 ReportStatus.ACCEPTED -> WorkAssignmentStatus.DONE
                 ReportStatus.REJECTED -> WorkAssignmentStatus.REDO
                 ReportStatus.CREATED -> WorkAssignmentStatus.REVIEW
             }
+            applyStatusChange(assignment, next)
         }
     }
 
@@ -160,6 +175,36 @@ class WorkAssignmentService(
         val login = report.account.username
         val names = report.tasks.map { it.name }
         markFromReport(login, names, report.id, report.status)
+    }
+
+    private fun applyStatusChange(item: WorkAssignment, next: WorkAssignmentStatus) {
+        if (item.status == next) return
+        if (item.startedAt == null && next != WorkAssignmentStatus.TODO && next != WorkAssignmentStatus.ARCHIVED) {
+            startTimer(item)
+        }
+        item.status = next
+    }
+
+    private fun startTimer(item: WorkAssignment) {
+        val now = OffsetDateTime.now()
+        val planned = item.dueDate
+        if (planned != null) {
+            val allotted = ChronoUnit.DAYS.between(item.createTime.toLocalDate(), planned).coerceAtLeast(1)
+            item.dueDate = LocalDate.now().plusDays(allotted)
+        }
+        item.startedAt = now
+    }
+
+    private fun assertCanSetStatus(
+        manager: Boolean,
+        isAssignee: Boolean,
+        isCustomer: Boolean,
+        next: WorkAssignmentStatus,
+    ) {
+        if (manager) return
+        if (isAssignee && next in ASSIGNEE_STATUSES) return
+        if (isCustomer && next in CUSTOMER_STATUSES) return
+        throw NotAuthorizedException()
     }
 
     private fun parseStatus(raw: String): WorkAssignmentStatus =
@@ -185,13 +230,27 @@ class WorkAssignmentService(
         body = item.body,
         assignee = item.assignee,
         assigneeName = item.assigneeName,
+        customer = item.customer,
+        customerName = item.customerName,
         status = item.status.name,
         dueDate = item.dueDate,
+        startedAt = item.startedAt,
         reportId = item.reportId,
     )
 
     companion object {
         private val log = LoggerFactory.getLogger(WorkAssignmentService::class.java)
+        private val ASSIGNEE_STATUSES = setOf(
+            WorkAssignmentStatus.TODO,
+            WorkAssignmentStatus.DOING,
+            WorkAssignmentStatus.REVIEW,
+        )
+        private val CUSTOMER_STATUSES = setOf(
+            WorkAssignmentStatus.TODO,
+            WorkAssignmentStatus.DOING,
+            WorkAssignmentStatus.REDO,
+            WorkAssignmentStatus.DONE,
+        )
 
         fun matches(taskName: String?, title: String?): Boolean {
             val left = normalize(taskName)

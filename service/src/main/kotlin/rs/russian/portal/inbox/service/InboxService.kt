@@ -52,7 +52,13 @@ class InboxService(
         } else {
             inboxThreadRepository.findAllForUser(account.username)
         }
-        return threads.map { toListDto(it, account.username, lastSeenMap(threads)) }
+        val names = nameMap(
+            threads.flatMap { thread ->
+                listOfNotNull(recipientOf(thread), thread.createdBy) +
+                    thread.participants.map { it.username }
+            }
+        )
+        return threads.map { toListDto(it, account.username, lastSeenMap(threads), names) }
     }
 
     @Transactional
@@ -236,8 +242,11 @@ class InboxService(
         thread: InboxThread,
         username: String,
         lastSeen: Map<String, LocalDateTime?> = emptyMap(),
+        names: Map<String, String> = emptyMap(),
     ): InboxThreadDto {
         val recipient = recipientOf(thread)
+        val counterpart = recipient
+            ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
         val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
         val receivedAt = receivedAtOf(thread)
         return InboxThreadDto(
@@ -248,11 +257,12 @@ class InboxService(
             createdBy = thread.createdBy,
             unread = mine?.unread == true,
             lastBody = thread.messages.lastOrNull()?.body,
-            counterpart = recipient
-                ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) },
+            counterpart = counterpart,
+            counterpartName = displayName(counterpart, names),
             heatmapUser = heatmapUser(thread),
             reportId = reportId(thread),
             recipient = recipient,
+            recipientName = displayName(recipient, names),
             recipientLastSeen = toOffset(lastSeen[recipient?.lowercase()]),
             receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
@@ -265,20 +275,32 @@ class InboxService(
         val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
         val receivedAt = receivedAtOf(thread)
         val lastSeen = recipient?.let { lastSeenMap(listOf(thread))[it.lowercase()] }
+        val names = nameMap(
+            listOfNotNull(recipient, thread.createdBy) +
+                thread.messages.mapNotNull { it.author }
+        )
         return InboxThreadDetailDto(
             id = thread.id!!,
             subject = thread.subject,
             kind = thread.kind,
             createdBy = thread.createdBy,
+            createdByName = displayName(thread.createdBy, names),
             heatmapUser = heatmapUser(thread),
             reportId = reportId(thread),
             recipient = recipient,
+            recipientName = displayName(recipient, names),
             recipientLastSeen = toOffset(lastSeen),
             receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
             needsAck = mine?.ackRequired == true && receivedAt == null,
             messages = thread.messages.map {
-                InboxMessageDto(it.id!!, it.author, it.body, it.createTime)
+                InboxMessageDto(
+                    id = it.id!!,
+                    author = it.author,
+                    authorName = displayName(it.author, names),
+                    body = it.body,
+                    createTime = it.createTime,
+                )
             },
         )
     }
@@ -288,6 +310,18 @@ class InboxService(
         if (logins.isEmpty()) return emptyMap()
         return accountRepository.findLastSeenByUsernames(logins)
             .associate { it.username.lowercase() to it.lastSeen }
+    }
+
+    private fun nameMap(logins: Collection<String?>): Map<String, String> {
+        val keys = logins.mapNotNull { it?.trim()?.takeIf(String::isNotEmpty) }.distinct()
+        if (keys.isEmpty()) return emptyMap()
+        return accountRepository.findAllByUsernameIn(keys)
+            .associate { it.username.lowercase() to it.fullName }
+    }
+
+    private fun displayName(login: String?, names: Map<String, String>): String? {
+        if (login.isNullOrBlank()) return null
+        return names[login.lowercase()] ?: login
     }
 
     private fun receivedAtOf(thread: InboxThread): OffsetDateTime? {
