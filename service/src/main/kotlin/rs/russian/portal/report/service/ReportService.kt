@@ -21,8 +21,11 @@ import rs.russian.portal.report.mapper.ReportMapper
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.ai.domain.AiProfileCode.SERBIAN_TRANSLATOR
 import rs.russian.portal.shared.ai.service.TextTranslationService
+import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.workassignment.service.WorkAssignmentService
 import java.util.*
@@ -37,6 +40,7 @@ class ReportService(
     private val entityManager: EntityManager,
     private val textTranslationService: TextTranslationService,
     private val workAssignmentService: WorkAssignmentService,
+    private val inboxService: InboxService,
 ) {
 
     @Transactional(readOnly = true)
@@ -53,6 +57,7 @@ class ReportService(
             program = currentAccount.info?.program,
             project = currentAccount.info?.project
         )
+        requireCustomers(reportDto)
         val tasks = reportDto.tasks.map { taskDto ->
             reportMapper.map(taskDto, report).also { task ->
                 task.customer = accountService.findAccountByLogin(taskDto.customer)
@@ -67,6 +72,7 @@ class ReportService(
         }
         val saved = reportRepository.save(report.also { it.tasks = tasks.toMutableSet() })
         workAssignmentService.markFromReport(saved)
+        notifyCustomers(saved)
         return saved
     }
 
@@ -79,6 +85,7 @@ class ReportService(
     @Transactional
     fun updateReport(reportDto: ReportDto): Report {
         val report = getReport(reportDto.id)
+        requireCustomers(reportDto)
         val existingTasksById = report.tasks.associateBy { it.id }
         val tasks = reportDto.tasks.map { taskDto ->
             val existingTask = taskDto.id?.let(existingTasksById::get)
@@ -97,6 +104,7 @@ class ReportService(
         report.tasks.clear()
         val saved = reportRepository.save(report.also { it.tasks.addAll(tasks) })
         workAssignmentService.markFromReport(saved)
+        notifyCustomers(saved)
         return saved
     }
 
@@ -130,6 +138,9 @@ class ReportService(
     fun changeStatus(reportId: UUID, status: ReportStatus, noteText: String? = null) {
         val report = getReport(reportId)
         val moderator = accountService.getAccountByLogin(currentUserLogin() ?: throw NotAuthorizedException())
+        if (!canModerate(report, moderator.username, moderator.groups)) {
+            throw NotAuthorizedException()
+        }
         if (!noteText.isNullOrEmpty()) {
             val note = noteService.save(
                 Note(
@@ -146,6 +157,27 @@ class ReportService(
         workAssignmentService.markFromReport(report)
     }
 
+    private fun requireCustomers(reportDto: ReportDto) {
+        if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {
+            throw InvalidRequestException("Укажите заказчика задачи")
+        }
+    }
+
+    private fun notifyCustomers(report: Report) {
+        val id = report.id?.toString() ?: return
+        val volunteer = report.account.fullName
+        report.tasks.mapNotNull { it.customer?.username }.distinct().forEach { login ->
+            if (!login.equals(report.account.username, ignoreCase = true)) {
+                inboxService.notifyReportCustomer(login, volunteer, id)
+            }
+        }
+    }
+
+    private fun canModerate(report: Report, login: String, groups: Set<UserGroup>): Boolean {
+        if (groups.any { it in MODERATORS }) return true
+        return report.tasks.any { it.customer?.username.equals(login, ignoreCase = true) }
+    }
+
     /**
      * Получить список отчетов с использованием EntityGraph
      * Решает проблему, при которой невозможно одновременная работа Pageable и EntityGraph:
@@ -159,5 +191,9 @@ class ReportService(
         reports.forEach { report -> entityManager.detach(report) }
         val reportsFull = reportRepository.findAllByIdIn(reports.mapNotNull { it.id }, pageable.sort)
         return PageImpl(reportsFull, reports.pageable, reports.totalElements)
+    }
+
+    companion object {
+        private val MODERATORS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
     }
 }

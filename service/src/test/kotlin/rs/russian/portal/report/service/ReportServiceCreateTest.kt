@@ -129,7 +129,8 @@ class ReportServiceCreateTest : AbstractIntegrationTest() {
                     name = taskName,
                     description = "Test description for $taskName",
                     timeSpent = 60,
-                    result = "Test result"
+                    result = "Test result",
+                    customer = DefaultUserFilter.USERNAME,
                 )
             )
         )

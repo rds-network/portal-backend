@@ -101,6 +101,19 @@ class MupLetterService(
         )
     }
 
+    @Transactional
+    fun sendForVolunteer(username: String): MupLetterDto {
+        val draft = draft(username)
+        return send(
+            MupLetterSendRequest(
+                username = username,
+                to = draft.to,
+                subject = draft.subject,
+                body = draft.body,
+            )
+        )
+    }
+
     @Transactional(readOnly = true)
     fun list(): List<MupLetterDto> =
         emailOutboxRepository.findAllByOrderByCreateTimeDesc()

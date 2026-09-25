@@ -9,6 +9,11 @@ import rs.russian.portal.inbox.api.ReportOverdueDto
 import rs.russian.portal.inbox.domain.ReportOverdueNotice
 import rs.russian.portal.inbox.repository.ReportOverdueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueNoticeRepository
+import rs.russian.portal.mup.service.MupLetterService
+import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.enums.UserGroup
+import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -17,10 +22,15 @@ class ReportOverdueService(
     private val reportOverdueJdbc: ReportOverdueJdbc,
     private val reportOverdueNoticeRepository: ReportOverdueNoticeRepository,
     private val inboxService: InboxService,
+    private val mupLetterService: MupLetterService,
+    private val accountService: AccountService,
 ) {
 
     @Transactional(readOnly = true)
-    fun list(): List<ReportOverdueDto> = reportOverdueJdbc.findOverdue().map { withText(it) }
+    fun list(): List<ReportOverdueDto> {
+        val counts = warningCountsMap()
+        return reportOverdueJdbc.findOverdue().map { withText(it.copy(warningCount = counts[it.username] ?: 0)) }
+    }
 
     @Transactional(readOnly = true)
     fun preview(): OverduePreviewDto {
@@ -37,9 +47,31 @@ class ReportOverdueService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun warningCount(username: String): Int {
+        val current = accountService.getCurrentAccount()
+        val managers = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
+        if (current.username != username && current.groups.none { it in managers }) {
+            throw NotAuthorizedException()
+        }
+        return reportOverdueNoticeRepository.countByUsernameAndLevelLessThan(username, MUP_LEVEL).toInt()
+    }
+
+    @Transactional(readOnly = true)
+    fun warningCounts(usernames: Collection<String> = emptyList()): Map<String, Int> {
+        currentUserLogin() ?: throw NotAuthorizedException()
+        val all = warningCountsMap()
+        if (usernames.isEmpty()) return all
+        val wanted = usernames.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        return all.filterKeys { it in wanted }
+    }
+
+    private fun warningCountsMap(): Map<String, Int> =
+        reportOverdueNoticeRepository.countGrouped().associate { it.username to it.cnt.toInt() }
+
     private fun withText(item: ReportOverdueDto) = item.copy(
         subject = subjectFor(item),
-        body = bodyFor(item),
+        body = bodyFor(item, item.warningCount + 1),
     )
 
     @Transactional
@@ -57,7 +89,8 @@ class ReportOverdueService(
                 periodKey,
             )
             if (already) continue
-            inboxService.notifyOverdue(item.username, level, subjectFor(item), bodyFor(item))
+            val nextCount = item.warningCount + 1
+            inboxService.notifyOverdue(item.username, level, subjectFor(item), bodyFor(item, nextCount))
             reportOverdueNoticeRepository.save(
                 ReportOverdueNotice(
                     username = item.username,
@@ -65,10 +98,32 @@ class ReportOverdueService(
                     periodKey = periodKey,
                 )
             )
+            if (nextCount >= 3 && !alreadySentMup(item.username)) {
+                sendMup(item.username)
+            }
             sent += 1
         }
         log.info("[SCHEDULER] Overdue report notices sent: {}", sent)
         return sent
+    }
+
+    private fun alreadySentMup(username: String): Boolean =
+        reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(username, MUP_LEVEL, MUP_PERIOD)
+
+    private fun sendMup(username: String) {
+        try {
+            mupLetterService.sendForVolunteer(username)
+            reportOverdueNoticeRepository.save(
+                ReportOverdueNotice(
+                    username = username,
+                    level = MUP_LEVEL,
+                    periodKey = MUP_PERIOD,
+                )
+            )
+            log.info("Automatic MUP letter sent for {}", username)
+        } catch (ex: Exception) {
+            log.error("Failed to send automatic MUP letter for {}", username, ex)
+        }
     }
 
     private fun noticeLevel(item: ReportOverdueDto): Int =
@@ -87,15 +142,20 @@ class ReportOverdueService(
             else -> SUBJECT_HOURS
         }
 
-    private fun bodyFor(item: ReportOverdueDto): String {
+    private fun bodyFor(item: ReportOverdueDto, warningNumber: Int): String {
         val last = item.lastReportWeek?.format(DATE) ?: "нет принятых отчётов"
         val hours = item.hoursShort
-        return when (noticeLevel(item)) {
+        val counter = "Это предупреждение $warningNumber из 3. " +
+            if (warningNumber >= 3) {
+                "При третьем уведомлении информация о расторжении договора уходит в МУП автоматически."
+            } else {
+                "При 3 уведомлениях информация о расторжении договора уходит в МУП автоматически."
+            }
+        val base = when (noticeLevel(item)) {
             3 ->
                 "Здравствуйте, ${item.fullName}.\n\n" +
                     "Вы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут.\n\n" +
-                    "Недосдача часов: $hours. Последняя принятая неделя: $last.\n\n" +
-                    "Пожалуйста, заполните отчётность в личном кабинете и ответьте на это сообщение, если нужна помощь."
+                    "Недосдача часов: $hours. Последняя принятая неделя: $last."
             2 ->
                 "Здравствуйте, ${item.fullName}.\n\n" +
                     "Вы не сдавали отчёт 2 недели подряд. Просим закрыть отчётность.\n\n" +
@@ -107,9 +167,9 @@ class ReportOverdueService(
             else ->
                 "Здравствуйте, ${item.fullName}.\n\n" +
                     "По срезу за последние 5 недель у вас недосдача больше 20 часов ($hours ч). Просим закрыть отчётность и нагнать часы.\n\n" +
-                    "Дальше учитываются пропущенные недели: +1, +2, затем предупреждение о блокировке.\n\n" +
                     "Последняя принятая неделя: $last."
         }
+        return "$base\n\n$counter"
     }
 
     companion object {
@@ -117,17 +177,19 @@ class ReportOverdueService(
         private val WEEK_KEY: DateTimeFormatter = DateTimeFormatter.ofPattern("YYYY-'W'ww")
         private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
         const val HOURS_SNAPSHOT_KEY = "HOURS-SNAPSHOT"
+        const val MUP_LEVEL = 99
+        const val MUP_PERIOD = "MUP"
         const val SUBJECT_HOURS = "Недосдача часов: текущий срез"
         const val SUBJECT_1 = "Напоминание: не сдан отчёт за прошлую неделю"
         const val SUBJECT_2 = "Напоминание: не сдан отчёт 2 недели"
         const val SUBJECT_3 = "Предупреждение: блокировка аккаунта и расторжение договора"
         const val TEMPLATE_HOURS =
-            "Здравствуйте, {имя}.\n\nПо срезу за последние 5 недель у вас недосдача больше 20 часов. Просим закрыть отчётность и нагнать часы.\n\nДальше учитываются пропущенные недели: +1, +2, затем предупреждение о блокировке."
+            "Здравствуйте, {имя}.\n\nПо срезу за последние 5 недель у вас недосдача больше 20 часов.\n\nЭто предупреждение N из 3. При 3 уведомлениях информация о расторжении уходит в МУП автоматически."
         const val TEMPLATE_1 =
-            "Здравствуйте, {имя}.\n\nЗа прошлую неделю нет принятого отчёта (+1 неделя). Просим сдать отчёт в личном кабинете."
+            "Здравствуйте, {имя}.\n\nЗа прошлую неделю нет принятого отчёта (+1 неделя).\n\nЭто предупреждение N из 3. При 3 уведомлениях информация о расторжении уходит в МУП автоматически."
         const val TEMPLATE_2 =
-            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 2 недели подряд. Просим закрыть отчётность."
+            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 2 недели подряд.\n\nЭто предупреждение N из 3. При 3 уведомлениях информация о расторжении уходит в МУП автоматически."
         const val TEMPLATE_3 =
-            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут."
+            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут.\n\nЭто предупреждение N из 3. При третьем уведомлении информация о расторжении уходит в МУП автоматически."
     }
 }

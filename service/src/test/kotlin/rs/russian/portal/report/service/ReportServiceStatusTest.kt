@@ -45,6 +45,7 @@ class ReportServiceStatusTest : AbstractIntegrationTest() {
                         name = "IT Test Task",
                         description = "Test description for IT Test Task",
                         timeSpent = 600,
+                        customer = USERNAME,
                     )
                 )
             )

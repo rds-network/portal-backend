@@ -134,6 +134,19 @@ class InboxService(
     }
 
     @Transactional
+    fun notifyReportCustomer(customer: String, volunteerName: String, reportId: String) {
+        openThread(
+            subject = "Отчёт на приёмку: $volunteerName",
+            body = "Вам отправили отчёт как заказчику задачи.\n\nВолонтёр: $volunteerName.\nОткройте отчёт и примите или верните его, если вы заказчик этой работы.\n\n/report/$reportId",
+            kind = InboxThread.KIND_REPORT_CUSTOMER,
+            createdBy = currentUserLogin(),
+            recipient = customer,
+            extraParticipants = emptyList(),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
     fun notifyOverdue(username: String, level: Int, subject: String, body: String): InboxThread {
         val extra = accountRepository.findAllActiveByGroup(ADMIN_VOLUNTEER.name).map { it.username }
         return openThread(
