@@ -30,4 +30,5 @@ data class MupLetterDto(
     val to: List<String>,
     val subject: String,
     val body: String,
+    val deactivated: Boolean = false,
 )
