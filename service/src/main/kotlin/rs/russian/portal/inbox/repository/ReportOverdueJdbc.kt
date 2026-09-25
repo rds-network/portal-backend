@@ -49,6 +49,7 @@ class ReportOverdueJdbc(
         private const val SQL = """
         WITH bounds AS (
           SELECT
+            date_trunc('year', CURRENT_DATE)::date AS year_start,
             CURRENT_DATE AS today,
             date_trunc('week', CURRENT_DATE)::date AS this_monday,
             (date_trunc('week', CURRENT_DATE)::date - 7) AS last_monday
@@ -82,8 +83,8 @@ class ReportOverdueJdbc(
             LEAST((gs::date + 6), b.today)::date AS week_end
           FROM bounds b,
                generate_series(
-                 b.last_monday - interval '4 weeks',
-                 b.last_monday,
+                 date_trunc('week', b.year_start),
+                 b.this_monday,
                  interval '1 week'
                ) gs
         ),
@@ -113,14 +114,23 @@ class ReportOverdueJdbc(
           FROM contracted c
           CROSS JOIN weeks w
         ),
-        totals AS (
+        snapshot AS (
+          SELECT
+            wh.username,
+            ROUND(SUM(wh.minutes_worked) / 60.0)::int AS hours_worked,
+            SUM(ROUND((wh.active_days::numeric / 7.0) * 10.0))::int AS hours_required
+          FROM week_hours wh
+          CROSS JOIN bounds b
+          WHERE wh.week_start >= (b.last_monday - interval '4 weeks')
+            AND wh.week_start <= b.last_monday
+          GROUP BY wh.username
+        ),
+        cells AS (
           SELECT
             username,
-            ROUND(SUM(minutes_worked) / 60.0)::int AS hours_worked,
-            SUM(ROUND((active_days::numeric / 7.0) * 10.0))::int AS hours_required,
             json_agg(
               json_build_object(
-                'weekStart', week_start,
+                'weekStart', to_char(week_start, 'YYYY-MM-DD'),
                 'hoursWorked', ROUND((minutes_worked / 60.0)::numeric, 1),
                 'hoursRequired', ROUND((active_days::numeric / 7.0) * 10.0)::int
               ) ORDER BY week_start
@@ -171,11 +181,12 @@ class ReportOverdueJdbc(
           GREATEST(COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0), 0) AS hours_short,
           COALESCE(t.hours_worked, 0) AS hours_worked,
           COALESCE(t.hours_required, 0) AS hours_required,
-          t.weeks_json,
+          cells.weeks_json,
           la.last_report_week
         FROM contracted c
         JOIN streak s ON s.username = c.username
-        LEFT JOIN totals t ON t.username = c.username
+        LEFT JOIN snapshot t ON t.username = c.username
+        LEFT JOIN cells ON cells.username = c.username
         LEFT JOIN last_accepted la ON la.username = c.username
         WHERE (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) > 0
           AND (
