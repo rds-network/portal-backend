@@ -30,6 +30,7 @@ app:
     contract-expiration: "-"
     depersonalization-warning: "-"
     depersonalization: "-"
+    overdue-reports: "-"
 
 ds:
   cf:

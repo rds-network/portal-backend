@@ -88,7 +88,7 @@ class WorkAssignmentService(
         request.status?.let { raw ->
             val next = parseStatus(raw)
             if (!manager) {
-                val allowed = item.status == WorkAssignmentStatus.TODO && next == WorkAssignmentStatus.DOING
+                val allowed = next == WorkAssignmentStatus.TODO || next == WorkAssignmentStatus.DOING
                 if (!allowed) {
                     throw NotAuthorizedException()
                 }

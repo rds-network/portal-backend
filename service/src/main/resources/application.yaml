@@ -69,6 +69,7 @@ app:
     contract-expiration: ${SCHEDULER_CONTRACT_EXPIRATION_CRON:0 0 7 */1 * *} # every day at 7 a.m.
     depersonalization-warning: ${SCHEDULER_DEPERSONALIZATION_WARNING_CRON:0 0 8 */1 * *} # every day at 8 a.m.
     depersonalization: ${SCHEDULER_DEPERSONALIZATION_CRON:0 0 9 */1 * *} # every day at 9 a.m.
+    overdue-reports: ${SCHEDULER_OVERDUE_REPORTS_CRON:0 0 10 */1 * *} # every day at 10 a.m.
 
 --- # Data
 spring:
