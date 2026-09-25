@@ -1,5 +1,6 @@
 package rs.russian.portal.mup.service
 
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.generated.model.ContractTypeEnum
@@ -13,6 +14,7 @@ import rs.russian.portal.mup.api.MupLetterSendRequest
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -87,13 +89,15 @@ class MupLetterService(
         val saved = emailOutboxRepository.findAllByOrderByCreateTimeDesc().firstOrNull {
             it.properties.subject == subject && it.properties.toList.contains(to)
         }
-        return saved?.let(::toDto) ?: MupLetterDto(
+        val deactivated = deactivateVolunteer(request.username)
+        return saved?.let { toDto(it, deactivated) } ?: MupLetterDto(
             id = java.util.UUID.randomUUID(),
             createTime = java.time.LocalDateTime.now(),
             status = "CREATED",
             to = listOf(to),
             subject = subject,
             body = body,
+            deactivated = deactivated,
         )
     }
 
@@ -107,17 +111,40 @@ class MupLetterService(
             }
             .map(::toDto)
 
-    private fun toDto(item: EmailOutbox) = MupLetterDto(
+    private fun deactivateVolunteer(username: String): Boolean {
+        val account = accountService.findAccountByLogin(username)
+        if (account == null) {
+            log.warn("MUP letter sent but account '{}' was not found for deactivation", username)
+            return false
+        }
+        if (account.groups.any { it in MANAGERS }) {
+            log.warn("Skip portal deactivation for manager {}", username)
+            return false
+        }
+        val id = account.id ?: return false
+        return try {
+            accountService.switchActiveState(id, false)
+            true
+        } catch (ex: Exception) {
+            log.error("Failed to deactivate {} after MUP letter", username, ex)
+            false
+        }
+    }
+
+    private fun toDto(item: EmailOutbox, deactivated: Boolean = false) = MupLetterDto(
         id = item.id!!,
         createTime = item.createTime,
         status = item.status.name,
         to = item.properties.toList,
         subject = item.properties.subject,
         body = item.properties.body,
+        deactivated = deactivated,
     )
 
     companion object {
+        private val log = LoggerFactory.getLogger(MupLetterService::class.java)
         private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+        private val MANAGERS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO, UserGroup.ADMIN_VOLUNTEER)
 
         fun letter(
             fullName: String,
