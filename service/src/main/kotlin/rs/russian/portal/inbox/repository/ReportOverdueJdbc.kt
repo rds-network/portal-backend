@@ -1,13 +1,17 @@
 package rs.russian.portal.inbox.repository
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
+import rs.russian.portal.inbox.api.OverdueWeekDto
 import rs.russian.portal.inbox.api.ReportOverdueDto
 import rs.russian.portal.inbox.domain.InboxThread
 
 @Repository
 class ReportOverdueJdbc(
     private val jdbc: JdbcTemplate,
+    private val mapper: ObjectMapper,
 ) {
 
     fun findOverdue(): List<ReportOverdueDto> =
@@ -20,6 +24,10 @@ class ReportOverdueJdbc(
                 program = rs.getString("program"),
                 weeksMissed = weeks,
                 hoursShort = hoursShort,
+                hoursWorked = rs.getInt("hours_worked"),
+                hoursRequired = rs.getInt("hours_required"),
+                contractEnd = rs.getDate("contract_end")?.toLocalDate(),
+                recentWeeks = parseWeeks(rs.getString("weeks_json")),
                 level = when {
                     weeks >= 3 -> InboxThread.KIND_OVERDUE_3
                     weeks >= 2 -> InboxThread.KIND_OVERDUE_2
@@ -30,17 +38,32 @@ class ReportOverdueJdbc(
             )
         }
 
+    private fun parseWeeks(raw: String?): List<OverdueWeekDto> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return mapper.readValue(raw, WEEKS_TYPE)
+    }
+
     companion object {
+        private val WEEKS_TYPE = object : TypeReference<List<OverdueWeekDto>>() {}
+
         private const val SQL = """
         WITH bounds AS (
           SELECT
-            date_trunc('year', CURRENT_DATE)::date AS year_start,
             CURRENT_DATE AS today,
             date_trunc('week', CURRENT_DATE)::date AS this_monday,
             (date_trunc('week', CURRENT_DATE)::date - 7) AS last_monday
         ),
         contracted AS (
-          SELECT a.username, a.full_name, ui.program_code AS program
+          SELECT
+            a.username,
+            a.full_name,
+            ui.program_code AS program,
+            (
+              SELECT MAX(ct.end_date)
+              FROM contract ct
+              WHERE ct.username = a.username
+                AND ct.type = 'REGULAR'
+            ) AS contract_end
           FROM account a
           LEFT JOIN user_info ui ON ui.username = a.username
           CROSS JOIN bounds b
@@ -55,15 +78,14 @@ class ReportOverdueJdbc(
         ),
         weeks AS (
           SELECT
-            GREATEST(gs::date, b.year_start) AS week_start,
+            gs::date AS week_start,
             LEAST((gs::date + 6), b.today)::date AS week_end
           FROM bounds b,
                generate_series(
-                 date_trunc('week', b.year_start),
+                 b.last_monday - interval '4 weeks',
                  b.last_monday,
                  interval '1 week'
                ) gs
-          WHERE gs::date <= b.last_monday
         ),
         week_hours AS (
           SELECT
@@ -95,7 +117,14 @@ class ReportOverdueJdbc(
           SELECT
             username,
             ROUND(SUM(minutes_worked) / 60.0)::int AS hours_worked,
-            SUM(ROUND((active_days::numeric / 7.0) * 10.0))::int AS hours_required
+            SUM(ROUND((active_days::numeric / 7.0) * 10.0))::int AS hours_required,
+            json_agg(
+              json_build_object(
+                'weekStart', week_start,
+                'hoursWorked', ROUND((minutes_worked / 60.0)::numeric, 1),
+                'hoursRequired', ROUND((active_days::numeric / 7.0) * 10.0)::int
+              ) ORDER BY week_start
+            ) AS weeks_json
           FROM week_hours
           GROUP BY username
         ),
@@ -137,15 +166,22 @@ class ReportOverdueJdbc(
           c.username,
           c.full_name,
           c.program,
+          c.contract_end,
           s.weeks_missed,
           GREATEST(COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0), 0) AS hours_short,
+          COALESCE(t.hours_worked, 0) AS hours_worked,
+          COALESCE(t.hours_required, 0) AS hours_required,
+          t.weeks_json,
           la.last_report_week
         FROM contracted c
         JOIN streak s ON s.username = c.username
         LEFT JOIN totals t ON t.username = c.username
         LEFT JOIN last_accepted la ON la.username = c.username
-        WHERE s.weeks_missed >= 1
-           OR (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) >= 20
+        WHERE (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) > 0
+          AND (
+            s.weeks_missed >= 1
+            OR (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) >= 20
+          )
         ORDER BY s.weeks_missed DESC, hours_short DESC, c.full_name
         """
     }
