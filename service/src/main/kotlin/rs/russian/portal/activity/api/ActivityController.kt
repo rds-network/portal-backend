@@ -9,7 +9,6 @@ import rs.russian.portal.activity.service.ActivityService
 import rs.russian.portal.shared.security.Authorized
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
-import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 
 @RestController
 @RequestMapping("/activity")
@@ -17,7 +16,7 @@ class ActivityController(
     private val activityService: ActivityService,
 ) {
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_SSO])
     @GetMapping
     fun list(
         @RequestParam(required = false) q: String?,

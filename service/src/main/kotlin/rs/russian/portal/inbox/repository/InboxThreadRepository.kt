@@ -40,6 +40,10 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
         WHERE LOWER(p.username) = LOWER(:username)
           AND p.ackRequired = true
           AND p.receivedAt IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM InboxMessage m
+            WHERE m.thread = p.thread AND LOWER(m.author) = LOWER(p.username)
+          )
         """
     )
     fun countPendingAck(@Param("username") username: String): Long
