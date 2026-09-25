@@ -7,6 +7,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import rs.russian.portal.shared.jpa.JpaEntity
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @Entity
@@ -22,6 +23,10 @@ class InboxParticipant(
     var username: String,
 
     var unread: Boolean = true,
+
+    var ackRequired: Boolean = false,
+
+    var receivedAt: OffsetDateTime? = null,
 ) : JpaEntity<UUID>() {
 
     override fun equalityProperties() = setOf(InboxParticipant::id)

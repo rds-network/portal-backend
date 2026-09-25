@@ -16,6 +16,11 @@ data class InboxThreadDto(
     val counterpart: String?,
     val heatmapUser: String? = null,
     val reportId: String? = null,
+    val recipient: String? = null,
+    val recipientLastSeen: OffsetDateTime? = null,
+    val receivedAt: OffsetDateTime? = null,
+    val ackRequired: Boolean = false,
+    val needsAck: Boolean = false,
 )
 
 data class InboxMessageDto(
@@ -32,6 +37,11 @@ data class InboxThreadDetailDto(
     val createdBy: String?,
     val heatmapUser: String? = null,
     val reportId: String? = null,
+    val recipient: String? = null,
+    val recipientLastSeen: OffsetDateTime? = null,
+    val receivedAt: OffsetDateTime? = null,
+    val ackRequired: Boolean = false,
+    val needsAck: Boolean = false,
     val messages: List<InboxMessageDto>,
 )
 

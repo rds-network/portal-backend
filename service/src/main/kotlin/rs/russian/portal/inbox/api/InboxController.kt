@@ -28,6 +28,10 @@ class InboxController(
     fun unread(): ResponseEntity<InboxUnreadDto> =
         ResponseEntity.ok(InboxUnreadDto(inboxService.unreadCount()))
 
+    @GetMapping("/pending-ack")
+    fun pendingAck(): ResponseEntity<InboxUnreadDto> =
+        ResponseEntity.ok(InboxUnreadDto(inboxService.pendingAckCount()))
+
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID): ResponseEntity<InboxThreadDetailDto> =
         ResponseEntity.ok(inboxService.get(id))
@@ -43,4 +47,8 @@ class InboxController(
         @RequestBody request: InboxReplyRequest,
     ): ResponseEntity<InboxThreadDetailDto> =
         ResponseEntity.ok(inboxService.reply(id, request))
+
+    @PostMapping("/{id}/ack")
+    fun ack(@PathVariable id: UUID): ResponseEntity<InboxThreadDetailDto> =
+        ResponseEntity.ok(inboxService.ack(id))
 }

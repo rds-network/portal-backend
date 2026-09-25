@@ -9,10 +9,13 @@ import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.activity.api.ActivityEventDto
 import rs.russian.portal.activity.domain.ActivityEvent
 import rs.russian.portal.activity.repository.ActivityEventRepository
+import rs.russian.portal.user.repository.AccountRepository
+import java.time.LocalDateTime
 
 @Service
 class ActivityService(
     private val activityEventRepository: ActivityEventRepository,
+    private val accountRepository: AccountRepository,
 ) {
 
     @Transactional
@@ -28,6 +31,11 @@ class ActivityService(
                     action = label(method, path),
                 )
             )
+            val login = username?.trim()?.takeIf { it.isNotEmpty() }
+            if (login != null) {
+                val now = LocalDateTime.now()
+                accountRepository.touchLastSeen(login, now, now.minusMinutes(2))
+            }
         } catch (ex: Exception) {
             log.debug("Skip activity log for {} {}", method, path, ex)
         }
