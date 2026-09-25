@@ -36,6 +36,7 @@ class InboxThread(
 
     companion object {
         const val KIND_MANUAL = "MANUAL"
+        const val KIND_TASK = "TASK"
         const val KIND_OVERDUE_2 = "OVERDUE_2"
         const val KIND_OVERDUE_3 = "OVERDUE_3"
     }

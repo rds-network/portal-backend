@@ -38,7 +38,7 @@ class AnnouncementService(
         val programCode = account.info?.program?.code
         val readIds = announcementReadRepository.findAnnouncementIdsByAccountId(account.id!!).toSet()
 
-        return announcementRepository.findForUser(programCode)
+        return announcementRepository.findForUser(programCode, account.username)
             .map { announcementMapper.map(it, readIds.contains(it.id)) }
     }
 
@@ -48,7 +48,7 @@ class AnnouncementService(
         if (!account.active) return UnreadAnnouncementsCountDto(0)
 
         val programCode = account.info?.program?.code
-        val count = announcementRepository.countUnreadForUser(programCode, account.id!!).toInt()
+        val count = announcementRepository.countUnreadForUser(programCode, account.username, account.id!!).toInt()
         return UnreadAnnouncementsCountDto(count)
     }
 
@@ -124,6 +124,29 @@ class AnnouncementService(
             AnnouncementAudience.ALL -> true
             AnnouncementAudience.PROGRAM ->
                 !programCode.isNullOrBlank() && announcement.program?.code.equals(programCode, ignoreCase = true)
+            AnnouncementAudience.USER ->
+                announcement.targetUsername.equals(account.username, ignoreCase = true)
         }
+    }
+
+    @Transactional
+    fun createForUser(username: String, title: String, body: String): AnnouncementDto {
+        val login = username.trim()
+        accountService.findAccountByLogin(login)
+            ?: throw InvalidRequestException("Recipient '$login' not found")
+        if (title.trim().length < 3 || body.trim().isEmpty()) {
+            throw InvalidRequestException("title and body are required")
+        }
+        val createdBy = currentUserLogin() ?: throw NotAuthorizedException()
+        val announcement = announcementRepository.save(
+            Announcement(
+                createdBy = createdBy,
+                title = title.trim(),
+                body = body.trim(),
+                audience = AnnouncementAudience.USER,
+                targetUsername = login,
+            )
+        )
+        return announcementMapper.map(announcement, read = false)
     }
 }

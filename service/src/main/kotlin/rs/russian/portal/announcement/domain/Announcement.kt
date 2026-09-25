@@ -37,6 +37,8 @@ class Announcement(
     @JoinColumn(name = "program_code")
     var program: Program? = null,
 
+    var targetUsername: String? = null,
+
     var active: Boolean = true,
 ) : JpaEntity<UUID>() {
 

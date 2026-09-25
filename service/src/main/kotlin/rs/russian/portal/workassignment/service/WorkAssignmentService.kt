@@ -11,6 +11,8 @@ import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
+import org.slf4j.LoggerFactory
+import rs.russian.portal.inbox.service.InboxService
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.workassignment.api.WorkAssignmentCreateRequest
 import rs.russian.portal.workassignment.api.WorkAssignmentDto
@@ -24,6 +26,7 @@ import java.util.UUID
 class WorkAssignmentService(
     private val workAssignmentRepository: WorkAssignmentRepository,
     private val accountService: AccountService,
+    private val inboxService: InboxService,
 ) {
 
     @Transactional(readOnly = true)
@@ -50,16 +53,24 @@ class WorkAssignmentService(
                 ?: throw InvalidRequestException("Assignee '$login' not found")
         }
         val assigneeName = assigneeAccount?.fullName
+        val body = request.body?.trim()?.takeIf { it.isNotEmpty() }
         val saved = workAssignmentRepository.save(
             WorkAssignment(
                 createdBy = createdBy,
                 title = title,
-                body = request.body?.trim()?.takeIf { it.isNotEmpty() },
+                body = body,
                 assignee = assigneeLogin,
                 assigneeName = assigneeName,
                 dueDate = request.dueDate,
             )
         )
+        if (assigneeLogin != null) {
+            try {
+                inboxService.notifyAssigned(assigneeLogin, title, body, createdBy)
+            } catch (ex: Exception) {
+                log.warn("Could not notify assignee {} about task {}", assigneeLogin, saved.id, ex)
+            }
+        }
         return toDto(saved)
     }
 
@@ -145,6 +156,8 @@ class WorkAssignmentService(
     )
 
     companion object {
+        private val log = LoggerFactory.getLogger(WorkAssignmentService::class.java)
+
         fun matches(taskName: String?, title: String?): Boolean {
             val left = normalize(taskName)
             val right = normalize(title)

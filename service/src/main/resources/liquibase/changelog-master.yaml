@@ -49,3 +49,5 @@ databaseChangeLog:
       file: liquibase/release-1.22.0/_changelog.yaml
   - include:
       file: liquibase/release-1.23.0/_changelog.yaml
+  - include:
+      file: liquibase/release-1.24.0/_changelog.yaml
