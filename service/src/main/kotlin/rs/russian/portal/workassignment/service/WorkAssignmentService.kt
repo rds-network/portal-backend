@@ -9,10 +9,11 @@ import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
-import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import org.slf4j.LoggerFactory
 import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.workassignment.api.WorkAssignmentCreateRequest
 import rs.russian.portal.workassignment.api.WorkAssignmentDto
@@ -27,12 +28,13 @@ class WorkAssignmentService(
     private val workAssignmentRepository: WorkAssignmentRepository,
     private val accountService: AccountService,
     private val inboxService: InboxService,
+    private val programCuratorService: ProgramCuratorService,
 ) {
 
     @Transactional(readOnly = true)
     fun list(): List<WorkAssignmentDto> {
         val account = accountService.getCurrentAccount()
-        val items = if (isManager(account.groups)) {
+        val items = if (canManage()) {
             workAssignmentRepository.findAllByOrderByCreateTimeDesc()
         } else {
             workAssignmentRepository.findByAssigneeOrderByCreateTimeDesc(account.username)
@@ -42,6 +44,7 @@ class WorkAssignmentService(
 
     @Transactional
     fun create(request: WorkAssignmentCreateRequest): WorkAssignmentDto {
+        if (!canManage()) throw NotAuthorizedException()
         val title = request.title.trim()
         if (title.length < 3) {
             throw InvalidRequestException("title must be at least 3 characters")
@@ -79,7 +82,7 @@ class WorkAssignmentService(
         val account = accountService.getCurrentAccount()
         val item = workAssignmentRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Work assignment $id not found") }
-        val manager = isManager(account.groups)
+        val manager = canManage()
         if (!manager && !item.assignee.equals(account.username, ignoreCase = true)) {
             throw NotAuthorizedException()
         }
@@ -120,8 +123,7 @@ class WorkAssignmentService(
 
     @Transactional
     fun archive(id: UUID): WorkAssignmentDto {
-        val account = accountService.getCurrentAccount()
-        if (!isManager(account.groups)) throw NotAuthorizedException()
+        if (!canManage()) throw NotAuthorizedException()
         val item = workAssignmentRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Work assignment $id not found") }
         item.status = WorkAssignmentStatus.ARCHIVED
@@ -130,8 +132,7 @@ class WorkAssignmentService(
 
     @Transactional
     fun delete(id: UUID) {
-        val account = accountService.getCurrentAccount()
-        if (!isManager(account.groups)) throw NotAuthorizedException()
+        if (!canManage()) throw NotAuthorizedException()
         if (!workAssignmentRepository.existsById(id)) {
             throw EntityNotFoundException("Work assignment $id not found")
         }
@@ -168,8 +169,13 @@ class WorkAssignmentService(
             throw InvalidRequestException("Unknown status '$raw'")
         }
 
-    private fun isManager(groups: Set<rs.russian.portal.user.domain.enums.UserGroup>): Boolean =
-        groups.any { it == ADMIN || it == ADMIN_VOLUNTEER || it == MAIN_VOLUNTEER }
+    private fun canManage(): Boolean {
+        val account = accountService.getCurrentAccount()
+        if (account.groups.any { it == ADMIN || it == ADMIN_SSO || it == MAIN_VOLUNTEER }) {
+            return true
+        }
+        return programCuratorService.isCurrentCurator()
+    }
 
     private fun toDto(item: WorkAssignment) = WorkAssignmentDto(
         id = item.id!!,
