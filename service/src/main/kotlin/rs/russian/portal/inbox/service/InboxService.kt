@@ -61,6 +61,7 @@ class InboxService(
             subject = thread.subject,
             kind = thread.kind,
             createdBy = thread.createdBy,
+            heatmapUser = heatmapUser(thread),
             messages = thread.messages.map {
                 InboxMessageDto(it.id!!, it.author, it.body, it.createTime)
             },
@@ -148,6 +149,7 @@ class InboxService(
             recipient = username,
             extraParticipants = extra,
             recipientUnread = true,
+            extraUnread = true,
         )
     }
 
@@ -159,15 +161,17 @@ class InboxService(
         recipient: String,
         extraParticipants: List<String>,
         recipientUnread: Boolean,
+        extraUnread: Boolean = false,
     ): InboxThread {
         val thread = InboxThread(subject = subject, kind = kind, createdBy = createdBy)
         val people = (extraParticipants + recipient).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         people.forEach { login ->
+            val isRecipient = login.equals(recipient, ignoreCase = true)
             thread.participants.add(
                 InboxParticipant(
                     thread = thread,
                     username = login,
-                    unread = login.equals(recipient, ignoreCase = true) && recipientUnread,
+                    unread = if (isRecipient) recipientUnread else extraUnread,
                 )
             )
         }
@@ -197,7 +201,16 @@ class InboxService(
         counterpart = thread.participants
             .map { it.username }
             .firstOrNull { !it.equals(username, ignoreCase = true) },
+        heatmapUser = heatmapUser(thread),
     )
+
+    private fun heatmapUser(thread: InboxThread): String? {
+        if (!thread.kind.startsWith("OVERDUE") && thread.kind != InboxThread.KIND_TASK) return null
+        return thread.participants
+            .map { it.username }
+            .lastOrNull { !it.equals(thread.createdBy, ignoreCase = true) }
+            ?: thread.participants.lastOrNull()?.username
+    }
 
     private fun isManager(groups: Set<rs.russian.portal.user.domain.enums.UserGroup>): Boolean =
         groups.any { it == ADMIN || it == ADMIN_VOLUNTEER || it == MAIN_VOLUNTEER }

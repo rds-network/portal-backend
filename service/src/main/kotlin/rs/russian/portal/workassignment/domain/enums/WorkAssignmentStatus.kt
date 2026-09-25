@@ -6,4 +6,5 @@ enum class WorkAssignmentStatus {
     REVIEW,
     REDO,
     DONE,
+    ARCHIVED,
 }

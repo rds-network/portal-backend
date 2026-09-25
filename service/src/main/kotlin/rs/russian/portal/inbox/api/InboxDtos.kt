@@ -13,6 +13,7 @@ data class InboxThreadDto(
     val unread: Boolean,
     val lastBody: String?,
     val counterpart: String?,
+    val heatmapUser: String? = null,
 )
 
 data class InboxMessageDto(
@@ -27,6 +28,7 @@ data class InboxThreadDetailDto(
     val subject: String,
     val kind: String,
     val createdBy: String?,
+    val heatmapUser: String? = null,
     val messages: List<InboxMessageDto>,
 )
 
@@ -52,4 +54,18 @@ data class ReportOverdueDto(
     val hoursShort: Int = 0,
     val level: String,
     val lastReportWeek: LocalDate?,
+    val subject: String? = null,
+    val body: String? = null,
+)
+
+data class OverduePreviewDto(
+    val count: Int,
+    val templates: List<OverdueTemplateDto>,
+    val samples: List<ReportOverdueDto>,
+)
+
+data class OverdueTemplateDto(
+    val level: String,
+    val subject: String,
+    val body: String,
 )

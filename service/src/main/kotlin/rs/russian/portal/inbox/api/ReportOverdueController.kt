@@ -23,6 +23,11 @@ class ReportOverdueController(
         ResponseEntity.ok(reportOverdueService.list())
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/preview")
+    fun preview(): ResponseEntity<OverduePreviewDto> =
+        ResponseEntity.ok(reportOverdueService.preview())
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping("/notify")
     fun notifyNow(): ResponseEntity<Map<String, Int>> =
         ResponseEntity.ok(mapOf("sent" to reportOverdueService.notifyDue()))
