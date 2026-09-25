@@ -12,4 +12,6 @@ interface ReportOverdueNoticeRepository : JpaRepository<ReportOverdueNotice, UUI
 
     @Query("SELECT n.username AS username, COUNT(n) AS cnt FROM ReportOverdueNotice n WHERE n.level < 99 GROUP BY n.username")
     fun countGrouped(): List<WarningCountProjection>
+
+    fun findAllByOrderBySentAtDesc(): List<ReportOverdueNotice>
 }

@@ -8,6 +8,7 @@ import rs.russian.portal.program.domain.ProgramCurator
 import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.program.repository.ProgramRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
+import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.repository.AccountRepository
 
 @Service
@@ -39,6 +40,12 @@ class ProgramCuratorService(
 
     @Transactional(readOnly = true)
     fun isCurator(username: String): Boolean = curatorRepository.existsByUsernameIgnoreCase(username)
+
+    @Transactional(readOnly = true)
+    fun isCurrentCurator(): Boolean {
+        val login = currentUserLogin() ?: return false
+        return isCurator(login)
+    }
 
     @Transactional(readOnly = true)
     fun hasAny(): Boolean = curatorRepository.count() > 0

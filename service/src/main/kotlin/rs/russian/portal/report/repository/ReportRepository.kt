@@ -49,4 +49,44 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         @Param("start") start: OffsetDateTime,
         @Param("end") end: OffsetDateTime
     ): List<ProgramStatProjection>
+
+    @Query(
+        value = """
+        SELECT r.id FROM Report r
+        WHERE EXISTS (
+            SELECT 1 FROM Task t
+            WHERE t.report = r AND LOWER(t.customer.username) = LOWER(:login)
+        )
+          AND (:status IS NULL OR r.status = :status)
+        ORDER BY r.createTime DESC
+        """,
+        countQuery = """
+        SELECT COUNT(r.id) FROM Report r
+        WHERE EXISTS (
+            SELECT 1 FROM Task t
+            WHERE t.report = r AND LOWER(t.customer.username) = LOWER(:login)
+        )
+          AND (:status IS NULL OR r.status = :status)
+        """
+    )
+    fun findIdsByCustomer(
+        @Param("login") login: String,
+        @Param("status") status: ReportStatus?,
+        pageable: Pageable,
+    ): Page<UUID>
+
+    @Query(
+        """
+        SELECT COUNT(r.id) FROM Report r
+        WHERE EXISTS (
+            SELECT 1 FROM Task t
+            WHERE t.report = r AND LOWER(t.customer.username) = LOWER(:login)
+        )
+          AND (:status IS NULL OR r.status = :status)
+        """
+    )
+    fun countByCustomer(
+        @Param("login") login: String,
+        @Param("status") status: ReportStatus?,
+    ): Long
 }

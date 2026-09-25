@@ -15,6 +15,7 @@ data class InboxThreadDto(
     val lastBody: String?,
     val counterpart: String?,
     val heatmapUser: String? = null,
+    val reportId: String? = null,
 )
 
 data class InboxMessageDto(
@@ -30,6 +31,7 @@ data class InboxThreadDetailDto(
     val kind: String,
     val createdBy: String?,
     val heatmapUser: String? = null,
+    val reportId: String? = null,
     val messages: List<InboxMessageDto>,
 )
 
@@ -67,8 +69,26 @@ data class ReportOverdueDto(
     val level: String,
     val lastReportWeek: LocalDate?,
     val warningCount: Int = 0,
+    val notified: Boolean = false,
+    val watchlist: Boolean = false,
     val subject: String? = null,
     val body: String? = null,
+)
+
+data class OverdueNoticePersonDto(
+    val username: String,
+    val fullName: String,
+    val program: String? = null,
+    val warningCount: Int,
+    val lastSentAt: OffsetDateTime? = null,
+    val notified: Boolean,
+    val watchlist: Boolean,
+    val mupSent: Boolean,
+)
+
+data class OverdueNotifyResultDto(
+    val sent: Int,
+    val recipients: List<OverdueNoticePersonDto> = emptyList(),
 )
 
 data class OverduePreviewDto(

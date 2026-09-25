@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -113,6 +114,23 @@ class ReportService(
     @Transactional(readOnly = true)
     fun getReports(reportFilter: ReportFilter, pageable: Pageable): Page<Report> {
         return findAllFull(from(reportFilter), pageable)
+    }
+
+    @Transactional(readOnly = true)
+    fun getReportsForCustomer(status: ReportStatus?, pageable: Pageable): Page<Report> {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        val ids = reportRepository.findIdsByCustomer(login, status, pageable)
+        if (ids.content.isEmpty()) {
+            return PageImpl(emptyList(), ids.pageable, ids.totalElements)
+        }
+        val reports = reportRepository.findAllByIdIn(ids.content, Sort.by(Sort.Direction.DESC, "createTime"))
+        return PageImpl(reports, ids.pageable, ids.totalElements)
+    }
+
+    @Transactional(readOnly = true)
+    fun pendingCountForCustomer(): Long {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        return reportRepository.countByCustomer(login, ReportStatus.CREATED)
     }
 
     @Transactional
