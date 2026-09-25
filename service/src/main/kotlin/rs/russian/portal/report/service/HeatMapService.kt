@@ -44,7 +44,7 @@ class HeatMapService(
         pageRequest: PageRequest,
         filter: ReportsHeatMapFilter,
     ): ReportsHeatMapPageResponse {
-        val accounts = userService.search(
+        val accounts = userService.searchWithActiveRegularContract(
             searchQuery,
             pageRequest,
             UserSearchFilter(program = filter.program, project = filter.project, onlyActive = true)
