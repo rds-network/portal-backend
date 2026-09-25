@@ -49,6 +49,7 @@ data class ReportOverdueDto(
     val fullName: String,
     val program: String?,
     val weeksMissed: Int,
+    val hoursShort: Int = 0,
     val level: String,
     val lastReportWeek: LocalDate?,
 )

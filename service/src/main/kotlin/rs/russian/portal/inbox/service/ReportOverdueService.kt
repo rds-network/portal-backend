@@ -22,20 +22,22 @@ class ReportOverdueService(
 
     @Transactional
     fun notifyDue(): Int {
-        val periodKey = LocalDate.now().with(java.time.DayOfWeek.MONDAY).format(WEEK_KEY)
+        val weekKey = LocalDate.now().with(java.time.DayOfWeek.MONDAY).format(WEEK_KEY)
         var sent = 0
         for (item in list()) {
+            val level = noticeLevel(item)
+            val periodKey = if (level == 0) HOURS_SNAPSHOT_KEY else weekKey
             val already = reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(
                 item.username,
-                item.weeksMissed,
+                level,
                 periodKey,
             )
             if (already) continue
-            inboxService.notifyOverdue(item.username, item.weeksMissed, subjectFor(item.weeksMissed), bodyFor(item))
+            inboxService.notifyOverdue(item.username, level, subjectFor(item), bodyFor(item))
             reportOverdueNoticeRepository.save(
                 ReportOverdueNotice(
                     username = item.username,
-                    level = item.weeksMissed,
+                    level = level,
                     periodKey = periodKey,
                 )
             )
@@ -45,19 +47,44 @@ class ReportOverdueService(
         return sent
     }
 
-    private fun subjectFor(weeks: Int) =
-        if (weeks >= 3) SUBJECT_3 else SUBJECT_2
+    private fun noticeLevel(item: ReportOverdueDto): Int =
+        when {
+            item.weeksMissed >= 3 -> 3
+            item.weeksMissed >= 2 -> 2
+            item.weeksMissed >= 1 -> 1
+            else -> 0
+        }
+
+    private fun subjectFor(item: ReportOverdueDto) =
+        when (noticeLevel(item)) {
+            3 -> SUBJECT_3
+            2 -> SUBJECT_2
+            1 -> SUBJECT_1
+            else -> SUBJECT_HOURS
+        }
 
     private fun bodyFor(item: ReportOverdueDto): String {
         val last = item.lastReportWeek?.format(DATE) ?: "нет принятых отчётов"
-        return if (item.weeksMissed >= 3) {
-            "Здравствуйте, ${item.fullName}.\n\n" +
-                "Вы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут.\n\n" +
-                "Последняя принятая неделя: $last.\n\nПожалуйста, заполните отчётность в личном кабинете и ответьте на это сообщение, если нужна помощь."
-        } else {
-            "Здравствуйте, ${item.fullName}.\n\n" +
-                "Вы не сдавали отчёт 2 недели. Просим заполнить отчётность в личном кабинете.\n\n" +
-                "Последняя принятая неделя: $last."
+        val hours = item.hoursShort
+        return when (noticeLevel(item)) {
+            3 ->
+                "Здравствуйте, ${item.fullName}.\n\n" +
+                    "Вы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут.\n\n" +
+                    "Недосдача часов: $hours. Последняя принятая неделя: $last.\n\n" +
+                    "Пожалуйста, заполните отчётность в личном кабинете и ответьте на это сообщение, если нужна помощь."
+            2 ->
+                "Здравствуйте, ${item.fullName}.\n\n" +
+                    "Вы не сдавали отчёт 2 недели подряд. Просим закрыть отчётность.\n\n" +
+                    "Недосдача часов: $hours. Последняя принятая неделя: $last."
+            1 ->
+                "Здравствуйте, ${item.fullName}.\n\n" +
+                    "За прошлую неделю нет принятого отчёта (+1 неделя). Просим сдать отчёт в личном кабинете.\n\n" +
+                    "Недосдача часов: $hours. Последняя принятая неделя: $last."
+            else ->
+                "Здравствуйте, ${item.fullName}.\n\n" +
+                    "По текущему срезу у вас недосдача больше 20 часов ($hours ч). Просим закрыть отчётность и нагнать часы.\n\n" +
+                    "Дальше учитываются пропущенные недели: +1, +2, затем предупреждение о блокировке.\n\n" +
+                    "Последняя принятая неделя: $last."
         }
     }
 
@@ -65,6 +92,9 @@ class ReportOverdueService(
         private val log = LoggerFactory.getLogger(ReportOverdueService::class.java)
         private val WEEK_KEY: DateTimeFormatter = DateTimeFormatter.ofPattern("YYYY-'W'ww")
         private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+        const val HOURS_SNAPSHOT_KEY = "HOURS-SNAPSHOT"
+        const val SUBJECT_HOURS = "Недосдача часов: текущий срез"
+        const val SUBJECT_1 = "Напоминание: не сдан отчёт за прошлую неделю"
         const val SUBJECT_2 = "Напоминание: не сдан отчёт 2 недели"
         const val SUBJECT_3 = "Предупреждение: блокировка аккаунта и расторжение договора"
     }

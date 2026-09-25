@@ -13,47 +13,118 @@ class ReportOverdueJdbc(
     fun findOverdue(): List<ReportOverdueDto> =
         jdbc.query(SQL) { rs, _ ->
             val weeks = rs.getInt("weeks_missed")
+            val hoursShort = rs.getInt("hours_short")
             ReportOverdueDto(
                 username = rs.getString("username"),
                 fullName = rs.getString("full_name"),
                 program = rs.getString("program"),
                 weeksMissed = weeks,
-                level = if (weeks >= 3) InboxThread.KIND_OVERDUE_3 else InboxThread.KIND_OVERDUE_2,
+                hoursShort = hoursShort,
+                level = when {
+                    weeks >= 3 -> InboxThread.KIND_OVERDUE_3
+                    weeks >= 2 -> InboxThread.KIND_OVERDUE_2
+                    weeks >= 1 -> InboxThread.KIND_OVERDUE_1
+                    else -> InboxThread.KIND_OVERDUE_HOURS
+                },
                 lastReportWeek = rs.getDate("last_report_week")?.toLocalDate(),
             )
         }
 
     companion object {
         private const val SQL = """
-        WITH last_weeks AS (
+        WITH bounds AS (
           SELECT
-            (date_trunc('week', CURRENT_DATE)::date - 7) AS week1,
-            (date_trunc('week', CURRENT_DATE)::date - 14) AS week2,
-            (date_trunc('week', CURRENT_DATE)::date - 21) AS week3
+            date_trunc('year', CURRENT_DATE)::date AS year_start,
+            CURRENT_DATE AS today,
+            date_trunc('week', CURRENT_DATE)::date AS this_monday,
+            (date_trunc('week', CURRENT_DATE)::date - 7) AS last_monday
         ),
         contracted AS (
           SELECT a.username, a.full_name, ui.program_code AS program
           FROM account a
           LEFT JOIN user_info ui ON ui.username = a.username
+          CROSS JOIN bounds b
           WHERE a.active = true
             AND EXISTS (
               SELECT 1 FROM contract c
-              CROSS JOIN last_weeks w
               WHERE c.username = a.username
                 AND c.type = 'REGULAR'
-                AND c.start_date <= (w.week1 + 6)
-                AND c.end_date >= w.week1
+                AND c.start_date <= (b.last_monday + 6)
+                AND c.end_date >= b.last_monday
             )
+        ),
+        weeks AS (
+          SELECT
+            GREATEST(gs::date, b.year_start) AS week_start,
+            LEAST((gs::date + 6), b.today)::date AS week_end
+          FROM bounds b,
+               generate_series(
+                 date_trunc('week', b.year_start),
+                 b.last_monday,
+                 interval '1 week'
+               ) gs
+          WHERE gs::date <= b.last_monday
+        ),
+        week_hours AS (
+          SELECT
+            c.username,
+            w.week_start,
+            COALESCE((
+              SELECT SUM(t.time_spent)
+              FROM report r
+              JOIN task t ON t.report_id = r.id
+              WHERE r.user_login = c.username
+                AND r.deleted = FALSE
+                AND r.status = 'ACCEPTED'
+                AND date_trunc('week', t.date)::date = w.week_start
+            ), 0) AS minutes_worked,
+            (
+              SELECT COALESCE(SUM(
+                GREATEST(0, (LEAST(w.week_end, ct.end_date) - GREATEST(w.week_start, ct.start_date)) + 1)
+              ), 0)
+              FROM contract ct
+              WHERE ct.username = c.username
+                AND ct.type = 'REGULAR'
+                AND ct.start_date <= w.week_end
+                AND ct.end_date >= w.week_start
+            ) AS active_days
+          FROM contracted c
+          CROSS JOIN weeks w
+        ),
+        totals AS (
+          SELECT
+            username,
+            ROUND(SUM(minutes_worked) / 60.0)::int AS hours_worked,
+            SUM(ROUND((active_days::numeric / 7.0) * 10.0))::int AS hours_required
+          FROM week_hours
+          GROUP BY username
         ),
         week_report AS (
           SELECT r.user_login AS username, date_trunc('week', t.date)::date AS week_start
           FROM report r
           JOIN task t ON t.report_id = r.id
-          CROSS JOIN last_weeks w
-          WHERE r.deleted = FALSE
-            AND r.status = 'ACCEPTED'
-            AND date_trunc('week', t.date)::date IN (w.week1, w.week2, w.week3)
+          WHERE r.deleted = FALSE AND r.status = 'ACCEPTED'
           GROUP BY r.user_login, date_trunc('week', t.date)::date
+        ),
+        streak AS (
+          SELECT
+            c.username,
+            CASE
+              WHEN EXISTS (
+                SELECT 1 FROM week_report wr, bounds b
+                WHERE wr.username = c.username AND wr.week_start = b.last_monday
+              ) THEN 0
+              WHEN EXISTS (
+                SELECT 1 FROM week_report wr, bounds b
+                WHERE wr.username = c.username AND wr.week_start = (b.last_monday - 7)
+              ) THEN 1
+              WHEN EXISTS (
+                SELECT 1 FROM week_report wr, bounds b
+                WHERE wr.username = c.username AND wr.week_start = (b.last_monday - 14)
+              ) THEN 2
+              ELSE 3
+            END AS weeks_missed
+          FROM contracted c
         ),
         last_accepted AS (
           SELECT r.user_login AS username, MAX(date_trunc('week', t.date)::date) AS last_report_week
@@ -66,35 +137,16 @@ class ReportOverdueJdbc(
           c.username,
           c.full_name,
           c.program,
-          CASE
-            WHEN NOT EXISTS (SELECT 1 FROM week_report wr, last_weeks w WHERE wr.username = c.username AND wr.week_start = w.week1)
-             AND NOT EXISTS (SELECT 1 FROM week_report wr, last_weeks w WHERE wr.username = c.username AND wr.week_start = w.week2)
-             AND EXISTS (
-               SELECT 1 FROM contract ct, last_weeks w
-               WHERE ct.username = c.username AND ct.type = 'REGULAR'
-                 AND ct.start_date <= (w.week2 + 6) AND ct.end_date >= w.week2
-             )
-             AND NOT EXISTS (SELECT 1 FROM week_report wr, last_weeks w WHERE wr.username = c.username AND wr.week_start = w.week3)
-             AND EXISTS (
-               SELECT 1 FROM contract ct, last_weeks w
-               WHERE ct.username = c.username AND ct.type = 'REGULAR'
-                 AND ct.start_date <= (w.week3 + 6) AND ct.end_date >= w.week3
-             )
-            THEN 3
-            ELSE 2
-          END AS weeks_missed,
+          s.weeks_missed,
+          GREATEST(COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0), 0) AS hours_short,
           la.last_report_week
         FROM contracted c
+        JOIN streak s ON s.username = c.username
+        LEFT JOIN totals t ON t.username = c.username
         LEFT JOIN last_accepted la ON la.username = c.username
-        CROSS JOIN last_weeks w
-        WHERE NOT EXISTS (SELECT 1 FROM week_report wr WHERE wr.username = c.username AND wr.week_start = w.week1)
-          AND NOT EXISTS (SELECT 1 FROM week_report wr WHERE wr.username = c.username AND wr.week_start = w.week2)
-          AND EXISTS (
-            SELECT 1 FROM contract ct
-            WHERE ct.username = c.username AND ct.type = 'REGULAR'
-              AND ct.start_date <= (w.week2 + 6) AND ct.end_date >= w.week2
-          )
-        ORDER BY weeks_missed DESC, c.full_name
+        WHERE s.weeks_missed >= 1
+           OR (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) >= 20
+        ORDER BY s.weeks_missed DESC, hours_short DESC, c.full_name
         """
     }
 }
