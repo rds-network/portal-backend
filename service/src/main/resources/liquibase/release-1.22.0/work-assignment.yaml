@@ -1,0 +1,76 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.22.0-work-assignment-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: work_assignment
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_work_assignment
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_work_assignment_created_by
+                  name: created_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: title
+                  type: VARCHAR(300)
+              - column:
+                  name: body
+                  type: TEXT
+              - column:
+                  name: assignee
+                  type: VARCHAR(255)
+              - column:
+                  name: assignee_name
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(32)
+              - column:
+                  name: due_date
+                  type: DATE
+              - column:
+                  name: report_id
+                  type: UUID
+        - addForeignKeyConstraint:
+            baseTableName: work_assignment
+            baseColumnNames: assignee
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_work_assignment_assignee
+        - createIndex:
+            tableName: work_assignment
+            indexName: idx_work_assignment_assignee
+            columns:
+              - column:
+                  name: assignee
+        - createIndex:
+            tableName: work_assignment
+            indexName: idx_work_assignment_status
+            columns:
+              - column:
+                  name: status
