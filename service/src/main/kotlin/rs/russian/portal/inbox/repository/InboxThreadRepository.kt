@@ -33,4 +33,14 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
         """
     )
     fun countUnread(@Param("username") username: String): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM InboxParticipant p
+        WHERE LOWER(p.username) = LOWER(:username)
+          AND p.ackRequired = true
+          AND p.receivedAt IS NULL
+        """
+    )
+    fun countPendingAck(@Param("username") username: String): Long
 }

@@ -20,6 +20,9 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.util.UUID
 
 @Service
@@ -36,6 +39,12 @@ class InboxService(
     }
 
     @Transactional(readOnly = true)
+    fun pendingAckCount(): Long {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        return inboxThreadRepository.countPendingAck(login)
+    }
+
+    @Transactional(readOnly = true)
     fun list(): List<InboxThreadDto> {
         val account = accountService.getCurrentAccount()
         val threads = if (isManager(account.groups)) {
@@ -43,7 +52,7 @@ class InboxService(
         } else {
             inboxThreadRepository.findAllForUser(account.username)
         }
-        return threads.map { toListDto(it, account.username) }
+        return threads.map { toListDto(it, account.username, lastSeenMap(threads)) }
     }
 
     @Transactional
@@ -55,18 +64,12 @@ class InboxService(
             throw NotAuthorizedException()
         }
         thread.participants.filter { it.username.equals(account.username, ignoreCase = true) }
-            .forEach { it.unread = false }
-        return InboxThreadDetailDto(
-            id = thread.id!!,
-            subject = thread.subject,
-            kind = thread.kind,
-            createdBy = thread.createdBy,
-            heatmapUser = heatmapUser(thread),
-            reportId = reportId(thread),
-            messages = thread.messages.map {
-                InboxMessageDto(it.id!!, it.author, it.body, it.createTime)
-            },
-        )
+            .forEach { participant ->
+                if (!(participant.ackRequired && participant.receivedAt == null)) {
+                    participant.unread = false
+                }
+            }
+        return toDetailDto(thread, account.username)
     }
 
     @Transactional
@@ -115,9 +118,32 @@ class InboxService(
             InboxMessage(thread = thread, author = account.username, body = body)
         )
         thread.participants.forEach { participant ->
-            participant.unread = !participant.username.equals(account.username, ignoreCase = true)
+            val mine = participant.username.equals(account.username, ignoreCase = true)
+            participant.unread = !mine
+            if (mine && participant.receivedAt == null) {
+                participant.receivedAt = OffsetDateTime.now()
+            }
         }
         return get(id)
+    }
+
+    @Transactional
+    fun ack(id: UUID): InboxThreadDetailDto {
+        val account = accountService.getCurrentAccount()
+        val thread = inboxThreadRepository.findById(id)
+            .orElseThrow { EntityNotFoundException("Inbox thread $id not found") }
+        if (!canSee(thread, account.username, isManager(account.groups))) {
+            throw NotAuthorizedException()
+        }
+        val now = OffsetDateTime.now()
+        thread.participants.filter { it.username.equals(account.username, ignoreCase = true) }
+            .forEach { participant ->
+                participant.unread = false
+                if (participant.receivedAt == null) {
+                    participant.receivedAt = now
+                }
+            }
+        return toDetailDto(thread, account.username)
     }
 
     @Transactional
@@ -177,7 +203,7 @@ class InboxService(
         recipientUnread: Boolean,
         extraUnread: Boolean = false,
     ): InboxThread {
-        val thread = InboxThread(subject = subject, kind = kind, createdBy = createdBy)
+        val thread = InboxThread(subject = subject, kind = kind, createdBy = createdBy, recipient = recipient)
         val people = (extraParticipants + recipient).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         people.forEach { login ->
             val isRecipient = login.equals(recipient, ignoreCase = true)
@@ -186,6 +212,7 @@ class InboxService(
                     thread = thread,
                     username = login,
                     unread = if (isRecipient) recipientUnread else extraUnread,
+                    ackRequired = isRecipient && requiresAck(kind),
                 )
             )
         }
@@ -204,20 +231,77 @@ class InboxService(
         return thread.participants.any { it.username.equals(username, ignoreCase = true) }
     }
 
-    private fun toListDto(thread: InboxThread, username: String) = InboxThreadDto(
-        id = thread.id!!,
-        createTime = thread.createTime,
-        subject = thread.subject,
-        kind = thread.kind,
-        createdBy = thread.createdBy,
-        unread = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }?.unread == true,
-        lastBody = thread.messages.lastOrNull()?.body,
-        counterpart = thread.participants
-            .map { it.username }
-            .firstOrNull { !it.equals(username, ignoreCase = true) },
-        heatmapUser = heatmapUser(thread),
-        reportId = reportId(thread),
-    )
+    private fun toListDto(
+        thread: InboxThread,
+        username: String,
+        lastSeen: Map<String, LocalDateTime?> = emptyMap(),
+    ): InboxThreadDto {
+        val recipient = recipientOf(thread)
+        val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
+        val recipientRow = thread.participants.firstOrNull { it.username.equals(recipient, ignoreCase = true) }
+        return InboxThreadDto(
+            id = thread.id!!,
+            createTime = thread.createTime,
+            subject = thread.subject,
+            kind = thread.kind,
+            createdBy = thread.createdBy,
+            unread = mine?.unread == true,
+            lastBody = thread.messages.lastOrNull()?.body,
+            counterpart = recipient
+                ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) },
+            heatmapUser = heatmapUser(thread),
+            reportId = reportId(thread),
+            recipient = recipient,
+            recipientLastSeen = toOffset(lastSeen[recipient?.lowercase()]),
+            receivedAt = recipientRow?.receivedAt,
+            ackRequired = mine?.ackRequired == true,
+            needsAck = mine?.ackRequired == true && mine.receivedAt == null,
+        )
+    }
+
+    private fun toDetailDto(thread: InboxThread, username: String): InboxThreadDetailDto {
+        val recipient = recipientOf(thread)
+        val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
+        val recipientRow = thread.participants.firstOrNull { it.username.equals(recipient, ignoreCase = true) }
+        val lastSeen = recipient?.let { lastSeenMap(listOf(thread))[it.lowercase()] }
+        return InboxThreadDetailDto(
+            id = thread.id!!,
+            subject = thread.subject,
+            kind = thread.kind,
+            createdBy = thread.createdBy,
+            heatmapUser = heatmapUser(thread),
+            reportId = reportId(thread),
+            recipient = recipient,
+            recipientLastSeen = toOffset(lastSeen),
+            receivedAt = recipientRow?.receivedAt,
+            ackRequired = mine?.ackRequired == true,
+            needsAck = mine?.ackRequired == true && mine.receivedAt == null,
+            messages = thread.messages.map {
+                InboxMessageDto(it.id!!, it.author, it.body, it.createTime)
+            },
+        )
+    }
+
+    private fun lastSeenMap(threads: List<InboxThread>): Map<String, LocalDateTime?> {
+        val logins = threads.mapNotNull { recipientOf(it) }.distinct()
+        if (logins.isEmpty()) return emptyMap()
+        return accountRepository.findLastSeenByUsernames(logins)
+            .associate { it.username.lowercase() to it.lastSeen }
+    }
+
+    private fun recipientOf(thread: InboxThread): String? =
+        thread.recipient?.takeIf { it.isNotBlank() }
+            ?: heatmapUser(thread)
+            ?: thread.participants.map { it.username }
+                .firstOrNull { !it.equals(thread.createdBy, ignoreCase = true) }
+
+    private fun toOffset(at: LocalDateTime?): OffsetDateTime? =
+        at?.atZone(ZoneId.systemDefault())?.toOffsetDateTime()
+
+    private fun requiresAck(kind: String): Boolean =
+        kind == InboxThread.KIND_MANUAL ||
+            kind == InboxThread.KIND_TASK ||
+            kind.startsWith("OVERDUE")
 
     private fun heatmapUser(thread: InboxThread): String? {
         if (!thread.kind.startsWith("OVERDUE") && thread.kind != InboxThread.KIND_TASK) return null

@@ -1,0 +1,95 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.28.0-inbox-ack-last-seen
+      author: portal
+      changes:
+        - addColumn:
+            tableName: account
+            columns:
+              - column:
+                  name: last_seen_at
+                  type: DATETIME
+        - addColumn:
+            tableName: inbox_thread
+            columns:
+              - column:
+                  name: recipient
+                  type: VARCHAR(255)
+        - addColumn:
+            tableName: inbox_participant
+            columns:
+              - column:
+                  name: ack_required
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: received_at
+                  type: DATETIME
+        - sql:
+            dbms: postgresql
+            sql: |
+              UPDATE inbox_thread t
+              SET recipient = sub.username
+              FROM (
+                SELECT p.thread_id, MIN(p.username) AS username
+                FROM inbox_participant p
+                JOIN inbox_thread th ON th.id = p.thread_id
+                WHERE th.kind IN ('MANUAL', 'TASK')
+                  AND (th.created_by IS NULL OR p.username <> th.created_by)
+                GROUP BY p.thread_id
+              ) sub
+              WHERE t.id = sub.thread_id
+                AND t.recipient IS NULL;
+
+              UPDATE inbox_thread t
+              SET recipient = sub.username
+              FROM (
+                SELECT DISTINCT ON (p.thread_id) p.thread_id, p.username
+                FROM inbox_participant p
+                JOIN account a ON a.username = p.username
+                JOIN inbox_thread th ON th.id = p.thread_id
+                WHERE th.kind LIKE 'OVERDUE%'
+                  AND NOT (COALESCE(a.groups, '[]'::jsonb) @> '["ADMIN_VOLUNTEER"]'::jsonb)
+                  AND NOT (COALESCE(a.groups, '[]'::jsonb) @> '["ADMIN"]'::jsonb)
+                  AND NOT (COALESCE(a.groups, '[]'::jsonb) @> '["MAIN_VOLUNTEER"]'::jsonb)
+                ORDER BY p.thread_id, p.username
+              ) sub
+              WHERE t.id = sub.thread_id
+                AND t.recipient IS NULL;
+
+              UPDATE inbox_participant p
+              SET ack_required = true
+              FROM inbox_thread t
+              WHERE p.thread_id = t.id
+                AND t.recipient IS NOT NULL
+                AND p.username = t.recipient
+                AND t.kind IN ('MANUAL', 'TASK', 'OVERDUE_HOURS', 'OVERDUE_1', 'OVERDUE_2', 'OVERDUE_3');
+
+              UPDATE account a
+              SET last_seen_at = s.last_seen
+              FROM (
+                SELECT username, MAX(create_time) AS last_seen
+                FROM activity_event
+                WHERE username IS NOT NULL
+                GROUP BY username
+              ) s
+              WHERE a.username = s.username
+                AND a.last_seen_at IS NULL;
+        - createIndex:
+            tableName: account
+            indexName: idx_account_last_seen_at
+            columns:
+              - column:
+                  name: last_seen_at
+        - createIndex:
+            tableName: inbox_participant
+            indexName: idx_inbox_participant_ack
+            columns:
+              - column:
+                  name: username
+              - column:
+                  name: ack_required
+              - column:
+                  name: received_at

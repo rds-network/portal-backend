@@ -6,6 +6,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -18,6 +19,7 @@ import rs.russian.portal.user.repository.projections.CityVolunteerCountProjectio
 import rs.russian.portal.user.repository.projections.GenderCountProjection
 import rs.russian.portal.user.repository.projections.UsersStatisticGroupCountProjection
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 
 @Repository
@@ -38,6 +40,30 @@ interface AccountRepository : JpaRepository<Account, Int> {
 
     @EntityGraph(value = GRAPH_FULL)
     fun findAllByUsernameIn(usernames: List<String>): List<Account>
+
+    @Modifying
+    @Query(
+        """
+        UPDATE Account a
+        SET a.lastSeenAt = :now
+        WHERE a.username = :username
+          AND (a.lastSeenAt IS NULL OR a.lastSeenAt < :threshold)
+        """
+    )
+    fun touchLastSeen(
+        @Param("username") username: String,
+        @Param("now") now: LocalDateTime,
+        @Param("threshold") threshold: LocalDateTime,
+    ): Int
+
+    @Query(
+        """
+        SELECT a.username AS username, a.lastSeenAt AS lastSeen
+        FROM Account a
+        WHERE a.username IN :usernames
+        """
+    )
+    fun findLastSeenByUsernames(@Param("usernames") usernames: Collection<String>): List<LastSeenProjection>
 
     fun findAll(specification: Specification<Account>, pageable: Pageable): Page<Account>
 

@@ -24,6 +24,8 @@ class InboxThread(
 
     var createdBy: String? = null,
 
+    var recipient: String? = null,,
+
     @OneToMany(mappedBy = "thread", cascade = [ALL], orphanRemoval = true)
     var participants: MutableList<InboxParticipant> = mutableListOf(),
 

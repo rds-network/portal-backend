@@ -76,6 +76,8 @@ class Account(
 
     var lastSynced: LocalDateTime? = null,
 
+    var lastSeenAt: LocalDateTime? = null,
+
     ) : JpaEntity<Int>() {
 
     override fun equalityProperties() = setOf(Account::username)
