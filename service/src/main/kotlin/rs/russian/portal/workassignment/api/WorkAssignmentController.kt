@@ -9,10 +9,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import rs.russian.portal.shared.security.Authorized
-import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
-import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
-import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import rs.russian.portal.workassignment.service.WorkAssignmentService
 import java.util.UUID
 
@@ -26,7 +22,6 @@ class WorkAssignmentController(
     fun list(): ResponseEntity<List<WorkAssignmentDto>> =
         ResponseEntity.ok(workAssignmentService.list())
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping
     fun create(@RequestBody request: WorkAssignmentCreateRequest): ResponseEntity<WorkAssignmentDto> =
         ResponseEntity.ok(workAssignmentService.create(request))
@@ -38,12 +33,10 @@ class WorkAssignmentController(
     ): ResponseEntity<WorkAssignmentDto> =
         ResponseEntity.ok(workAssignmentService.patch(id, request))
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping("/{id}/archive")
     fun archive(@PathVariable id: UUID): ResponseEntity<WorkAssignmentDto> =
         ResponseEntity.ok(workAssignmentService.archive(id))
 
-    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @DeleteMapping("/{id}")
     fun delete(@PathVariable id: UUID): ResponseEntity<Void> {
         workAssignmentService.delete(id)

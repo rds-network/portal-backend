@@ -7,14 +7,20 @@ import rs.russian.portal.orglink.api.OrgLinkDto
 import rs.russian.portal.orglink.api.OrgLinkWriteRequest
 import rs.russian.portal.orglink.domain.OrgLink
 import rs.russian.portal.orglink.repository.OrgLinkRepository
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
+import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import java.util.UUID
 
 @Service
 class OrgLinkService(
     private val orgLinkRepository: OrgLinkRepository,
+    private val programCuratorService: ProgramCuratorService,
 ) {
 
     @Transactional(readOnly = true)
@@ -22,6 +28,7 @@ class OrgLinkService(
 
     @Transactional
     fun create(request: OrgLinkWriteRequest): OrgLinkDto {
+        assertCanManage()
         val createdBy = currentUserLogin() ?: throw NotAuthorizedException()
         val title = request.title.trim()
         val url = request.url.trim()
@@ -43,6 +50,7 @@ class OrgLinkService(
 
     @Transactional
     fun update(id: UUID, request: OrgLinkWriteRequest): OrgLinkDto {
+        assertCanManage()
         val item = orgLinkRepository.findById(id).orElseThrow { EntityNotFoundException("Link $id not found") }
         val title = request.title.trim()
         val url = request.url.trim()
@@ -58,10 +66,21 @@ class OrgLinkService(
 
     @Transactional
     fun delete(id: UUID) {
+        assertCanManage()
         if (!orgLinkRepository.existsById(id)) {
             throw EntityNotFoundException("Link $id not found")
         }
         orgLinkRepository.deleteById(id)
+    }
+
+    private fun assertCanManage() {
+        val roles = currentUserRoles() ?: throw NotAuthorizedException()
+        if (roles.any { it == ADMIN || it == ADMIN_SSO || it == MAIN_VOLUNTEER }) {
+            return
+        }
+        if (!programCuratorService.isCurrentCurator()) {
+            throw NotAuthorizedException()
+        }
     }
 
     private fun toDto(item: OrgLink) = OrgLinkDto(
