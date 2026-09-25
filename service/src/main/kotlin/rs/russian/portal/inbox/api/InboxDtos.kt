@@ -1,5 +1,6 @@
 package rs.russian.portal.inbox.api
 
+import com.fasterxml.jackson.annotation.JsonFormat
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -46,12 +47,23 @@ data class InboxUnreadDto(
     val count: Long,
 )
 
+data class OverdueWeekDto(
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    val weekStart: LocalDate,
+    val hoursWorked: Double,
+    val hoursRequired: Int,
+)
+
 data class ReportOverdueDto(
     val username: String,
     val fullName: String,
     val program: String?,
     val weeksMissed: Int,
     val hoursShort: Int = 0,
+    val hoursWorked: Int = 0,
+    val hoursRequired: Int = 0,
+    val contractEnd: LocalDate? = null,
+    val recentWeeks: List<OverdueWeekDto> = emptyList(),
     val level: String,
     val lastReportWeek: LocalDate?,
     val subject: String? = null,
