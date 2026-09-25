@@ -125,6 +125,14 @@ class ReportOverdueJdbc(
             AND wh.week_start <= b.last_monday
           GROUP BY wh.username
         ),
+        period AS (
+          SELECT
+            username,
+            SUM(ROUND(minutes_worked / 60.0, 2))::int AS hours_worked,
+            SUM(ROUND((active_days::numeric / 7.0) * 10.0))::int AS hours_required
+          FROM week_hours
+          GROUP BY username
+        ),
         cells AS (
           SELECT
             username,
@@ -178,14 +186,15 @@ class ReportOverdueJdbc(
           c.program,
           c.contract_end,
           s.weeks_missed,
-          GREATEST(COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0), 0) AS hours_short,
-          COALESCE(t.hours_worked, 0) AS hours_worked,
-          COALESCE(t.hours_required, 0) AS hours_required,
+          GREATEST(COALESCE(p.hours_required, 0) - COALESCE(p.hours_worked, 0), 0) AS hours_short,
+          COALESCE(p.hours_worked, 0) AS hours_worked,
+          COALESCE(p.hours_required, 0) AS hours_required,
           cells.weeks_json,
           la.last_report_week
         FROM contracted c
         JOIN streak s ON s.username = c.username
         LEFT JOIN snapshot t ON t.username = c.username
+        LEFT JOIN period p ON p.username = c.username
         LEFT JOIN cells ON cells.username = c.username
         LEFT JOIN last_accepted la ON la.username = c.username
         WHERE (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) > 0
