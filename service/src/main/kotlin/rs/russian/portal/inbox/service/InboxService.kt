@@ -200,6 +200,35 @@ class InboxService(
         )
     }
 
+    @Transactional
+    fun notifyWarningCancelled(
+        username: String,
+        fullName: String,
+        cancelled: Int,
+        remaining: Int,
+        reason: String?,
+        createdBy: String,
+    ) {
+        val why = reason?.let { "\n\nПричина: $it" } ?: ""
+        val left = if (remaining > 0) {
+            "Активных предупреждений осталось: $remaining из 3."
+        } else {
+            "Активных предупреждений больше нет."
+        }
+        openThread(
+            subject = "Порицание снято",
+            body = "Здравствуйте, $fullName.\n\n" +
+                "Ошибочное порицание за несданную отчётность снято ($cancelled).\n" +
+                "$left$why\n\n" +
+                "Если отчёт уже был сдан и ждал приёмки — это не ваша вина. Спасибо за работу.",
+            kind = InboxThread.KIND_MANUAL,
+            createdBy = createdBy,
+            recipient = username,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
     private fun openThread(
         subject: String,
         body: String,

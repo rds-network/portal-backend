@@ -121,3 +121,8 @@ data class OverdueTemplateDto(
 data class OverdueNotifyRequest(
     val exclude: List<String> = emptyList(),
 )
+
+data class OverdueCancelRequest(
+    val all: Boolean = false,
+    val reason: String? = null,
+)

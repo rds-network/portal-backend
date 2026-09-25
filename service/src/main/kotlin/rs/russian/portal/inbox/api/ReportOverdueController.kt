@@ -48,4 +48,18 @@ class ReportOverdueController(
     @GetMapping("/counts")
     fun warningCounts(@RequestParam(required = false) usernames: List<String>?): ResponseEntity<Map<String, Int>> =
         ResponseEntity.ok(reportOverdueService.warningCounts(usernames.orEmpty()))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @PostMapping("/warnings/{username}/cancel")
+    fun cancelWarning(
+        @PathVariable username: String,
+        @RequestBody(required = false) request: OverdueCancelRequest?,
+    ): ResponseEntity<OverdueNoticePersonDto> =
+        ResponseEntity.ok(
+            reportOverdueService.cancelWarning(
+                username = username,
+                all = request?.all == true,
+                reason = request?.reason,
+            )
+        )
 }

@@ -60,7 +60,7 @@ class ReportOverdueService(
         if (current.username != username && current.groups.none { it in managers }) {
             throw NotAuthorizedException()
         }
-        return reportOverdueNoticeRepository.countByUsernameAndLevelLessThan(username, MUP_LEVEL).toInt()
+        return reportOverdueNoticeRepository.countByUsernameAndLevelLessThanAndCancelledAtIsNull(username, MUP_LEVEL).toInt()
     }
 
     @Transactional(readOnly = true)
@@ -88,18 +88,61 @@ class ReportOverdueService(
             .associateBy { it.username.lowercase() }
         return notices.groupBy { it.username.lowercase() }.map { (key, items) ->
             val account = accounts[key]
-            val warnings = items.count { it.level < MUP_LEVEL }
+            val active = items.filter { it.cancelledAt == null }
+            val warnings = active.count { it.level < MUP_LEVEL }
             OverdueNoticePersonDto(
                 username = account?.username ?: items.first().username,
                 fullName = account?.fullName ?: items.first().username,
                 program = account?.info?.program?.code,
                 warningCount = warnings,
-                lastSentAt = items.maxOf { it.sentAt },
+                lastSentAt = active.maxOfOrNull { it.sentAt } ?: items.maxOf { it.sentAt },
                 notified = warnings >= 1,
                 watchlist = warnings >= 2,
-                mupSent = items.any { it.level >= MUP_LEVEL },
+                mupSent = items.any { it.level >= MUP_LEVEL && it.cancelledAt == null },
             )
         }.sortedWith(compareByDescending<OverdueNoticePersonDto> { it.watchlist }.thenByDescending { it.warningCount })
+    }
+
+    @Transactional
+    fun cancelWarning(username: String, all: Boolean = false, reason: String? = null): OverdueNoticePersonDto {
+        val login = username.trim()
+        if (login.isEmpty()) throw NotAuthorizedException()
+        val account = accountService.findAccountByLogin(login)
+            ?: throw jakarta.persistence.EntityNotFoundException("Account $login not found")
+        val active = reportOverdueNoticeRepository
+            .findByUsernameAndLevelLessThanAndCancelledAtIsNullOrderBySentAtDesc(login, MUP_LEVEL)
+        if (active.isEmpty()) {
+            throw rs.russian.portal.shared.exception.InvalidRequestException("Нет активных порицаний для снятия")
+        }
+        val actor = currentUserLogin() ?: throw NotAuthorizedException()
+        val note = reason?.trim()?.takeIf { it.isNotEmpty() }
+        val toCancel = if (all) active else listOf(active.first())
+        val now = OffsetDateTime.now()
+        toCancel.forEach { notice ->
+            notice.cancelledAt = now
+            notice.cancelledBy = actor
+            notice.cancelReason = note
+        }
+        val remaining = active.size - toCancel.size
+        val name = account.fullName
+        inboxService.notifyWarningCancelled(
+            username = login,
+            fullName = name,
+            cancelled = toCancel.size,
+            remaining = remaining,
+            reason = note,
+            createdBy = actor,
+        )
+        return OverdueNoticePersonDto(
+            username = account.username,
+            fullName = name,
+            program = account.info?.program?.code,
+            warningCount = remaining,
+            lastSentAt = active.drop(toCancel.size).maxOfOrNull { it.sentAt },
+            notified = remaining >= 1,
+            watchlist = remaining >= 2,
+            mupSent = alreadySentMup(login),
+        )
     }
 
     @Transactional
