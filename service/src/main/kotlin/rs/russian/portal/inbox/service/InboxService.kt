@@ -63,9 +63,10 @@ class InboxService(
         if (!canSee(thread, account.username, isManager(account.groups))) {
             throw NotAuthorizedException()
         }
+        rememberReceived(thread)
         thread.participants.filter { it.username.equals(account.username, ignoreCase = true) }
             .forEach { participant ->
-                if (!(participant.ackRequired && participant.receivedAt == null)) {
+                if (!(participant.ackRequired && receivedAtOf(thread) == null)) {
                     participant.unread = false
                 }
             }
@@ -238,7 +239,7 @@ class InboxService(
     ): InboxThreadDto {
         val recipient = recipientOf(thread)
         val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
-        val recipientRow = thread.participants.firstOrNull { it.username.equals(recipient, ignoreCase = true) }
+        val receivedAt = receivedAtOf(thread)
         return InboxThreadDto(
             id = thread.id!!,
             createTime = thread.createTime,
@@ -253,16 +254,16 @@ class InboxService(
             reportId = reportId(thread),
             recipient = recipient,
             recipientLastSeen = toOffset(lastSeen[recipient?.lowercase()]),
-            receivedAt = recipientRow?.receivedAt,
+            receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
-            needsAck = mine?.ackRequired == true && mine.receivedAt == null,
+            needsAck = mine?.ackRequired == true && receivedAt == null,
         )
     }
 
     private fun toDetailDto(thread: InboxThread, username: String): InboxThreadDetailDto {
         val recipient = recipientOf(thread)
         val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
-        val recipientRow = thread.participants.firstOrNull { it.username.equals(recipient, ignoreCase = true) }
+        val receivedAt = receivedAtOf(thread)
         val lastSeen = recipient?.let { lastSeenMap(listOf(thread))[it.lowercase()] }
         return InboxThreadDetailDto(
             id = thread.id!!,
@@ -273,9 +274,9 @@ class InboxService(
             reportId = reportId(thread),
             recipient = recipient,
             recipientLastSeen = toOffset(lastSeen),
-            receivedAt = recipientRow?.receivedAt,
+            receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
-            needsAck = mine?.ackRequired == true && mine.receivedAt == null,
+            needsAck = mine?.ackRequired == true && receivedAt == null,
             messages = thread.messages.map {
                 InboxMessageDto(it.id!!, it.author, it.body, it.createTime)
             },
@@ -287,6 +288,28 @@ class InboxService(
         if (logins.isEmpty()) return emptyMap()
         return accountRepository.findLastSeenByUsernames(logins)
             .associate { it.username.lowercase() to it.lastSeen }
+    }
+
+    private fun receivedAtOf(thread: InboxThread): OffsetDateTime? {
+        val recipient = recipientOf(thread) ?: return null
+        val stored = thread.participants
+            .firstOrNull { it.username.equals(recipient, ignoreCase = true) }
+            ?.receivedAt
+        if (stored != null) return stored
+        return thread.messages
+            .filter { it.author.equals(recipient, ignoreCase = true) }
+            .maxOfOrNull { it.createTime }
+    }
+
+    private fun rememberReceived(thread: InboxThread) {
+        val recipient = recipientOf(thread) ?: return
+        val inferred = receivedAtOf(thread) ?: return
+        thread.participants
+            .filter { it.username.equals(recipient, ignoreCase = true) && it.receivedAt == null }
+            .forEach { participant ->
+                participant.receivedAt = inferred
+                participant.unread = false
+            }
     }
 
     private fun recipientOf(thread: InboxThread): String? =
