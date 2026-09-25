@@ -3,6 +3,7 @@ package rs.russian.portal.config
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.servlet.http.HttpServletResponse.SC_MOVED_PERMANENTLY
 import jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -64,7 +65,7 @@ class SecurityConfig(
         httpSecurity: HttpSecurity,
         accountAccessService: AccountAccessService,
         sessionService: SessionService,
-        activityService: ActivityService,
+        activityService: ObjectProvider<ActivityService>,
     ): SecurityFilterChain = httpSecurity
         .cors {
             it.configurationSource(corsConfigurationSource())
@@ -131,7 +132,11 @@ class SecurityConfig(
             it.jwt {}
         }
         .addFilterBefore(ActiveAccountFilter(accountAccessService, sessionService), AuthorizationFilter::class.java)
-        .addFilterAfter(ActivityLoggingFilter(activityService), AuthorizationFilter::class.java)
+        .also { security ->
+            activityService.ifAvailable { service ->
+                security.addFilterAfter(ActivityLoggingFilter(service), AuthorizationFilter::class.java)
+            }
+        }
         .addFilterAfter(ServiceAccountLoggingFilter(), HeaderWriterFilter::class.java)
         .addFilterAfter(clanoviApiKeyFilter, HeaderWriterFilter::class.java)
         .headers {

@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.context.WebApplicationContext
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
+import rs.russian.portal.activity.service.ActivityService
 import rs.russian.portal.config.AppProperties
 import rs.russian.portal.config.SecurityConfig
 import rs.russian.portal.user.service.AccountService
@@ -75,6 +76,7 @@ class AccountSecurityChainTest {
     @Import(SecurityConfig::class, Endpoints::class)
     class Config {
         @Bean fun accountService(): AccountService = mockk(relaxed = true)
+        @Bean fun activityService(): ActivityService = mockk(relaxed = true)
         @Bean fun sessionService(): SessionService = mockk(relaxed = true)
         @Bean fun accountAccessService(): AccountAccessService = mockk()
         @Bean fun appProperties() = AppProperties("http://localhost:3000")
