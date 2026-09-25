@@ -138,7 +138,12 @@ class InboxService(
         return openThread(
             subject = subject,
             body = body,
-            kind = if (level >= 3) InboxThread.KIND_OVERDUE_3 else InboxThread.KIND_OVERDUE_2,
+            kind = when {
+                level >= 3 -> InboxThread.KIND_OVERDUE_3
+                level >= 2 -> InboxThread.KIND_OVERDUE_2
+                level >= 1 -> InboxThread.KIND_OVERDUE_1
+                else -> InboxThread.KIND_OVERDUE_HOURS
+            },
             createdBy = null,
             recipient = username,
             extraParticipants = extra,
