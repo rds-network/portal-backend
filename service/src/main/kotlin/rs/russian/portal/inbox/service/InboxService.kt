@@ -48,7 +48,12 @@ class InboxService(
     fun list(): List<InboxThreadDto> {
         val account = accountService.getCurrentAccount()
         val threads = if (isManager(account.groups)) {
-            inboxThreadRepository.findAllForManagers()
+            // Managers see operational mail for everyone, but "report for acceptance"
+            // threads only when they are a participant (customer / delegate).
+            inboxThreadRepository.findAllForManagers().filter { thread ->
+                thread.kind != InboxThread.KIND_REPORT_CUSTOMER ||
+                    thread.participants.any { it.username.equals(account.username, ignoreCase = true) }
+            }
         } else {
             inboxThreadRepository.findAllForUser(account.username)
         }
@@ -60,6 +65,17 @@ class InboxService(
         )
         return threads.map { toListDto(it, account.username, lastSeenMap(threads), names) }
     }
+
+    /** Report ids from acceptance inbox threads addressed to this user. */
+    @Transactional(readOnly = true)
+    fun acceptanceReportIdsFor(username: String): List<UUID> =
+        inboxThreadRepository.findAllForUser(username)
+            .asSequence()
+            .filter { it.kind == InboxThread.KIND_REPORT_CUSTOMER }
+            .mapNotNull { reportId(it) }
+            .mapNotNull { runCatching { UUID.fromString(it) }.getOrNull() }
+            .distinct()
+            .toList()
 
     @Transactional
     fun get(id: UUID): InboxThreadDetailDto {
@@ -263,6 +279,9 @@ class InboxService(
     }
 
     private fun canSee(thread: InboxThread, username: String, manager: Boolean): Boolean {
+        if (thread.kind == InboxThread.KIND_REPORT_CUSTOMER) {
+            return thread.participants.any { it.username.equals(username, ignoreCase = true) }
+        }
         if (manager) return true
         return thread.participants.any { it.username.equals(username, ignoreCase = true) }
     }
@@ -274,8 +293,14 @@ class InboxService(
         names: Map<String, String> = emptyMap(),
     ): InboxThreadDto {
         val recipient = recipientOf(thread)
-        val counterpart = recipient
-            ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
+        val counterpart = when {
+            thread.kind == InboxThread.KIND_REPORT_CUSTOMER ->
+                thread.createdBy?.takeIf { it.isNotBlank() }
+                    ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
+            else ->
+                recipient
+                    ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
+        }
         val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
         val receivedAt = receivedAtOf(thread)
         return InboxThreadDto(

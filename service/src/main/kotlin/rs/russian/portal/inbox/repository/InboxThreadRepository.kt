@@ -12,7 +12,7 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
         """
         SELECT DISTINCT t FROM InboxThread t
         JOIN t.participants p
-        WHERE p.username = :username
+        WHERE LOWER(p.username) = LOWER(:username)
         ORDER BY t.createTime DESC
         """
     )
@@ -29,7 +29,7 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
     @Query(
         """
         SELECT COUNT(p) FROM InboxParticipant p
-        WHERE p.username = :username AND p.unread = true
+        WHERE LOWER(p.username) = LOWER(:username) AND p.unread = true
         """
     )
     fun countUnread(@Param("username") username: String): Long
