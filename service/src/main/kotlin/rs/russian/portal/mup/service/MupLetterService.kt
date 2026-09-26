@@ -10,6 +10,7 @@ import rs.russian.portal.mail.repository.EmailOutboxRepository
 import rs.russian.portal.mail.service.EmailService
 import rs.russian.portal.mup.api.MupLetterDraft
 import rs.russian.portal.mup.api.MupLetterDto
+import rs.russian.portal.mup.api.MupLetterReason
 import rs.russian.portal.mup.api.MupLetterSendRequest
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
@@ -29,7 +30,7 @@ class MupLetterService(
 ) {
 
     @Transactional(readOnly = true)
-    fun draft(username: String): MupLetterDraft {
+    fun draft(username: String, reason: MupLetterReason = MupLetterReason.NON_COMPLIANCE): MupLetterDraft {
         val account = accountService.findAccountByLogin(username)
             ?: throw InvalidRequestException("User '$username' not found")
         val info = account.info
@@ -73,7 +74,8 @@ class MupLetterService(
             email = email,
             to = "upravazastrance@mup.gov.rs",
             subject = "Обавештење о престанку уговора о волонтирању – $fullName",
-            body = letter(fullName, birth, citizenship, passport, termination, from, to),
+            body = letter(reason, fullName, birth, citizenship, passport, termination, from, to),
+            reason = reason,
         )
     }
 
@@ -102,14 +104,18 @@ class MupLetterService(
     }
 
     @Transactional
-    fun sendForVolunteer(username: String): MupLetterDto {
-        val draft = draft(username)
+    fun sendForVolunteer(
+        username: String,
+        reason: MupLetterReason = MupLetterReason.NON_COMPLIANCE,
+    ): MupLetterDto {
+        val draft = draft(username, reason)
         return send(
             MupLetterSendRequest(
                 username = username,
                 to = draft.to,
                 subject = draft.subject,
                 body = draft.body,
+                reason = reason,
             )
         )
     }
@@ -160,6 +166,7 @@ class MupLetterService(
         private val MANAGERS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO, UserGroup.ADMIN_VOLUNTEER)
 
         fun letter(
+            reason: MupLetterReason,
             fullName: String,
             birthDate: String,
             citizenship: String,
@@ -167,21 +174,49 @@ class MupLetterService(
             terminationDate: String,
             periodFrom: String,
             periodTo: String,
-        ): String = """
-            Удружење „Руска дијаспора у Србији“ обавештава вас да је дана ${terminationDate.ifBlank { "—" }} раскинут уговор о волонтирању закључен са следећим лицем:
+        ): String {
+            val header = """
+                Удружење „Руска дијаспора у Србији“ обавештава вас да је дана ${terminationDate.ifBlank { "—" }} раскинут уговор о волонтирању закључен са следећим лицем:
 
-            Име и презиме: ${fullName.ifBlank { "—" }}
-            Датум рођења: ${birthDate.ifBlank { "—" }}
-            Држављанство: ${citizenship.ifBlank { "—" }}
-            Број пасоша: ${passport.ifBlank { "—" }}
+                Име и презиме: ${fullName.ifBlank { "—" }}
+                Датум рођења: ${birthDate.ifBlank { "—" }}
+                Држављанство: ${citizenship.ifBlank { "—" }}
+                Број пасоша: ${passport.ifBlank { "—" }}
+            """.trimIndent()
+            val reasonBlock = when (reason) {
+                MupLetterReason.VOLUNTEER_REQUEST ->
+                    "Уговор је раскинут на захтев волонтера (по жељи волонтера), на основу члана 5.1 уговора, којим је предвиђено да волонтер може у свако доба раскинути уговор о волонтирању без обавезе навођења разлога."
+                MupLetterReason.NON_COMPLIANCE ->
+                    "Волонтер није доставио извештаје о активностима за период од ${periodFrom.ifBlank { "—" }} до ${periodTo.ifBlank { "—" }}. Након упућених обавештења и провере волонтерског ангажовања, Организатор је утврдио да волонтер не испуњава уговорене обавезе. Уговор је раскинут на основу члана 5.2 тачка 3) уговора, у вези са чланом 19. тачка 3) и чланом 20. став 2. тачка 3) Закона о волонтирању."
+            }
+            val footer = """
+                О престанку уговора који је послужио као основ за одобрење привременог боравка обавештавамо вас у складу са чланом 8. став 1. Закона о странцима. Молимо да ову чињеницу евидентирате.
 
-            Волонтер није доставио извештаје о активностима за период од ${periodFrom.ifBlank { "—" }} до ${periodTo.ifBlank { "—" }}. Након упућених обавештења и провере волонтерског ангажовања, Организатор је утврдио да волонтер не испуњава уговорене обавезе. Уговор је раскинут на основу члана 5.2 тачка 3) уговора, у вези са чланом 19. тачка 3) и чланом 20. став 2. тачка 3) Закона о волонтирању.
+                С поштовањем,
+                Леонид Стеценко
+                Председник удружења „Руска дијаспора у Србији“
+            """.trimIndent()
+            return "$header\n\n$reasonBlock\n\n$footer"
+        }
 
-            О престанку уговора који је послужио као основ за одобрење привременог боравка обавештавамо вас у складу са чланом 8. став 1. Закона о странцима. Молимо да ову чињеницу евидентирате.
-
-            С поштовањем,
-            Леонид Стеценко
-            Председник удружења „Руска дијаспора у Србији“
-        """.trimIndent()
+        @Deprecated("Use letter(reason, ...)", ReplaceWith("letter(MupLetterReason.NON_COMPLIANCE, fullName, birthDate, citizenship, passport, terminationDate, periodFrom, periodTo)"))
+        fun letter(
+            fullName: String,
+            birthDate: String,
+            citizenship: String,
+            passport: String,
+            terminationDate: String,
+            periodFrom: String,
+            periodTo: String,
+        ): String = letter(
+            MupLetterReason.NON_COMPLIANCE,
+            fullName,
+            birthDate,
+            citizenship,
+            passport,
+            terminationDate,
+            periodFrom,
+            periodTo,
+        )
     }
 }
