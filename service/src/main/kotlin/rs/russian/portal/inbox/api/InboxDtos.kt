@@ -23,6 +23,13 @@ data class InboxThreadDto(
     val receivedAt: OffsetDateTime? = null,
     val ackRequired: Boolean = false,
     val needsAck: Boolean = false,
+    /** Total messages in the thread (1 = only the original notice). */
+    val messageCount: Int = 1,
+    val lastAuthor: String? = null,
+    val lastAuthorName: String? = null,
+    val lastMessageTime: OffsetDateTime? = null,
+    /** True when someone replied after the first system/staff message. */
+    val hasReply: Boolean = false,
 )
 
 data class InboxMessageDto(

@@ -55,10 +55,12 @@ class InboxService(
         val names = nameMap(
             threads.flatMap { thread ->
                 listOfNotNull(recipientOf(thread), thread.createdBy) +
-                    thread.participants.map { it.username }
+                    thread.participants.map { it.username } +
+                    thread.messages.mapNotNull { it.author }
             }
         )
         return threads.map { toListDto(it, account.username, lastSeenMap(threads), names) }
+            .sortedWith(inboxListComparator())
     }
 
     @Transactional
@@ -274,10 +276,19 @@ class InboxService(
         names: Map<String, String> = emptyMap(),
     ): InboxThreadDto {
         val recipient = recipientOf(thread)
-        val counterpart = recipient
-            ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
+        val counterpart = when {
+            thread.kind == InboxThread.KIND_REPORT_CUSTOMER ->
+                thread.createdBy?.takeIf { it.isNotBlank() }
+                    ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
+            else ->
+                recipient
+                    ?: thread.participants.map { it.username }.firstOrNull { !it.equals(username, ignoreCase = true) }
+        }
         val mine = thread.participants.firstOrNull { it.username.equals(username, ignoreCase = true) }
         val receivedAt = receivedAtOf(thread)
+        val last = thread.messages.lastOrNull()
+        val messageCount = thread.messages.size
+        val hasReply = messageCount > 1
         return InboxThreadDto(
             id = thread.id!!,
             createTime = thread.createTime,
@@ -285,7 +296,7 @@ class InboxService(
             kind = thread.kind,
             createdBy = thread.createdBy,
             unread = mine?.unread == true,
-            lastBody = thread.messages.lastOrNull()?.body,
+            lastBody = last?.body,
             counterpart = counterpart,
             counterpartName = displayName(counterpart, names),
             heatmapUser = heatmapUser(thread),
@@ -296,8 +307,19 @@ class InboxService(
             receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
             needsAck = mine?.ackRequired == true && receivedAt == null,
+            messageCount = messageCount,
+            lastAuthor = last?.author,
+            lastAuthorName = displayName(last?.author, names),
+            lastMessageTime = last?.createTime,
+            hasReply = hasReply,
         )
     }
+
+    private fun inboxListComparator(): Comparator<InboxThreadDto> =
+        compareBy<InboxThreadDto> { !it.needsAck }
+            .thenBy { !it.unread }
+            .thenBy { it.hasReply }
+            .thenByDescending { it.lastMessageTime ?: it.createTime }
 
     private fun toDetailDto(thread: InboxThread, username: String): InboxThreadDetailDto {
         val recipient = recipientOf(thread)
