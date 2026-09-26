@@ -23,6 +23,8 @@ import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.ai.domain.AiProfileCode.SERBIAN_TRANSLATOR
 import rs.russian.portal.shared.ai.service.TextTranslationService
 import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.repository.ProgramRepository
+import rs.russian.portal.program.repository.ProjectRepository
 import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
@@ -45,6 +47,8 @@ class ReportService(
     private val workAssignmentService: WorkAssignmentService,
     private val inboxService: InboxService,
     private val programCuratorService: ProgramCuratorService,
+    private val programRepository: ProgramRepository,
+    private val projectRepository: ProjectRepository,
 ) {
 
     @Transactional(readOnly = true)
@@ -89,7 +93,8 @@ class ReportService(
 
     @Transactional
     fun updateReport(reportDto: ReportDto): Report {
-        requireReportingAllowed(accountService.getCurrentAccount())
+        val editor = accountService.getCurrentAccount()
+        requireReportingAllowed(editor)
         val report = getReport(reportDto.id)
         requireCustomers(reportDto, report.account)
         val existingTasksById = report.tasks.associateBy { it.id }
@@ -106,12 +111,29 @@ class ReportService(
                 }
             }
         }
+        refreshAssignment(report, reportDto, editor)
         report.status = ReportStatus.CREATED
         report.tasks.clear()
         val saved = reportRepository.save(report.also { it.tasks.addAll(tasks) })
         workAssignmentService.markFromReport(saved)
         notifyCustomers(saved)
         return saved
+    }
+
+    /**
+     * Программа и проект в отчёте — снимок назначения на момент сдачи, поэтому смена программы в профиле
+     * старые отчёты не трогает. Модератор может задать снимок явно, автору же подставляем его текущее
+     * назначение — иначе исправленный отчёт снова уходит на приёмку со старой программой.
+     */
+    @Transactional
+    fun updateAssignment(reportId: UUID, programCode: String?, projectCode: String?): Report {
+        val report = getReport(reportId)
+        val editor = accountService.getCurrentAccount()
+        if (!canEditAssignment(report, editor)) {
+            throw NotAuthorizedException()
+        }
+        assignProgramAndProject(report, programCode, projectCode)
+        return reportRepository.save(report)
     }
 
     @Transactional(readOnly = true)
@@ -200,6 +222,40 @@ class ReportService(
             "Сдача отчётов приостановлена. Обратитесь к $contact." + (reason?.let { " Причина: $it" } ?: "")
         )
     }
+
+    private fun refreshAssignment(report: Report, reportDto: ReportDto, editor: Account) {
+        if (canEditAssignment(report, editor)) {
+            val programCode = reportDto.program?.takeIf { it.isNotBlank() }
+            val projectCode = reportDto.project?.takeIf { it.isNotBlank() }
+            if (programCode != null || projectCode != null) {
+                assignProgramAndProject(report, programCode, projectCode)
+                return
+            }
+        }
+        if (report.account.username.equals(editor.username, ignoreCase = true)) {
+            report.program = report.account.info?.program
+            report.project = report.account.info?.project
+        }
+    }
+
+    private fun assignProgramAndProject(report: Report, programCode: String?, projectCode: String?) {
+        val program = programCode?.takeIf { it.isNotBlank() }?.let {
+            programRepository.findByCode(it) ?: throw InvalidRequestException("Программа '$it' не найдена")
+        }
+        val project = projectCode?.takeIf { it.isNotBlank() }?.let {
+            projectRepository.findByCode(it) ?: throw InvalidRequestException("Проект '$it' не найден")
+        }
+        // Проект всегда принадлежит программе, поэтому программу берём из проекта, а чужой проект отбрасываем.
+        report.program = program ?: project?.program
+        report.project = project?.takeIf { it.program.code == report.program?.code }
+    }
+
+    /**
+     * Снимок программы — не виза на отчёт, поэтому принудительный контроль тут не действует: иначе модератор
+     * не смог бы починить программу у уже принятого отчёта.
+     */
+    private fun canEditAssignment(report: Report, editor: Account): Boolean =
+        editor.groups.any { it in MODERATORS } || canModerate(report, editor.username, editor.groups)
 
     private fun requireCustomers(reportDto: ReportDto, author: Account) {
         if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {

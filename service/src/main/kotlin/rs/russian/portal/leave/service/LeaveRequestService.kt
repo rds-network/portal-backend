@@ -1,6 +1,7 @@
 package rs.russian.portal.leave.service
 
 import jakarta.persistence.EntityNotFoundException
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.inbox.service.InboxService
@@ -76,14 +77,29 @@ class LeaveRequestService(
         val programCodes = programCuratorService.programCodesOf(actor.username)
         if (programCodes.isEmpty()) return emptyList()
         val candidates = leaveRequestRepository.findAllByStatusOrderByCreatedAtAsc(LeaveRequestStatus.PENDING)
-        return candidates.mapNotNull { leave ->
-            // Curators themselves are decided only by managers — skip them here.
-            if (programCuratorService.isCurator(leave.username)) return@mapNotNull null
-            val account = accountRepository.findByUsername(leave.username).orElse(null) ?: return@mapNotNull null
-            val programCode = account.info?.program?.code ?: return@mapNotNull null
-            if (programCodes.none { it.equals(programCode, ignoreCase = true) }) return@mapNotNull null
-            toDto(leave, account.fullName, programCode)
+        return candidates.mapNotNull { visibleToCurator(it, programCodes) }
+    }
+
+    /**
+     * Решённые заявки: [pending] после согласования пустеет, и согласующий теряет отпуск из вида —
+     * вспомнить, кто и когда отдыхает, становится негде.
+     */
+    @Transactional(readOnly = true)
+    fun history(): List<LeaveRequestDto> {
+        val actor = accountService.getCurrentAccount()
+        val decided = leaveRequestRepository.findDecided(
+            LeaveRequestStatus.PENDING,
+            PageRequest.of(0, HISTORY_LIMIT),
+        )
+        if (isManager(actor.groups)) {
+            return decided.map(::toDto)
         }
+        if (!programCuratorService.isCurator(actor.username)) {
+            throw NotAuthorizedException()
+        }
+        val programCodes = programCuratorService.programCodesOf(actor.username)
+        if (programCodes.isEmpty()) return emptyList()
+        return decided.mapNotNull { visibleToCurator(it, programCodes) }
     }
 
     @Transactional
@@ -133,6 +149,15 @@ class LeaveRequestService(
         return leaveRequestRepository
             .findAcceptedOverlapping(target, rangeFrom, rangeTo, LeaveRequestStatus.ACCEPTED)
             .map(::toDto)
+    }
+
+    private fun visibleToCurator(leave: LeaveRequest, programCodes: Collection<String>): LeaveRequestDto? {
+        // Curators themselves are decided only by managers — skip them here.
+        if (programCuratorService.isCurator(leave.username)) return null
+        val account = accountRepository.findByUsername(leave.username).orElse(null) ?: return null
+        val programCode = account.info?.program?.code ?: return null
+        if (programCodes.none { it.equals(programCode, ignoreCase = true) }) return null
+        return toDto(leave, account.fullName, programCode)
     }
 
     private fun assertCanDecide(leave: LeaveRequest) {
@@ -247,4 +272,8 @@ class LeaveRequestService(
         decidedAt = leave.decidedAt,
         decidedBy = leave.decidedBy,
     )
+
+    companion object {
+        private const val HISTORY_LIMIT = 200
+    }
 }
