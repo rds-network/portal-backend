@@ -163,20 +163,21 @@ class LeaveRequestService(
         val reason = leave.reason?.let { "\nПричина: $it" } ?: ""
         val subject = "Запрос на отпуск: $fullName"
         val body = "Запрос на отпуск от $fullName (${leave.username}).\nПериод: $period.$reason\n\nОткройте раздел «Отпуск» для принятия решения."
-        val recipients = mutableSetOf<String>()
+        // Curators (and users without a program) → senior admins only.
+        // Regular volunteers → program curators only. Never blast ADMIN_VOLUNTEER / all managers.
+        val candidates = mutableSetOf<String>()
         if (programCuratorService.isCurator(leave.username)) {
-            recipients += managerUsernames()
+            candidates += seniorManagerUsernames()
         } else {
             val programCode = accountRepository.findByUsername(leave.username).orElse(null)?.info?.program?.code
             if (programCode.isNullOrBlank()) {
-                recipients += managerUsernames()
+                candidates += seniorManagerUsernames()
             } else {
-                recipients += programCuratorRepository.findAllByProgramCodeIgnoreCase(programCode).map { it.username }
-                recipients += managerUsernames()
+                candidates += programCuratorRepository.findAllByProgramCodeIgnoreCase(programCode).map { it.username }
             }
         }
-        recipients.removeIf { it.equals(leave.username, ignoreCase = true) }
-        recipients.forEach { recipient ->
+        candidates.removeIf { it.equals(leave.username, ignoreCase = true) }
+        activeUsernames(candidates).forEach { recipient ->
             inboxService.notifyLeaveRequest(
                 recipient = recipient,
                 subject = subject,
@@ -204,10 +205,19 @@ class LeaveRequestService(
         )
     }
 
-    private fun managerUsernames(): List<String> =
-        listOf(UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER, UserGroup.ADMIN)
+    /** MAIN_VOLUNTEER + ADMIN only — decides leave for curators / users without a program. */
+    private fun seniorManagerUsernames(): List<String> =
+        listOf(UserGroup.MAIN_VOLUNTEER, UserGroup.ADMIN)
             .flatMap { accountRepository.findAllActiveUsernamesByGroup(it.name) }
             .distinct()
+
+    private fun activeUsernames(logins: Collection<String>): List<String> {
+        if (logins.isEmpty()) return emptyList()
+        return accountRepository.findAllByUsernameIn(logins.toList())
+            .filter { it.active }
+            .map { it.username }
+            .distinct()
+    }
 
     private fun isManager(groups: Set<UserGroup>): Boolean {
         val managers = setOf(

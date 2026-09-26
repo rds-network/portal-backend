@@ -1,6 +1,7 @@
 package rs.russian.portal.inbox.api
 
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -51,4 +52,11 @@ class InboxController(
     @PostMapping("/{id}/ack")
     fun ack(@PathVariable id: UUID): ResponseEntity<InboxThreadDetailDto> =
         ResponseEntity.ok(inboxService.ack(id))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @DeleteMapping("/{id}")
+    fun delete(@PathVariable id: UUID): ResponseEntity<Void> {
+        inboxService.delete(id)
+        return ResponseEntity.noContent().build()
+    }
 }

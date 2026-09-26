@@ -154,6 +154,15 @@ class InboxService(
     }
 
     @Transactional
+    fun delete(id: UUID) {
+        val account = accountService.getCurrentAccount()
+        if (!isManager(account.groups)) throw NotAuthorizedException()
+        val thread = inboxThreadRepository.findById(id)
+            .orElseThrow { EntityNotFoundException("Inbox thread $id not found") }
+        inboxThreadRepository.delete(thread)
+    }
+
+    @Transactional
     fun notifyAssigned(username: String, title: String, details: String?, createdBy: String) {
         val extra = details?.trim()?.takeIf { it.isNotEmpty() }?.let { "\n\n$it" } ?: ""
         openThread(
@@ -234,7 +243,7 @@ class InboxService(
         openThread(
             subject = subject,
             body = body,
-            kind = InboxThread.KIND_MANUAL,
+            kind = InboxThread.KIND_LEAVE_REQUEST,
             createdBy = createdBy,
             recipient = recipient,
             extraParticipants = listOf(createdBy),
@@ -247,7 +256,7 @@ class InboxService(
         openThread(
             subject = subject,
             body = body,
-            kind = InboxThread.KIND_MANUAL,
+            kind = InboxThread.KIND_LEAVE_DECISION,
             createdBy = createdBy,
             recipient = username,
             extraParticipants = listOf(createdBy),
@@ -413,6 +422,8 @@ class InboxService(
     private fun requiresAck(kind: String): Boolean =
         kind == InboxThread.KIND_MANUAL ||
             kind == InboxThread.KIND_TASK ||
+            kind == InboxThread.KIND_LEAVE_REQUEST ||
+            kind == InboxThread.KIND_LEAVE_DECISION ||
             kind.startsWith("OVERDUE")
 
     private fun heatmapUser(thread: InboxThread): String? {
