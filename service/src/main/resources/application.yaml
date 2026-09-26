@@ -62,6 +62,10 @@ app:
     ticket-base-url: ${HELPDESK_TICKET_BASE_URL}
   clanovi:
     api-key: ${CLANOVI_API_KEY:}
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    applications-chat-id: ${TELEGRAM_APPLICATIONS_CHAT_ID:}
+    acceptance-chat-id: ${TELEGRAM_ACCEPTANCE_CHAT_ID:}
   schedulers:
     email-outbox: ${SCHEDULER_EMAIL_OUTBOX_CRON:*/15 * * * * *} # every 15 seconds
     user-sync: ${SCHEDULER_USER_SYNC_CRON:0 0 */1 * * *} # every hour

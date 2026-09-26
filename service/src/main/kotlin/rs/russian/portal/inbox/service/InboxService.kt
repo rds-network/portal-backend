@@ -15,6 +15,7 @@ import rs.russian.portal.inbox.repository.InboxThreadRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.telegram.TelegramNotificationService
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
@@ -30,6 +31,7 @@ class InboxService(
     private val inboxThreadRepository: InboxThreadRepository,
     private val accountService: AccountService,
     private val accountRepository: AccountRepository,
+    private val telegramNotificationService: TelegramNotificationService,
 ) {
 
     @Transactional(readOnly = true)
@@ -178,6 +180,17 @@ class InboxService(
             extraParticipants = emptyList(),
             recipientUnread = true,
         )
+        try {
+            val customerAccount = accountService.findAccountByLogin(customer)
+            telegramNotificationService.notifyReportForAcceptance(
+                reportId = reportId,
+                volunteerName = volunteerName,
+                customerLogin = customer,
+                customerTelegram = customerAccount?.info?.telegram,
+            )
+        } catch (_: Exception) {
+            // Inbox notification already saved; Telegram is best-effort.
+        }
     }
 
     @Transactional

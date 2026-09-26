@@ -15,6 +15,7 @@ import rs.russian.portal.application.event.ApplicationCreatedEvent
 import rs.russian.portal.application.event.ApplicationUpdateEvent
 import rs.russian.portal.application.mapper.ApplicationMapper
 import rs.russian.portal.mail.service.EmailService
+import rs.russian.portal.telegram.TelegramNotificationService
 import rs.russian.portal.user.mapper.ContractMapper
 import rs.russian.portal.user.service.AccountService
 import java.util.*
@@ -27,6 +28,7 @@ class ApplicationEventListener(
     private val templateEngine: TemplateEngine,
     private val applicationMapper: ApplicationMapper,
     private val applicationService: ApplicationService,
+    private val telegramNotificationService: TelegramNotificationService,
 ) {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -42,6 +44,16 @@ class ApplicationEventListener(
             message,
             "Русская Диаспора <apply@russian.rs>"
         )
+        try {
+            telegramNotificationService.notifyNewApplication(
+                id = application.id!!.toString(),
+                name = application.name,
+                email = application.email,
+                type = application.type.name,
+            )
+        } catch (ex: Exception) {
+            log.warn("Telegram alert for application {} failed: {}", application.id, ex.message)
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

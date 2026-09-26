@@ -39,6 +39,7 @@ class ApplicationEventListenerTest {
             mockk(relaxed = true),
             applicationMapper,
             applicationService,
+            mockk(relaxed = true),
         )
     }
 
