@@ -62,7 +62,7 @@ class ReportService(
             program = currentAccount.info?.program,
             project = currentAccount.info?.project
         )
-        requireCustomers(reportDto)
+        requireCustomers(reportDto, currentAccount)
         val tasks = reportDto.tasks.map { taskDto ->
             reportMapper.map(taskDto, report).also { task ->
                 task.customer = accountService.findAccountByLogin(taskDto.customer)
@@ -91,7 +91,7 @@ class ReportService(
     fun updateReport(reportDto: ReportDto): Report {
         requireReportingAllowed(accountService.getCurrentAccount())
         val report = getReport(reportDto.id)
-        requireCustomers(reportDto)
+        requireCustomers(reportDto, report.account)
         val existingTasksById = report.tasks.associateBy { it.id }
         val tasks = reportDto.tasks.map { taskDto ->
             val existingTask = taskDto.id?.let(existingTasksById::get)
@@ -123,7 +123,7 @@ class ReportService(
     fun getReportsForCustomer(status: ReportStatus?, pageable: Pageable): Page<Report> {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         val logins = customerLoginsFor(login)
-        val ids = reportRepository.findIdsByCustomers(logins, status, pageable)
+        val ids = reportRepository.findIdsByCustomers(logins, login.lowercase(), status, pageable)
         if (ids.content.isEmpty()) {
             return PageImpl(emptyList(), ids.pageable, ids.totalElements)
         }
@@ -134,7 +134,11 @@ class ReportService(
     @Transactional(readOnly = true)
     fun pendingCountForCustomer(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return reportRepository.countByCustomers(customerLoginsFor(login), ReportStatus.CREATED)
+        return reportRepository.countByCustomers(
+            customerLoginsFor(login),
+            login.lowercase(),
+            ReportStatus.CREATED,
+        )
     }
 
     @Transactional
@@ -197,9 +201,20 @@ class ReportService(
         )
     }
 
-    private fun requireCustomers(reportDto: ReportDto) {
+    private fun requireCustomers(reportDto: ReportDto, author: Account) {
         if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {
             throw InvalidRequestException("Укажите заказчика задачи")
+        }
+        val controller = author.reportControllerUsername?.takeIf { it.isNotBlank() }
+        if (controller != null) {
+            // Контроль назначен вне программы, поэтому обычная проверка «заказчик — куратор» тут не применима.
+            if (reportDto.tasks.any { !controller.equals(it.customer, ignoreCase = true) }) {
+                val name = accountService.findAccountByLogin(controller)?.fullName ?: controller
+                throw InvalidRequestException(
+                    "Вы на контроле у $name. Укажите $name заказчиком во всех задачах отчёта."
+                )
+            }
+            return
         }
         if (!programCuratorService.hasAny()) {
             reportDto.tasks.mapNotNull { it.customer }.distinct().forEach { login ->
@@ -231,9 +246,19 @@ class ReportService(
         }
     }
 
+    /**
+     * Принудительный контроль — строгая виза: пока он стоит, ни модератор, ни куратор программы не могут
+     * принять отчёт вместо контролёра. [SUPER_ADMINS] оставлены как аварийный доступ.
+     */
     private fun canModerate(report: Report, login: String, groups: Set<UserGroup>): Boolean {
-        if (groups.any { it in MODERATORS }) return true
         val programCode = report.program?.code
+        val controller = report.account.reportControllerUsername?.takeIf { it.isNotBlank() }
+        if (controller != null) {
+            if (groups.any { it in SUPER_ADMINS }) return true
+            return controller.equals(login, ignoreCase = true) ||
+                programCuratorService.canAcceptAsDelegate(login, controller, programCode)
+        }
+        if (groups.any { it in MODERATORS }) return true
         return report.tasks.any { task ->
             val customer = task.customer?.username ?: return@any false
             customer.equals(login, ignoreCase = true) ||
@@ -264,5 +289,6 @@ class ReportService(
 
     companion object {
         private val MODERATORS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
+        private val SUPER_ADMINS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO)
     }
 }

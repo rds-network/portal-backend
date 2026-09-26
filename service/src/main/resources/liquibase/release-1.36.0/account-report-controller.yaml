@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.36.0-add-report-controller-to-account
+      author: portal
+      changes:
+        - addColumn:
+            tableName: account
+            columns:
+              - column:
+                  name: report_controller_username
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: true

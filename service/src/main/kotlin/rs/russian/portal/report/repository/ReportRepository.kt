@@ -50,27 +50,38 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         @Param("end") end: OffsetDateTime
     ): List<ProgramStatProjection>
 
+    /**
+     * :controller — логин текущего пользователя в нижнем регистре: принудительный контролёр видит отчёты
+     * подопечного, даже если заказчик в задачах почему-то не он.
+     */
     @Query(
         value = """
         SELECT r.id FROM Report r
-        WHERE EXISTS (
-            SELECT 1 FROM Task t
-            WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+        WHERE (
+            EXISTS (
+                SELECT 1 FROM Task t
+                WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+            )
+            OR LOWER(r.account.reportControllerUsername) = :controller
         )
           AND (:status IS NULL OR r.status = :status)
         ORDER BY r.createTime DESC
         """,
         countQuery = """
         SELECT COUNT(r.id) FROM Report r
-        WHERE EXISTS (
-            SELECT 1 FROM Task t
-            WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+        WHERE (
+            EXISTS (
+                SELECT 1 FROM Task t
+                WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+            )
+            OR LOWER(r.account.reportControllerUsername) = :controller
         )
           AND (:status IS NULL OR r.status = :status)
         """
     )
     fun findIdsByCustomers(
         @Param("logins") logins: Collection<String>,
+        @Param("controller") controller: String,
         @Param("status") status: ReportStatus?,
         pageable: Pageable,
     ): Page<UUID>
@@ -78,15 +89,19 @@ interface ReportRepository : JpaRepository<Report, UUID> {
     @Query(
         """
         SELECT COUNT(r.id) FROM Report r
-        WHERE EXISTS (
-            SELECT 1 FROM Task t
-            WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+        WHERE (
+            EXISTS (
+                SELECT 1 FROM Task t
+                WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+            )
+            OR LOWER(r.account.reportControllerUsername) = :controller
         )
           AND (:status IS NULL OR r.status = :status)
         """
     )
     fun countByCustomers(
         @Param("logins") logins: Collection<String>,
+        @Param("controller") controller: String,
         @Param("status") status: ReportStatus?,
     ): Long
 }

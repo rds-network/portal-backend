@@ -12,6 +12,7 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.user.service.ReportBlockService
+import rs.russian.portal.user.service.ReportControllerService
 import rs.russian.portal.user.service.SessionService
 import java.util.*
 
@@ -19,6 +20,7 @@ import java.util.*
 class UserController(
     private val accountService: AccountService,
     private val reportBlockService: ReportBlockService,
+    private val reportControllerService: ReportControllerService,
     private val sessionService: SessionService,
     private val userMapper: UserMapper,
 ) : UserApi {
@@ -90,6 +92,18 @@ class UserController(
 
     override fun clearReportBlock(id: Int): ResponseEntity<UserInfoDto> {
         return ResponseEntity.ok(userMapper.map(reportBlockService.unblock(id).info))
+    }
+
+    override fun setReportController(
+        id: Int,
+        reportControllerRequest: ReportControllerRequest,
+    ): ResponseEntity<UserInfoDto> {
+        val account = reportControllerService.setController(id, reportControllerRequest.username)
+        return ResponseEntity.ok(userMapper.map(account.info))
+    }
+
+    override fun clearReportController(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(reportControllerService.clearController(id).info))
     }
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
