@@ -25,6 +25,14 @@ class ProgramCuratorController(
     fun list(): ResponseEntity<List<ProgramCuratorDto>> =
         ResponseEntity.ok(programCuratorService.list())
 
+    @GetMapping("/approvers")
+    fun approvers(): ResponseEntity<List<ReportApproverDto>> =
+        ResponseEntity.ok(programCuratorService.listApprovers())
+
+    @GetMapping("/delegates")
+    fun delegates(): ResponseEntity<List<ProgramCuratorDelegateDto>> =
+        ResponseEntity.ok(programCuratorService.listDelegates())
+
     @GetMapping("/me")
     fun me(): ResponseEntity<Map<String, Any>> =
         ResponseEntity.ok(
@@ -46,6 +54,20 @@ class ProgramCuratorController(
         @PathVariable username: String,
     ): ResponseEntity<Void> {
         programCuratorService.remove(programCode, username)
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/delegates")
+    fun assignDelegate(@RequestBody request: ProgramCuratorDelegateWriteRequest): ResponseEntity<ProgramCuratorDelegateDto> =
+        ResponseEntity.ok(programCuratorService.assignDelegate(request))
+
+    @DeleteMapping("/delegates/{programCode}/{curatorUsername}/{delegateUsername}")
+    fun removeDelegate(
+        @PathVariable programCode: String,
+        @PathVariable curatorUsername: String,
+        @PathVariable delegateUsername: String,
+    ): ResponseEntity<Void> {
+        programCuratorService.removeDelegate(programCode, curatorUsername, delegateUsername)
         return ResponseEntity.noContent().build()
     }
 }

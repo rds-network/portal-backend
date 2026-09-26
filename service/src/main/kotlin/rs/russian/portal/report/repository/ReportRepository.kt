@@ -55,7 +55,7 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         SELECT r.id FROM Report r
         WHERE EXISTS (
             SELECT 1 FROM Task t
-            WHERE t.report = r AND LOWER(t.customer.username) = LOWER(:login)
+            WHERE t.report = r AND LOWER(t.customer.username) IN :logins
         )
           AND (:status IS NULL OR r.status = :status)
         ORDER BY r.createTime DESC
@@ -64,13 +64,13 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         SELECT COUNT(r.id) FROM Report r
         WHERE EXISTS (
             SELECT 1 FROM Task t
-            WHERE t.report = r AND LOWER(t.customer.username) = LOWER(:login)
+            WHERE t.report = r AND LOWER(t.customer.username) IN :logins
         )
           AND (:status IS NULL OR r.status = :status)
         """
     )
-    fun findIdsByCustomer(
-        @Param("login") login: String,
+    fun findIdsByCustomers(
+        @Param("logins") logins: Collection<String>,
         @Param("status") status: ReportStatus?,
         pageable: Pageable,
     ): Page<UUID>
@@ -80,13 +80,13 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         SELECT COUNT(r.id) FROM Report r
         WHERE EXISTS (
             SELECT 1 FROM Task t
-            WHERE t.report = r AND LOWER(t.customer.username) = LOWER(:login)
+            WHERE t.report = r AND LOWER(t.customer.username) IN :logins
         )
           AND (:status IS NULL OR r.status = :status)
         """
     )
-    fun countByCustomer(
-        @Param("login") login: String,
+    fun countByCustomers(
+        @Param("logins") logins: Collection<String>,
         @Param("status") status: ReportStatus?,
     ): Long
 }
