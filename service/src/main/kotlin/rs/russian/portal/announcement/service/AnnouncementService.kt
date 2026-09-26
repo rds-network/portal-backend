@@ -7,6 +7,7 @@ import rs.russian.generated.model.AnnouncementCreateRequest
 import rs.russian.generated.model.AnnouncementDto
 import rs.russian.generated.model.UnreadAnnouncementsCountDto
 import rs.russian.generated.model.AnnouncementAudience as ApiAnnouncementAudience
+import rs.russian.portal.announcement.api.AnnouncementManageDto
 import rs.russian.portal.announcement.api.BannerDto
 import rs.russian.portal.announcement.domain.Announcement
 import rs.russian.portal.announcement.domain.enums.AnnouncementAudience
@@ -166,6 +167,30 @@ class AnnouncementService(
             )
         )
         return announcementMapper.map(announcement, read = false)
+    }
+
+    @Transactional(readOnly = true)
+    fun listManage(): List<AnnouncementManageDto> =
+        announcementRepository.findAllForManage().map {
+            AnnouncementManageDto(
+                id = it.id!!,
+                title = it.title,
+                createTime = it.createTime.toString(),
+                createdBy = it.createdBy,
+                audience = it.audience.name,
+                programCode = it.program?.code,
+                targetUsername = it.targetUsername,
+                banner = it.banner,
+            )
+        }
+
+    @Transactional
+    fun softDelete(announcementId: UUID) {
+        val announcement = announcementRepository.findById(announcementId)
+            .orElseThrow { EntityNotFoundException("Announcement $announcementId not found") }
+
+        announcement.active = false
+        announcementRepository.save(announcement)
     }
 
     private fun validateCreateRequest(request: AnnouncementCreateRequest) {

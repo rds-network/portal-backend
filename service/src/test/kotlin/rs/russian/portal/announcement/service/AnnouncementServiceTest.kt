@@ -8,6 +8,7 @@ import io.mockk.verify
 import jakarta.persistence.EntityNotFoundException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -347,6 +348,48 @@ class AnnouncementServiceTest {
                 it.audience == AnnouncementAudience.PROGRAM && it.program?.code == "IT"
             })
         }
+    }
+
+
+    @Test
+    fun `listManage should map announcements to manage dto`() {
+        val program = program("IT")
+        val announcement = announcement(audience = AnnouncementAudience.PROGRAM, program = program)
+        announcement.banner = true
+        every { announcementRepository.findAllForManage() } returns listOf(announcement)
+
+        val result = announcementService.listManage()
+
+        assertEquals(1, result.size)
+        val dto = result.first()
+        assertEquals(announcement.id, dto.id)
+        assertEquals("Title", dto.title)
+        assertEquals("admin", dto.createdBy)
+        assertEquals("PROGRAM", dto.audience)
+        assertEquals("IT", dto.programCode)
+        assertTrue(dto.banner)
+    }
+
+    @Test
+    fun `softDelete should throw EntityNotFoundException when announcement not found`() {
+        val id = UUID.randomUUID()
+        every { announcementRepository.findById(id) } returns Optional.empty()
+
+        assertThrows<EntityNotFoundException> { announcementService.softDelete(id) }
+        verify(exactly = 0) { announcementRepository.save(any()) }
+    }
+
+    @Test
+    fun `softDelete should deactivate announcement`() {
+        val id = UUID.randomUUID()
+        val announcement = announcement(id = id)
+        every { announcementRepository.findById(id) } returns Optional.of(announcement)
+        every { announcementRepository.save(announcement) } returns announcement
+
+        announcementService.softDelete(id)
+
+        assertFalse(announcement.active)
+        verify(exactly = 1) { announcementRepository.save(match { !it.active }) }
     }
 
 
