@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.33.0-portal-event-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: portal_event
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_portal_event
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_portal_event_created_by
+                  name: created_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: title
+                  type: VARCHAR(300)
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: starts_at
+                  type: DATETIME
+              - column:
+                  name: location
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: type
+                  type: VARCHAR(32)
+              - column:
+                  name: program_code
+                  type: VARCHAR(64)
+        - createIndex:
+            tableName: portal_event
+            indexName: idx_portal_event_starts_at
+            columns:
+              - column:
+                  name: starts_at
+        - createIndex:
+            tableName: portal_event
+            indexName: idx_portal_event_program
+            columns:
+              - column:
+                  name: program_code
