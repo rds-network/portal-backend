@@ -101,15 +101,29 @@ class ReportOverdueJdbc(
                 AND r.status = 'ACCEPTED'
                 AND date_trunc('week', t.date)::date = w.week_start
             ), 0) AS minutes_worked,
-            (
-              SELECT COALESCE(SUM(
-                GREATEST(0, (LEAST(w.week_end, ct.end_date) - GREATEST(w.week_start, ct.start_date)) + 1)
+            GREATEST(0,
+              (
+                SELECT COALESCE(SUM(
+                  GREATEST(0, (LEAST(w.week_end, ct.end_date) - GREATEST(w.week_start, ct.start_date)) + 1)
+                ), 0)
+                FROM contract ct
+                WHERE ct.username = c.username
+                  AND ct.type = 'REGULAR'
+                  AND ct.start_date <= w.week_end
+                  AND ct.end_date >= w.week_start
+              ) - COALESCE((
+                SELECT COUNT(DISTINCT gs.d)::int
+                FROM leave_request lr
+                CROSS JOIN LATERAL generate_series(
+                  GREATEST(lr.start_date, w.week_start),
+                  LEAST(lr.end_date, w.week_end),
+                  interval '1 day'
+                ) AS gs(d)
+                WHERE lr.username = c.username
+                  AND lr.status = 'ACCEPTED'
+                  AND lr.start_date <= w.week_end
+                  AND lr.end_date >= w.week_start
               ), 0)
-              FROM contract ct
-              WHERE ct.username = c.username
-                AND ct.type = 'REGULAR'
-                AND ct.start_date <= w.week_end
-                AND ct.end_date >= w.week_start
             ) AS active_days
           FROM contracted c
           CROSS JOIN weeks w
@@ -153,21 +167,29 @@ class ReportOverdueJdbc(
           WHERE r.deleted = FALSE AND r.status = 'ACCEPTED'
           GROUP BY r.user_login, date_trunc('week', t.date)::date
         ),
+        week_satisfied AS (
+          SELECT wh.username, wh.week_start
+          FROM week_hours wh
+          WHERE wh.active_days = 0
+          UNION
+          SELECT wr.username, wr.week_start
+          FROM week_report wr
+        ),
         streak AS (
           SELECT
             c.username,
             CASE
               WHEN EXISTS (
-                SELECT 1 FROM week_report wr, bounds b
-                WHERE wr.username = c.username AND wr.week_start = b.last_monday
+                SELECT 1 FROM week_satisfied ws, bounds b
+                WHERE ws.username = c.username AND ws.week_start = b.last_monday
               ) THEN 0
               WHEN EXISTS (
-                SELECT 1 FROM week_report wr, bounds b
-                WHERE wr.username = c.username AND wr.week_start = (b.last_monday - 7)
+                SELECT 1 FROM week_satisfied ws, bounds b
+                WHERE ws.username = c.username AND ws.week_start = (b.last_monday - 7)
               ) THEN 1
               WHEN EXISTS (
-                SELECT 1 FROM week_report wr, bounds b
-                WHERE wr.username = c.username AND wr.week_start = (b.last_monday - 14)
+                SELECT 1 FROM week_satisfied ws, bounds b
+                WHERE ws.username = c.username AND ws.week_start = (b.last_monday - 14)
               ) THEN 2
               ELSE 3
             END AS weeks_missed

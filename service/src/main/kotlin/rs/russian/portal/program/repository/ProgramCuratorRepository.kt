@@ -9,6 +9,7 @@ import java.util.UUID
 interface ProgramCuratorRepository : JpaRepository<ProgramCurator, UUID> {
     fun findAllByOrderByProgramCodeAscUsernameAsc(): List<ProgramCurator>
     fun findAllByUsernameIgnoreCase(username: String): List<ProgramCurator>
+    fun findAllByProgramCodeIgnoreCase(programCode: String): List<ProgramCurator>
     fun existsByUsernameIgnoreCase(username: String): Boolean
     fun existsByProgramCodeAndUsernameIgnoreCase(programCode: String, username: String): Boolean
     fun deleteByProgramCodeAndUsernameIgnoreCase(programCode: String, username: String)
