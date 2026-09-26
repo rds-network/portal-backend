@@ -23,6 +23,7 @@ import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.ai.domain.AiProfileCode.SERBIAN_TRANSLATOR
 import rs.russian.portal.shared.ai.service.TextTranslationService
 import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
@@ -42,6 +43,7 @@ class ReportService(
     private val textTranslationService: TextTranslationService,
     private val workAssignmentService: WorkAssignmentService,
     private val inboxService: InboxService,
+    private val programCuratorService: ProgramCuratorService,
 ) {
 
     @Transactional(readOnly = true)
@@ -117,7 +119,8 @@ class ReportService(
     @Transactional(readOnly = true)
     fun getReportsForCustomer(status: ReportStatus?, pageable: Pageable): Page<Report> {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        val ids = reportRepository.findIdsByCustomer(login, status, pageable)
+        val logins = customerLoginsFor(login)
+        val ids = reportRepository.findIdsByCustomers(logins, status, pageable)
         if (ids.content.isEmpty()) {
             return PageImpl(emptyList(), ids.pageable, ids.totalElements)
         }
@@ -128,7 +131,7 @@ class ReportService(
     @Transactional(readOnly = true)
     fun pendingCountForCustomer(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return reportRepository.countByCustomer(login, ReportStatus.CREATED)
+        return reportRepository.countByCustomers(customerLoginsFor(login), ReportStatus.CREATED)
     }
 
     @Transactional
@@ -179,16 +182,30 @@ class ReportService(
         if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {
             throw InvalidRequestException("Укажите заказчика задачи")
         }
+        if (!programCuratorService.hasAny()) {
+            reportDto.tasks.mapNotNull { it.customer }.distinct().forEach { login ->
+                accountService.findAccountByLogin(login)
+                    ?: throw InvalidRequestException("Заказчик '$login' не найден")
+            }
+            return
+        }
         reportDto.tasks.mapNotNull { it.customer }.distinct().forEach { login ->
-            accountService.findAccountByLogin(login)
-                ?: throw InvalidRequestException("Заказчик '$login' не найден")
+            if (!programCuratorService.isAllowedCustomer(login)) {
+                throw InvalidRequestException("Заказчик должен быть куратором или его делегатом по приёмке")
+            }
         }
     }
 
     private fun notifyCustomers(report: Report) {
         val id = report.id?.toString() ?: return
         val volunteer = report.account.fullName
-        report.tasks.mapNotNull { it.customer?.username }.distinct().forEach { login ->
+        val programCode = report.program?.code
+        val recipients = linkedSetOf<String>()
+        report.tasks.mapNotNull { it.customer?.username }.distinct().forEach { customer ->
+            recipients += customer
+            programCuratorService.delegateUsernamesOf(customer, programCode).forEach { recipients += it }
+        }
+        recipients.forEach { login ->
             if (!login.equals(report.account.username, ignoreCase = true)) {
                 inboxService.notifyReportCustomer(login, volunteer, id)
             }
@@ -197,7 +214,18 @@ class ReportService(
 
     private fun canModerate(report: Report, login: String, groups: Set<UserGroup>): Boolean {
         if (groups.any { it in MODERATORS }) return true
-        return report.tasks.any { it.customer?.username.equals(login, ignoreCase = true) }
+        val programCode = report.program?.code
+        return report.tasks.any { task ->
+            val customer = task.customer?.username ?: return@any false
+            customer.equals(login, ignoreCase = true) ||
+                programCuratorService.canAcceptAsDelegate(login, customer, programCode)
+        }
+    }
+
+    private fun customerLoginsFor(login: String): List<String> {
+        val logins = linkedSetOf(login.lowercase())
+        programCuratorService.curatorUsernamesDelegatedTo(login).forEach { logins += it.lowercase() }
+        return logins.toList()
     }
 
     /**
