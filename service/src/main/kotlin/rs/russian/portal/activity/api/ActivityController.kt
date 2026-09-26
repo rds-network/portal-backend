@@ -35,4 +35,11 @@ class ActivityController(
             )
         )
     }
+
+    @Authorized(allowed = [ADMIN, ADMIN_SSO])
+    @GetMapping("/online")
+    fun online(
+        @RequestParam(defaultValue = "10") minutes: Int,
+    ): ResponseEntity<OnlinePresenceDto> =
+        ResponseEntity.ok(activityService.online(minutes))
 }

@@ -28,6 +28,7 @@ class ActivityLoggingFilter(
         filterChain.doFilter(request, response)
         val path = request.requestURI.removePrefix("/api")
         if (path.startsWith("/activity") && request.method == "GET") return
+        if (path.startsWith("/meta/") && request.method == "GET") return
         val ip = request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()?.trim()
             ?: request.remoteAddr
         activityService.record(

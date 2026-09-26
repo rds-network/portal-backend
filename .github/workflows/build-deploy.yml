@@ -39,6 +39,10 @@ jobs:
           push: true
           tags: |
             ruskadijaspora/docker:portal-backend
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
 
   Deploy:
     needs:

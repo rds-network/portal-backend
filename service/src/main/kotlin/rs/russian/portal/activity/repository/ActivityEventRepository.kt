@@ -19,4 +19,12 @@ interface ActivityEventRepository : JpaRepository<ActivityEvent, Long> {
         """
     )
     fun search(@Param("q") q: String?, pageable: Pageable): Page<ActivityEvent>
+
+    @Query(
+        """
+        SELECT e FROM ActivityEvent e
+        WHERE e.createTime >= :since
+        """
+    )
+    fun findSince(@Param("since") since: java.time.LocalDateTime, pageable: Pageable): List<ActivityEvent>
 }

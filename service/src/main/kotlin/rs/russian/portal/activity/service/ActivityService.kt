@@ -7,8 +7,11 @@ import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.activity.api.ActivityEventDto
+import rs.russian.portal.activity.api.OnlinePersonDto
+import rs.russian.portal.activity.api.OnlinePresenceDto
 import rs.russian.portal.activity.domain.ActivityEvent
 import rs.russian.portal.activity.repository.ActivityEventRepository
+import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.repository.AccountRepository
 import java.time.LocalDateTime
 
@@ -54,6 +57,53 @@ class ActivityService(
         return activityEventRepository
             .search(q?.trim(), PageRequest.of(page.coerceAtLeast(0), size.coerceIn(1, 200), Sort.by(order, field)))
             .map(::toDto)
+    }
+
+    @Transactional(readOnly = true)
+    fun online(minutes: Int = 10): OnlinePresenceDto {
+        val window = minutes.coerceIn(1, 60)
+        val since = LocalDateTime.now().minusMinutes(window.toLong())
+        val events = activityEventRepository.findSince(
+            since,
+            PageRequest.of(0, 500, Sort.by(Sort.Direction.DESC, "createTime")),
+        )
+        val me = currentUserLogin()?.lowercase()
+        val latestByKey = LinkedHashMap<String, ActivityEvent>()
+        for (event in events) {
+            val key = event.username?.trim()?.takeIf { it.isNotEmpty() }?.lowercase()
+                ?: "guest:${event.ip ?: event.id}"
+            if (!latestByKey.containsKey(key)) {
+                latestByKey[key] = event
+            }
+        }
+        val logins = latestByKey.values.mapNotNull { it.username?.trim()?.takeIf { login -> login.isNotEmpty() } }
+        val names = if (logins.isEmpty()) emptyMap()
+        else accountRepository.findAllByUsernameIn(logins).associate { it.username.lowercase() to it.fullName.ifBlank { it.username } }
+
+        val people = latestByKey.values.map { event ->
+            val login = event.username?.trim()?.takeIf { it.isNotEmpty() }
+            OnlinePersonDto(
+                username = login,
+                displayName = login?.let { names[it.lowercase()] ?: it } ?: "Гость",
+                ip = event.ip,
+                path = event.path,
+                query = event.query,
+                lastSeen = event.createTime,
+                self = login != null && me != null && login.equals(me, ignoreCase = true),
+            )
+        }.sortedWith(
+            compareByDescending<OnlinePersonDto> { it.self }
+                .thenByDescending { it.lastSeen }
+        )
+
+        val loggedIn = people.count { it.username != null }
+        val guests = people.size - loggedIn
+        return OnlinePresenceDto(
+            total = people.size,
+            loggedIn = loggedIn,
+            guests = guests,
+            people = people,
+        )
     }
 
     private fun toDto(item: ActivityEvent) = ActivityEventDto(

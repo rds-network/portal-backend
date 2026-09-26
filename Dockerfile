@@ -13,6 +13,13 @@ RUN gradle clean build -x test --no-daemon
 # For the runtime stage use the official OpenJDK 21 image from Docker Hub
 FROM alpine/java:22.0.2-jdk
 
+ARG GIT_SHA=dev
+ARG BUILD_NUMBER=local
+ARG BUILD_TIME=
+ENV GIT_SHA=$GIT_SHA \
+    BUILD_NUMBER=$BUILD_NUMBER \
+    BUILD_TIME=$BUILD_TIME
+
 # Expose port 8080 for your application
 EXPOSE 8081
 
