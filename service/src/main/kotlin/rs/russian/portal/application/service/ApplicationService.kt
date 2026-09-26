@@ -89,7 +89,6 @@ class ApplicationService(
     @Transactional
     fun update(applicationDto: ApplicationDto): Application {
         val application = get(applicationDto.id)
-        val previousStatus = application.status
         applicationMapper.update(applicationDto, application)
         normalizeProgramAndProject(application)
         if (application.status == DONE && application.contractFrom == null) {
@@ -98,9 +97,7 @@ class ApplicationService(
         if (application.status == DONE && (application.program == null || application.project == null)) {
             throw InvalidRequestException("Program and project must be specified before completing the application")
         }
-        if (application.status != previousStatus) {
-            application.assignee = currentUserLogin() ?: throw NotAuthorizedException()
-        }
+        // Assignee stays with the chosen employee; change it only via assign().
         return applicationRepository.save(application)
     }
 
