@@ -65,4 +65,12 @@ interface AnnouncementRepository : JpaRepository<Announcement, UUID> {
         @Param("username") username: String,
         @Param("accountId") accountId: Int,
     ): Announcement?
+
+    @Query("""
+        SELECT * FROM announcement
+        WHERE active = true
+        ORDER BY create_time DESC
+        LIMIT 200
+    """, nativeQuery = true)
+    fun findAllForManage(): List<Announcement>
 }
