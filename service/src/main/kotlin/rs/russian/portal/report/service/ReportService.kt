@@ -27,6 +27,7 @@ import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.workassignment.service.WorkAssignmentService
@@ -54,6 +55,7 @@ class ReportService(
     @Transactional
     fun createReport(reportDto: ReportDto): Report {
         val currentAccount = accountService.getCurrentAccount()
+        requireReportingAllowed(currentAccount)
         val report = Report(
             account = currentAccount,
             status = ReportStatus.CREATED,
@@ -87,6 +89,7 @@ class ReportService(
 
     @Transactional
     fun updateReport(reportDto: ReportDto): Report {
+        requireReportingAllowed(accountService.getCurrentAccount())
         val report = getReport(reportDto.id)
         requireCustomers(reportDto)
         val existingTasksById = report.tasks.associateBy { it.id }
@@ -176,6 +179,22 @@ class ReportService(
         report.status = status
         report.moderator = moderator
         workAssignmentService.markFromReport(report)
+    }
+
+    /**
+     * Стоп ставит куратор или модератор, когда волонтер выпал из поля зрения: отчёты не принимаются,
+     * пока волонтер не свяжется с тем, кто стоп поставил.
+     */
+    private fun requireReportingAllowed(account: Account) {
+        if (!account.reportBlocked) return
+        val blockedBy = account.reportBlockedBy
+        val contact = blockedBy
+            ?.let { accountService.findAccountByLogin(it)?.fullName ?: it }
+            ?: "куратору"
+        val reason = account.reportBlockedReason?.takeIf { it.isNotBlank() }
+        throw InvalidRequestException(
+            "Сдача отчётов приостановлена. Обратитесь к $contact." + (reason?.let { " Причина: $it" } ?: "")
+        )
     }
 
     private fun requireCustomers(reportDto: ReportDto) {

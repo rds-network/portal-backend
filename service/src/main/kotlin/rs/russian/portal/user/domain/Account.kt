@@ -13,6 +13,7 @@ import rs.russian.portal.user.domain.enums.DepersonalizationStatus
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.domain.listener.AccountEntityListener
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 @Entity
 @EntityListeners(AccountEntityListener::class)
@@ -77,6 +78,14 @@ class Account(
     var lastSynced: LocalDateTime? = null,
 
     var lastSeenAt: LocalDateTime? = null,
+
+    var reportBlocked: Boolean = false,
+
+    var reportBlockedAt: OffsetDateTime? = null,
+
+    var reportBlockedBy: String? = null,
+
+    var reportBlockedReason: String? = null,
 
     ) : JpaEntity<Int>() {
 

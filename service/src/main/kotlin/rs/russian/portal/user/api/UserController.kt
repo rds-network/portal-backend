@@ -11,12 +11,14 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.ReportBlockService
 import rs.russian.portal.user.service.SessionService
 import java.util.*
 
 @RestController
 class UserController(
     private val accountService: AccountService,
+    private val reportBlockService: ReportBlockService,
     private val sessionService: SessionService,
     private val userMapper: UserMapper,
 ) : UserApi {
@@ -70,8 +72,24 @@ class UserController(
         return ResponseEntity.ok(userMapper.map(accountService.setProgram(id, code).info))
     }
 
+    override fun clearProgram(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(accountService.clearProgram(id).info))
+    }
+
     override fun setProject(id: Int, code: String): ResponseEntity<UserInfoDto> {
         return ResponseEntity.ok(userMapper.map(accountService.setProject(id, code).info))
+    }
+
+    override fun clearProject(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(accountService.clearProject(id).info))
+    }
+
+    override fun setReportBlock(id: Int, reportBlockRequest: ReportBlockRequest?): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(reportBlockService.block(id, reportBlockRequest?.reason).info))
+    }
+
+    override fun clearReportBlock(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(reportBlockService.unblock(id).info))
     }
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])

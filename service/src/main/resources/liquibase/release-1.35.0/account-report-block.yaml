@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.35.0-add-report-block-to-account
+      author: portal
+      changes:
+        - addColumn:
+            tableName: account
+            columns:
+              - column:
+                  name: report_blocked
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: report_blocked_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: report_blocked_by
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: report_blocked_reason
+                  type: TEXT
+                  constraints:
+                    nullable: true

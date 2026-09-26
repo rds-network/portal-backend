@@ -282,6 +282,33 @@ class AccountService(
         return account
     }
 
+    /**
+     * Проект всегда принадлежит программе, поэтому сброс программы уносит и проект — иначе у волонтера
+     * остался бы проект без программы.
+     */
+    @Transactional
+    fun clearProgram(id: Int): Account {
+        val account = getAccount(id)
+        val userInfo = account.info ?: UserInfo.default(account)
+
+        userInfo.program = null
+        userInfo.project = null
+
+        account.info = userInfo
+        return account
+    }
+
+    @Transactional
+    fun clearProject(id: Int): Account {
+        val account = getAccount(id)
+        val userInfo = account.info ?: UserInfo.default(account)
+
+        userInfo.project = null
+
+        account.info = userInfo
+        return account
+    }
+
     @Transactional
     fun setProject(id: Int, code: String): Account {
         val account = getAccount(id)
