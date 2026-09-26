@@ -118,20 +118,44 @@ class ReportService(
 
     @Transactional(readOnly = true)
     fun getReportsForCustomer(status: ReportStatus?, pageable: Pageable): Page<Report> {
-        val login = currentUserLogin() ?: throw NotAuthorizedException()
-        val logins = customerLoginsFor(login)
-        val ids = reportRepository.findIdsByCustomers(logins, status, pageable)
-        if (ids.content.isEmpty()) {
-            return PageImpl(emptyList(), ids.pageable, ids.totalElements)
+        val account = accountService.getCurrentAccount()
+        val logins = customerLoginsFor(account.username)
+        val customerIds = reportRepository.findIdsByCustomers(logins, status, Pageable.unpaged()).content
+        val inboxIds = inboxService.acceptanceReportIdsFor(account.username)
+        val inboxReports = if (inboxIds.isEmpty()) {
+            emptyList()
+        } else {
+            reportRepository.findAllByIdIn(inboxIds, Sort.by(Sort.Direction.DESC, "createTime"))
+                .filter { status == null || it.status == status }
+                .mapNotNull { it.id }
         }
-        val reports = reportRepository.findAllByIdIn(ids.content, Sort.by(Sort.Direction.DESC, "createTime"))
-        return PageImpl(reports, ids.pageable, ids.totalElements)
+        val merged = (customerIds + inboxReports).distinct()
+        if (merged.isEmpty()) {
+            return PageImpl(emptyList(), pageable, 0)
+        }
+        val sorted = reportRepository.findAllByIdIn(merged, Sort.by(Sort.Direction.DESC, "createTime"))
+        val from = pageable.offset.toInt().coerceAtLeast(0)
+        val to = (from + pageable.pageSize).coerceAtMost(sorted.size)
+        val pageContent = if (from >= sorted.size) emptyList() else sorted.subList(from, to)
+        return PageImpl(pageContent, pageable, sorted.size.toLong())
     }
 
     @Transactional(readOnly = true)
     fun pendingCountForCustomer(): Long {
-        val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return reportRepository.countByCustomers(customerLoginsFor(login), ReportStatus.CREATED)
+        val account = accountService.getCurrentAccount()
+        val logins = customerLoginsFor(account.username)
+        val customerIds = reportRepository.findIdsByCustomers(logins, ReportStatus.CREATED, Pageable.unpaged())
+            .content
+            .toSet()
+        val inboxIds = inboxService.acceptanceReportIdsFor(account.username)
+        val extraInboxIds = inboxIds.filter { it !in customerIds }
+        val extra = if (extraInboxIds.isEmpty()) {
+            0
+        } else {
+            reportRepository.findAllByIdIn(extraInboxIds, Sort.unsorted())
+                .count { it.status == ReportStatus.CREATED }
+        }
+        return customerIds.size.toLong() + extra
     }
 
     @Transactional
@@ -224,7 +248,11 @@ class ReportService(
 
     private fun customerLoginsFor(login: String): List<String> {
         val logins = linkedSetOf(login.lowercase())
+        currentUserLogin()?.lowercase()?.let { logins += it }
         programCuratorService.curatorUsernamesDelegatedTo(login).forEach { logins += it.lowercase() }
+        currentUserLogin()?.takeIf { !it.equals(login, ignoreCase = true) }?.let { other ->
+            programCuratorService.curatorUsernamesDelegatedTo(other).forEach { logins += it.lowercase() }
+        }
         return logins.toList()
     }
 
