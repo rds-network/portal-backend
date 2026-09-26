@@ -122,8 +122,7 @@ class ReportService(
 
     /**
      * Программа и проект в отчёте — снимок назначения на момент сдачи, поэтому смена программы в профиле
-     * старые отчёты не трогает. Модератор может задать снимок явно, автору же подставляем его текущее
-     * назначение — иначе исправленный отчёт снова уходит на приёмку со старой программой.
+     * старые отчёты не трогает. Статус и приёмку тут не меняем: снимок чинят и у принятого отчёта.
      */
     @Transactional
     fun updateAssignment(reportId: UUID, programCode: String?, projectCode: String?): Report {
@@ -223,6 +222,10 @@ class ReportService(
         )
     }
 
+    /**
+     * Правка отчёта снова отправляет его на приёмку, поэтому снимок обновляем: модератор задаёт программу
+     * явно, автору подставляем его текущее назначение — иначе отчёт уходит на приёмку со старой программой.
+     */
     private fun refreshAssignment(report: Report, reportDto: ReportDto, editor: Account) {
         if (canEditAssignment(report, editor)) {
             val programCode = reportDto.program?.takeIf { it.isNotBlank() }
