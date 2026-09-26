@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.40.0
+  version: 1.41.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -44,6 +44,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/program:
+    delete:
+      operationId: clearProgram
+      description: Сбросить программу волонтера вместе с проектом
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
   /user/account/{id}/program/{code}:
     patch:
       operationId: setProgram
@@ -61,6 +81,71 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/project:
+    delete:
+      operationId: clearProject
+      description: Сбросить проект волонтера
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/report-block:
+    post:
+      operationId: setReportBlock
+      description: Поставить стоп на сдачу отчётов волонтеру
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportBlockRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+    delete:
+      operationId: clearReportBlock
+      description: Снять стоп на сдачу отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
       responses:
         "200":
           description: Success
@@ -1460,6 +1545,34 @@ components:
           default: [ ]
           items:
             $ref: "#/components/schemas/ResidencePermitDto"
+        reportBlocked:
+          type: boolean
+          default: false
+          description: Сдача отчётов приостановлена
+        reportBlockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reportBlockedBy:
+          type: string
+          nullable: true
+          description: Логин того, кто поставил стоп
+        reportBlockedByFullName:
+          type: string
+          nullable: true
+          description: Имя того, кто поставил стоп
+        reportBlockedReason:
+          type: string
+          nullable: true
+    ReportBlockRequest:
+      type: object
+      description: Причина стопа на сдачу отчётов
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 1000
+      additionalProperties: false
     UserInfoUpdateRequest:
       type: object
       description: обновить информацию о пользователе
