@@ -54,6 +54,7 @@ abstract class UserMapper {
     @Mapping(target = "reportBlockedAt", ignore = true)
     @Mapping(target = "reportBlockedBy", ignore = true)
     @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun map(oidcUserInfo: OidcUserInfo): Account
@@ -72,6 +73,7 @@ abstract class UserMapper {
     @Mapping(target = "reportBlockedAt", ignore = true)
     @Mapping(target = "reportBlockedBy", ignore = true)
     @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun map(ssoUser: User): Account
 
@@ -90,6 +92,7 @@ abstract class UserMapper {
     @Mapping(target = "reportBlockedAt", ignore = true)
     @Mapping(target = "reportBlockedBy", ignore = true)
     @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun update(oidcUserInfo: OidcUserInfo, @MappingTarget account: Account)
@@ -107,6 +110,7 @@ abstract class UserMapper {
     @Mapping(target = "reportBlockedAt", ignore = true)
     @Mapping(target = "reportBlockedBy", ignore = true)
     @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
     @Mapping(target = "fullName", source = "ssoUser", qualifiedByName = ["nameSso"])
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun update(ssoUser: User, @MappingTarget account: Account)
@@ -124,6 +128,8 @@ abstract class UserMapper {
     @Mapping(target = "reportBlockedBy", source = "account.reportBlockedBy")
     @Mapping(target = "reportBlockedReason", source = "account.reportBlockedReason")
     @Mapping(target = "reportBlockedByFullName", ignore = true)
+    @Mapping(target = "reportControllerUsername", source = "account.reportControllerUsername")
+    @Mapping(target = "reportControllerFullName", ignore = true)
     abstract fun map(userInfo: UserInfo?): UserInfoDto
 
     @Mapping(target = "account", source = "account")
@@ -153,6 +159,18 @@ abstract class UserMapper {
     fun fillReportBlockedBy(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
         val login = userInfo?.account?.reportBlockedBy ?: return
         target.reportBlockedByFullName = accountRepository.findByUsername(login)
+            .map { it.fullName }
+            .orElse(login)
+    }
+
+    /**
+     * Принудительный контроль тоже хранится логином: волонтер должен видеть, кого ставить заказчиком,
+     * а куратор — чья виза нужна на приёмку.
+     */
+    @AfterMapping
+    fun fillReportController(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
+        val login = userInfo?.account?.reportControllerUsername ?: return
+        target.reportControllerFullName = accountRepository.findByUsername(login)
             .map { it.fullName }
             .orElse(login)
     }

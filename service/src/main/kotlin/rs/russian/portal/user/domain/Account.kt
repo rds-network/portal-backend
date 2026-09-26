@@ -87,6 +87,8 @@ class Account(
 
     var reportBlockedReason: String? = null,
 
+    var reportControllerUsername: String? = null,
+
     ) : JpaEntity<Int>() {
 
     override fun equalityProperties() = setOf(Account::username)

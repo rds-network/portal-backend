@@ -54,6 +54,12 @@ fun searchSpecification(query: String, filter: UserSearchFilter?): Specification
             filterSpec = filterSpec.and(projectEqual(project))
         }
 
+        it.reportBlocked?.let { reportBlocked ->
+            if (reportBlocked) {
+                filterSpec = filterSpec.and(equal(Account_.REPORT_BLOCKED, true))
+            }
+        }
+
         resultSpec = resultSpec.and(filterSpec)
     }
 

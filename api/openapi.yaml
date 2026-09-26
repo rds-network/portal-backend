@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.41.0
+  version: 1.42.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -137,6 +137,51 @@ paths:
     delete:
       operationId: clearReportBlock
       description: Снять стоп на сдачу отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/report-controller:
+    put:
+      operationId: setReportController
+      description: Назначить волонтеру принудительный контроль сдачи отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportControllerRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+    delete:
+      operationId: clearReportController
+      description: Снять принудительный контроль сдачи отчётов
       tags:
         - user
       parameters:
@@ -1564,6 +1609,14 @@ components:
         reportBlockedReason:
           type: string
           nullable: true
+        reportControllerUsername:
+          type: string
+          nullable: true
+          description: Логин принудительного контролёра сдачи отчётов
+        reportControllerFullName:
+          type: string
+          nullable: true
+          description: Имя принудительного контролёра сдачи отчётов
     ReportBlockRequest:
       type: object
       description: Причина стопа на сдачу отчётов
@@ -1572,6 +1625,17 @@ components:
           type: string
           nullable: true
           maxLength: 1000
+      additionalProperties: false
+    ReportControllerRequest:
+      type: object
+      description: Логин того, кто принимает отчёты волонтера вне зависимости от программы
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          nullable: false
+          minLength: 1
       additionalProperties: false
     UserInfoUpdateRequest:
       type: object
@@ -2067,6 +2131,10 @@ components:
           nullable: true
           description: Показывать только пользователей по указанному проекту, пустая строка значит показать пользователей без проекта
           example: "DESIGN_3D"
+        reportBlocked:
+          type: boolean
+          nullable: true
+          description: Показывать только пользователей со стопом на сдачу отчётов
     ContractTypeEnum:
       type: string
       enum:
