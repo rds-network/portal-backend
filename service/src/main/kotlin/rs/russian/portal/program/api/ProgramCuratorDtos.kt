@@ -35,10 +35,11 @@ data class ProgramCuratorDelegateWriteRequest(
 data class ReportApproverDto(
     val username: String,
     val fullName: String,
-    val programCode: String,
-    val programNameRu: String,
-    val programNameEn: String,
-    val programNameSr: String,
+    /** Администраторы принимают отчёты вне программ, поэтому у роли ADMIN программы нет. */
+    val programCode: String? = null,
+    val programNameRu: String? = null,
+    val programNameEn: String? = null,
+    val programNameSr: String? = null,
     val role: String,
     val curatorUsername: String? = null,
     val curatorFullName: String? = null,

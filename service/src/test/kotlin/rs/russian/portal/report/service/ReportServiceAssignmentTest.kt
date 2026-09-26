@@ -13,6 +13,8 @@ import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.testconfig.AbstractIntegrationTest
+import rs.russian.portal.user.domain.Account
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 import java.util.*
@@ -35,10 +37,13 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
     @Autowired
     lateinit var defaultUserFilter: DefaultUserFilter
 
+    private lateinit var customerLogin: String
+
     @BeforeEach
     fun setup() {
         reportRepository.deleteAll()
         SecurityContextHolder.getContext().authentication = defaultUserFilter.getDefaultOAuth2Token()
+        customerLogin = ensureApprover()
     }
 
     @Test
@@ -102,6 +107,21 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
         accountService.setProgram(account.id!!, programCode)
     }
 
+    private fun ensureApprover(): String {
+        val login = "report_approver"
+        if (accountService.findAccountByLogin(login) == null) {
+            accountService.save(
+                Account(
+                    username = login,
+                    email = "report_approver@example.com",
+                    fullName = "Report Approver",
+                    groups = setOf(UserGroup.ADMIN_VOLUNTEER),
+                )
+            )
+        }
+        return login
+    }
+
     private fun reportDto(id: UUID, taskName: String) = ReportDto(
         id = id,
         tasks = mutableListOf(
@@ -111,7 +131,7 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
                 name = taskName,
                 description = "Test description for $taskName",
                 timeSpent = 600,
-                customer = USERNAME,
+                customer = customerLogin,
             )
         )
     )

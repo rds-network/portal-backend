@@ -119,7 +119,21 @@ class ProgramCuratorService(
                 curatorFullName = curator.fullName,
             )
         }
-        return result.sortedWith(compareBy({ it.programCode }, { it.role }, { it.fullName.lowercase() }))
+        // Администраторы тоже могут быть заказчиками, иначе куратору некого указать в своём отчёте.
+        CUSTOMER_GROUPS
+            .flatMap { accountRepository.findAllActiveByGroup(it.name) }
+            .distinctBy { it.username.lowercase() }
+            .filter { admin -> result.none { it.username.equals(admin.username, ignoreCase = true) } }
+            .forEach { admin ->
+                result += ReportApproverDto(
+                    username = admin.username,
+                    fullName = admin.fullName,
+                    role = "ADMIN",
+                )
+            }
+        return result.sortedWith(
+            compareBy({ it.programCode ?: LAST }, { it.role }, { it.fullName.lowercase() })
+        )
     }
 
     @Transactional(readOnly = true)
@@ -266,31 +280,30 @@ class ProgramCuratorService(
 
     private fun assertManager() {
         val account = accountService.getCurrentAccount()
-        val managers = setOf(
-            UserGroup.ADMIN,
-            UserGroup.ADMIN_VOLUNTEER,
-            UserGroup.ADMIN_SSO,
-            UserGroup.MAIN_VOLUNTEER,
-        )
-        if (account.groups.none { it in managers }) {
+        if (account.groups.none { it in CUSTOMER_GROUPS }) {
             throw NotAuthorizedException()
         }
     }
 
     private fun assertCanManageDelegates(programCode: String, curatorUsername: String) {
         val account = accountService.getCurrentAccount()
-        val managers = setOf(
-            UserGroup.ADMIN,
-            UserGroup.ADMIN_VOLUNTEER,
-            UserGroup.ADMIN_SSO,
-            UserGroup.MAIN_VOLUNTEER,
-        )
-        if (account.groups.any { it in managers }) return
+        if (account.groups.any { it in CUSTOMER_GROUPS }) return
         if (account.username.equals(curatorUsername, ignoreCase = true) &&
             curatorRepository.existsByProgramCodeAndUsernameIgnoreCase(programCode, account.username)
         ) {
             return
         }
         throw NotAuthorizedException()
+    }
+
+    companion object {
+        /** Сортировка: админы без программы — в конец списка. */
+        private const val LAST = "\uFFFF"
+        private val CUSTOMER_GROUPS = setOf(
+            UserGroup.ADMIN,
+            UserGroup.ADMIN_SSO,
+            UserGroup.ADMIN_VOLUNTEER,
+            UserGroup.MAIN_VOLUNTEER,
+        )
     }
 }
