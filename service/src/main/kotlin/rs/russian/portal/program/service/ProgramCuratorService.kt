@@ -2,6 +2,7 @@ package rs.russian.portal.program.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.program.api.PortalModeratorDto
 import rs.russian.portal.program.api.ProgramCuratorDelegateDto
 import rs.russian.portal.program.api.ProgramCuratorDelegateWriteRequest
 import rs.russian.portal.program.api.ProgramCuratorDto
@@ -70,6 +71,12 @@ class ProgramCuratorService(
             )
         }
     }
+
+    @Transactional(readOnly = true)
+    fun listModerators(): List<PortalModeratorDto> =
+        accountRepository.findAllActiveByGroup(UserGroup.ADMIN_VOLUNTEER.name)
+            .sortedBy { it.fullName.lowercase() }
+            .map { PortalModeratorDto(username = it.username, fullName = it.fullName) }
 
     @Transactional(readOnly = true)
     fun listApprovers(): List<ReportApproverDto> {

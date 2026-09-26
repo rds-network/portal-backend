@@ -43,3 +43,9 @@ data class ReportApproverDto(
     val curatorUsername: String? = null,
     val curatorFullName: String? = null,
 )
+
+/** Portal-wide moderators (ADMIN_VOLUNTEER) — global control, not program curators. */
+data class PortalModeratorDto(
+    val username: String,
+    val fullName: String,
+)

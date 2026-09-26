@@ -29,6 +29,10 @@ class ProgramCuratorController(
     fun approvers(): ResponseEntity<List<ReportApproverDto>> =
         ResponseEntity.ok(programCuratorService.listApprovers())
 
+    @GetMapping("/moderators")
+    fun moderators(): ResponseEntity<List<PortalModeratorDto>> =
+        ResponseEntity.ok(programCuratorService.listModerators())
+
     @GetMapping("/delegates")
     fun delegates(): ResponseEntity<List<ProgramCuratorDelegateDto>> =
         ResponseEntity.ok(programCuratorService.listDelegates())
