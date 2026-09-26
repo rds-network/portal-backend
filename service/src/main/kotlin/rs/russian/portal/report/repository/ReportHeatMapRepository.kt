@@ -69,18 +69,32 @@ interface ReportHeatMapRepository : Repository<Report, UUID> {
           g.static_year,
           g.seq_week_number,
           COALESCE(wm.minutes_worked, 0)                   AS minutes_worked,
-          (
-            SELECT COALESCE(SUM(
-                GREATEST(
-                    0, 
-                    (LEAST(g.week_end, c.end_date) - GREATEST(g.week_start, c.start_date)) + 1
-                )
+          GREATEST(0,
+            (
+              SELECT COALESCE(SUM(
+                  GREATEST(
+                      0, 
+                      (LEAST(g.week_end, c.end_date) - GREATEST(g.week_start, c.start_date)) + 1
+                  )
+              ), 0)
+              FROM contract c
+              WHERE c.username = g.username
+                AND c.type     = 'REGULAR'
+                AND c.start_date <= g.week_end
+                AND c.end_date   >= g.week_start
+            ) - COALESCE((
+              SELECT COUNT(DISTINCT gs.d)::int
+              FROM leave_request lr
+              CROSS JOIN LATERAL generate_series(
+                GREATEST(lr.start_date, g.week_start),
+                LEAST(lr.end_date, g.week_end),
+                interval '1 day'
+              ) AS gs(d)
+              WHERE lr.username = g.username
+                AND lr.status = 'ACCEPTED'
+                AND lr.start_date <= g.week_end
+                AND lr.end_date >= g.week_start
             ), 0)
-            FROM contract c
-            WHERE c.username = g.username
-              AND c.type     = 'REGULAR'
-              AND c.start_date <= g.week_end
-              AND c.end_date   >= g.week_start
           )                                                AS active_days
       FROM grid g
       LEFT JOIN worked_minutes wm

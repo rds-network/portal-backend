@@ -229,6 +229,32 @@ class InboxService(
         )
     }
 
+    @Transactional
+    fun notifyLeaveRequest(recipient: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_MANUAL,
+            createdBy = createdBy,
+            recipient = recipient,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
+    fun notifyLeaveDecision(username: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_MANUAL,
+            createdBy = createdBy,
+            recipient = username,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
     private fun openThread(
         subject: String,
         body: String,
