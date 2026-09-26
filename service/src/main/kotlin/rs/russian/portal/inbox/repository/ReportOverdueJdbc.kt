@@ -101,6 +101,19 @@ class ReportOverdueJdbc(
                 AND r.status = 'ACCEPTED'
                 AND date_trunc('week', t.date)::date = w.week_start
             ), 0) AS minutes_worked,
+            COALESCE((
+              SELECT COUNT(DISTINCT gs.d)::int
+              FROM leave_request lr
+              CROSS JOIN LATERAL generate_series(
+                GREATEST(lr.start_date, w.week_start),
+                LEAST(lr.end_date, w.week_end),
+                interval '1 day'
+              ) AS gs(d)
+              WHERE lr.username = c.username
+                AND lr.status = 'ACCEPTED'
+                AND lr.start_date <= w.week_end
+                AND lr.end_date >= w.week_start
+            ), 0) AS leave_days,
             GREATEST(0,
               (
                 SELECT COALESCE(SUM(
@@ -154,7 +167,8 @@ class ReportOverdueJdbc(
               json_build_object(
                 'weekStart', to_char(week_start, 'YYYY-MM-DD'),
                 'hoursWorked', ROUND((minutes_worked / 60.0)::numeric, 1),
-                'hoursRequired', ROUND((active_days::numeric / 7.0) * 10.0)::int
+                'hoursRequired', ROUND((active_days::numeric / 7.0) * 10.0)::int,
+                'leaveDays', leave_days
               ) ORDER BY week_start
             ) AS weeks_json
           FROM week_hours

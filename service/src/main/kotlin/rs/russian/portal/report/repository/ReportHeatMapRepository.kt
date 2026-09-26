@@ -69,6 +69,19 @@ interface ReportHeatMapRepository : Repository<Report, UUID> {
           g.static_year,
           g.seq_week_number,
           COALESCE(wm.minutes_worked, 0)                   AS minutes_worked,
+          COALESCE((
+              SELECT COUNT(DISTINCT gs.d)::int
+              FROM leave_request lr
+              CROSS JOIN LATERAL generate_series(
+                GREATEST(lr.start_date, g.week_start),
+                LEAST(lr.end_date, g.week_end),
+                interval '1 day'
+              ) AS gs(d)
+              WHERE lr.username = g.username
+                AND lr.status = 'ACCEPTED'
+                AND lr.start_date <= g.week_end
+                AND lr.end_date >= g.week_start
+            ), 0)                                          AS leave_days,
           GREATEST(0,
             (
               SELECT COALESCE(SUM(
@@ -110,7 +123,8 @@ interface ReportHeatMapRepository : Repository<Report, UUID> {
         wb.week_start                                      AS weekStart,
         wb.week_end                                        AS weekEnd,
         ROUND(wb.minutes_worked / 60.0, 2)::numeric(10,2)  AS hoursWorked,
-        ROUND((wb.active_days::numeric / 7.0) * 10.0)::int AS hoursRequired
+        ROUND((wb.active_days::numeric / 7.0) * 10.0)::int AS hoursRequired,
+        wb.leave_days                                      AS leaveDays
         
     FROM weekly_base wb
     ORDER BY wb.username, wb.week_start

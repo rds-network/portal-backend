@@ -69,6 +69,7 @@ data class OverdueWeekDto(
     val weekStart: LocalDate,
     val hoursWorked: Double,
     val hoursRequired: Int,
+    val leaveDays: Int = 0,
 )
 
 data class ReportOverdueDto(
