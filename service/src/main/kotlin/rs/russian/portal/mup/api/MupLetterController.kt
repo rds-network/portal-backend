@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.portal.mup.service.MupLetterService
 import rs.russian.portal.shared.security.Authorized
@@ -25,8 +26,11 @@ class MupLetterController(
 
     @Authorized(allowed = [ADMIN, ADMIN_SSO])
     @GetMapping("/draft/{username}")
-    fun draft(@PathVariable username: String): ResponseEntity<MupLetterDraft> =
-        ResponseEntity.ok(mupLetterService.draft(username))
+    fun draft(
+        @PathVariable username: String,
+        @RequestParam(required = false, defaultValue = "NON_COMPLIANCE") reason: MupLetterReason,
+    ): ResponseEntity<MupLetterDraft> =
+        ResponseEntity.ok(mupLetterService.draft(username, reason))
 
     @Authorized(allowed = [ADMIN, ADMIN_SSO])
     @PostMapping
