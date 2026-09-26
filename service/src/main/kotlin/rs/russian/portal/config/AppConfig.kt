@@ -44,7 +44,8 @@ import javax.sql.DataSource
         AuthentikProperties::class,
         WordpressProperties::class,
         OutlineProperties::class,
-        HelpdeskProperties::class
+        HelpdeskProperties::class,
+        TelegramProperties::class,
     ]
 )
 class AppConfig {
