@@ -8,8 +8,6 @@ import rs.russian.generated.model.ReportsHeatMapFilter
 import rs.russian.generated.model.ReportsHeatMapPageResponse
 import rs.russian.generated.model.VolunteerHeatMapItem
 import rs.russian.portal.report.service.HeatMapService
-import rs.russian.portal.shared.security.Authorized
-import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import java.time.LocalDate
 
 @RestController
@@ -26,7 +24,6 @@ class HeatMapController(
         return ResponseEntity.ok(heatMapService.getCurrentUserHeatMap())
     }
 
-    @Authorized(allowed = [ADMIN_VOLUNTEER])
     override fun getVolunteerHeatMap(
         searchQuery: String,
         pageRequest: PageRequest,
