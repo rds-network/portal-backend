@@ -30,6 +30,10 @@ class LeaveRequestController(
     fun pending(): ResponseEntity<List<LeaveRequestDto>> =
         ResponseEntity.ok(leaveRequestService.pending())
 
+    @GetMapping("/history")
+    fun history(): ResponseEntity<List<LeaveRequestDto>> =
+        ResponseEntity.ok(leaveRequestService.history())
+
     @PostMapping("/{id}/accept")
     fun accept(@PathVariable id: UUID): ResponseEntity<LeaveRequestDto> =
         ResponseEntity.ok(leaveRequestService.accept(id))

@@ -1,6 +1,9 @@
 package rs.russian.portal.report.api
 
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.generated.api.ReportApi
 import rs.russian.generated.model.*
@@ -64,6 +67,19 @@ class ReportController(
             changeReportStatusRequest.note
         )
         return ResponseEntity.ok().build()
+    }
+
+    /**
+     * Правка снимка программы и проекта, не входит в openapi-контракт: статус и приёмка отчёта не меняются,
+     * поэтому модератор может починить программу у уже принятого отчёта.
+     */
+    @PatchMapping("/report/{id}/assignment")
+    fun updateAssignment(
+        @PathVariable id: UUID,
+        @RequestBody request: ReportAssignmentRequest,
+    ): ResponseEntity<ReportDto> {
+        val report = reportService.updateAssignment(id, request.programCode, request.projectCode)
+        return ResponseEntity.ok(reportMapper.map(report))
     }
 
 }
