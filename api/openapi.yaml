@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.43.0
+  version: 1.44.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -137,6 +137,51 @@ paths:
     delete:
       operationId: clearReportBlock
       description: Снять стоп на сдачу отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/dissolution-queue:
+    post:
+      operationId: enqueueDissolution
+      description: Поставить аккаунт в очередь на расторжение
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DissolutionQueueRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+    delete:
+      operationId: dequeueDissolution
+      description: Снять аккаунт с очереди на расторжение
       tags:
         - user
       parameters:
@@ -1641,6 +1686,24 @@ components:
           type: string
           nullable: true
           description: Причина письма в МУП (NON_COMPLIANCE / VOLUNTEER_REQUEST)
+        dissolutionQueuedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда аккаунт поставлен в очередь на расторжение
+        dissolutionQueuedBy:
+          type: string
+          nullable: true
+          description: Кто поставил аккаунт в очередь на расторжение
+    DissolutionQueueRequest:
+      type: object
+      description: Опциональная причина постановки в очередь на расторжение
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 2000
+      additionalProperties: false
     ReportBlockRequest:
       type: object
       description: Причина стопа на сдачу отчётов

@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.42.0-add-dissolution-queue-to-account
+      author: portal
+      changes:
+        - addColumn:
+            tableName: account
+            columns:
+              - column:
+                  name: dissolution_queued_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: dissolution_queued_by
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: dissolution_queue_reason
+                  type: TEXT
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: account
+            indexName: idx_account_dissolution_queued_at
+            columns:
+              - column:
+                  name: dissolution_queued_at

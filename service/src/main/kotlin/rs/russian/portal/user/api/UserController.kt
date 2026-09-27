@@ -12,6 +12,7 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.DissolutionQueueService
 import rs.russian.portal.user.service.ReportBlockService
 import rs.russian.portal.user.service.ReportControllerService
 import rs.russian.portal.user.service.SessionService
@@ -24,6 +25,7 @@ class UserController(
     private val accountStatusService: AccountStatusService,
     private val reportBlockService: ReportBlockService,
     private val reportControllerService: ReportControllerService,
+    private val dissolutionQueueService: DissolutionQueueService,
     private val sessionService: SessionService,
     private val userMapper: UserMapper,
 ) : UserApi {
@@ -111,6 +113,19 @@ class UserController(
 
     override fun clearReportController(id: Int): ResponseEntity<UserInfoDto> {
         return ResponseEntity.ok(userMapper.map(reportControllerService.clearController(id).info))
+    }
+
+    override fun enqueueDissolution(
+        id: Int,
+        dissolutionQueueRequest: DissolutionQueueRequest?,
+    ): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(
+            userMapper.map(dissolutionQueueService.enqueue(id, dissolutionQueueRequest?.reason).info)
+        )
+    }
+
+    override fun dequeueDissolution(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(dissolutionQueueService.dequeue(id).info))
     }
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])

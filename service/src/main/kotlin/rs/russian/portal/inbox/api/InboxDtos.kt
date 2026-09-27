@@ -89,6 +89,8 @@ data class ReportOverdueDto(
     val watchlist: Boolean = false,
     val subject: String? = null,
     val body: String? = null,
+    val accountId: Int? = null,
+    val dissolutionQueuedAt: OffsetDateTime? = null,
 )
 
 data class OverdueNoticePersonDto(
@@ -142,4 +144,18 @@ data class DeactivatedActiveContractDto(
     val contractType: String? = null,
     val deactivatedReason: String? = null,
     val mupLetterSentAt: java.time.OffsetDateTime? = null,
+)
+
+data class DissolutionQueueDto(
+    val accountId: Int,
+    val username: String,
+    val fullName: String,
+    val program: String? = null,
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    val contractEnd: LocalDate? = null,
+    val contractType: String? = null,
+    val active: Boolean,
+    val dissolutionQueuedAt: java.time.OffsetDateTime? = null,
+    val dissolutionQueuedBy: String? = null,
+    val dissolutionQueueReason: String? = null,
 )

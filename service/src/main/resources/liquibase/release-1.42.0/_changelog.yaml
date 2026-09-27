@@ -1,0 +1,3 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.42.0/account-dissolution-queue.yaml

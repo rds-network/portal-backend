@@ -99,6 +99,15 @@ class Account(
     /** Причина письма в МУП: NON_COMPLIANCE / VOLUNTEER_REQUEST. */
     var mupLetterReason: String? = null,
 
+    /** Когда аккаунт поставлен в очередь на расторжение. */
+    var dissolutionQueuedAt: OffsetDateTime? = null,
+
+    /** Кто поставил в очередь на расторжение. */
+    var dissolutionQueuedBy: String? = null,
+
+    /** Опциональная причина постановки в очередь. */
+    var dissolutionQueueReason: String? = null,
+
     ) : JpaEntity<Int>() {
 
     override fun equalityProperties() = setOf(Account::username)

@@ -3,12 +3,14 @@ package rs.russian.portal.inbox.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.inbox.api.DeactivatedActiveContractDto
+import rs.russian.portal.inbox.api.DissolutionQueueDto
 import rs.russian.portal.inbox.api.OverdueNoticePersonDto
 import rs.russian.portal.inbox.api.OverduePreviewDto
 import rs.russian.portal.inbox.api.OverdueTemplateDto
 import rs.russian.portal.inbox.api.ReportOverdueDto
 import rs.russian.portal.inbox.domain.ReportOverdueNotice
 import rs.russian.portal.inbox.repository.DeactivatedActiveContractJdbc
+import rs.russian.portal.inbox.repository.DissolutionQueueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueNoticeRepository
 import rs.russian.portal.shared.exception.NotAuthorizedException
@@ -22,6 +24,7 @@ import java.time.format.DateTimeFormatter
 class ReportOverdueService(
     private val reportOverdueJdbc: ReportOverdueJdbc,
     private val deactivatedActiveContractJdbc: DeactivatedActiveContractJdbc,
+    private val dissolutionQueueJdbc: DissolutionQueueJdbc,
     private val reportOverdueNoticeRepository: ReportOverdueNoticeRepository,
     private val inboxService: InboxService,
     private val accountService: AccountService,
@@ -39,6 +42,10 @@ class ReportOverdueService(
     @Transactional(readOnly = true)
     fun listDeactivatedActiveContract(): List<DeactivatedActiveContractDto> =
         deactivatedActiveContractJdbc.findDeactivatedWithActiveContract()
+
+    @Transactional(readOnly = true)
+    fun listDissolutionQueue(): List<DissolutionQueueDto> =
+        dissolutionQueueJdbc.findQueued()
 
     @Transactional(readOnly = true)
     fun preview(): OverduePreviewDto {

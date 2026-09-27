@@ -90,6 +90,9 @@ class MupLetterServiceDraftTest {
             active = true,
             groups = emptySet(),
         )
+        account.dissolutionQueuedAt = java.time.OffsetDateTime.now()
+        account.dissolutionQueuedBy = "moderator"
+        account.dissolutionQueueReason = "overdue"
         every { accountService.findAccountByLogin("volunteer") } returns account
         every { accountService.switchActiveState(2, false) } returns account
         every { emailOutboxRepository.findAllByOrderByCreateTimeDesc() } returns emptyList()
@@ -105,6 +108,9 @@ class MupLetterServiceDraftTest {
 
         assertTrue(account.mupLetterSentAt != null)
         assertTrue(account.mupLetterReason == "VOLUNTEER_REQUEST")
+        assertTrue(account.dissolutionQueuedAt == null)
+        assertTrue(account.dissolutionQueuedBy == null)
+        assertTrue(account.dissolutionQueueReason == null)
         verify { accountService.switchActiveState(2, false) }
         verify { emailService.sendCommonEmail(any<String>(), any<String>(), any<String>()) }
     }
