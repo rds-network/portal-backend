@@ -67,13 +67,26 @@ fun searchSpecification(query: String, filter: UserSearchFilter?): Specification
 }
 
 fun hasActiveRegularContract(on: LocalDate = LocalDate.now()): Specification<Account> =
+    hasActiveContractOfTypes(on, setOf(ContractTypeEnum.REGULAR))
+
+/**
+ * Тепловая карта показывает и обычных волонтёров, и ассоциированных с действующим договором.
+ * Обязательные часы по-прежнему считаются только по REGULAR (SQL heatmap).
+ */
+fun hasActiveHeatMapContract(on: LocalDate = LocalDate.now()): Specification<Account> =
+    hasActiveContractOfTypes(on, setOf(ContractTypeEnum.REGULAR, ContractTypeEnum.ASSOCIATED))
+
+private fun hasActiveContractOfTypes(
+    on: LocalDate,
+    types: Set<ContractTypeEnum>,
+): Specification<Account> =
     Specification { root, query, cb ->
         val subquery = query!!.subquery(Long::class.java)
         val contract = subquery.from(Contract::class.java)
         subquery.select(cb.literal(1L))
         subquery.where(
             cb.equal(contract.get<Account>("account"), root),
-            cb.equal(contract.get<ContractTypeEnum>("type"), ContractTypeEnum.REGULAR),
+            contract.get<ContractTypeEnum>("type").`in`(types),
             cb.lessThanOrEqualTo(contract.get("startDate"), on),
             cb.greaterThanOrEqualTo(contract.get("endDate"), on),
         )

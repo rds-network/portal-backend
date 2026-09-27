@@ -98,7 +98,11 @@ class UserController(
         id: Int,
         reportControllerRequest: ReportControllerRequest,
     ): ResponseEntity<UserInfoDto> {
-        val account = reportControllerService.setController(id, reportControllerRequest.username)
+        val account = reportControllerService.setController(
+            id,
+            reportControllerRequest.username,
+            reportControllerRequest.reason,
+        )
         return ResponseEntity.ok(userMapper.map(account.info))
     }
 

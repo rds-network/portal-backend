@@ -1623,6 +1623,15 @@ components:
           type: string
           nullable: true
           description: Имя принудительного контролёра сдачи отчётов
+        reportControllerReason:
+          type: string
+          nullable: true
+          description: Причина назначения принудительного контроля
+        reportControllerAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда назначен принудительный контроль
     ReportBlockRequest:
       type: object
       description: Причина стопа на сдачу отчётов
@@ -1642,6 +1651,10 @@ components:
           type: string
           nullable: false
           minLength: 1
+        reason:
+          type: string
+          nullable: true
+          maxLength: 1000
       additionalProperties: false
     UserInfoUpdateRequest:
       type: object

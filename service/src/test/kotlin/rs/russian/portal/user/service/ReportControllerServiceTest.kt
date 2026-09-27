@@ -3,6 +3,7 @@ package rs.russian.portal.user.service
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -28,7 +29,10 @@ class ReportControllerServiceTest {
         target(volunteer)
         known(controller)
 
-        assertEquals("controller", service.setController(volunteer.id!!, " controller ").reportControllerUsername)
+        val updated = service.setController(volunteer.id!!, " controller ", "  need cross-program review ")
+        assertEquals("controller", updated.reportControllerUsername)
+        assertEquals("need cross-program review", updated.reportControllerReason)
+        assertNotNull(updated.reportControllerAt)
     }
 
     @Test
@@ -61,11 +65,18 @@ class ReportControllerServiceTest {
 
     @Test
     fun `the controller may lift their own control without being a manager`() {
-        val controlled = volunteer.also { it.reportControllerUsername = "controller" }
+        val controlled = volunteer.also {
+            it.reportControllerUsername = "controller"
+            it.reportControllerReason = "reason"
+            it.reportControllerAt = java.time.OffsetDateTime.now()
+        }
         current(controller)
         target(controlled)
 
-        assertNull(service.clearController(controlled.id!!).reportControllerUsername)
+        val cleared = service.clearController(controlled.id!!)
+        assertNull(cleared.reportControllerUsername)
+        assertNull(cleared.reportControllerReason)
+        assertNull(cleared.reportControllerAt)
     }
 
     @Test

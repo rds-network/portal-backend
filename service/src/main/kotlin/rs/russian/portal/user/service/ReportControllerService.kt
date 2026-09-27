@@ -7,6 +7,7 @@ import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
+import java.time.OffsetDateTime
 
 /**
  * Принудительный контроль сдачи отчётов: волонтера ведёт человек из другой программы, поэтому обычной
@@ -23,7 +24,7 @@ class ReportControllerService(
 ) {
 
     @Transactional
-    fun setController(id: Int, username: String): Account {
+    fun setController(id: Int, username: String, reason: String? = null): Account {
         val target = accountService.getAccount(id)
         val current = accountService.getCurrentAccount()
         assertCanManage(current, target)
@@ -38,6 +39,8 @@ class ReportControllerService(
         }
 
         target.reportControllerUsername = controller.username
+        target.reportControllerReason = reason?.trim()?.takeIf { it.isNotEmpty() }
+        target.reportControllerAt = OffsetDateTime.now()
         return target
     }
 
@@ -50,6 +53,8 @@ class ReportControllerService(
         }
 
         target.reportControllerUsername = null
+        target.reportControllerReason = null
+        target.reportControllerAt = null
         return target
     }
 
