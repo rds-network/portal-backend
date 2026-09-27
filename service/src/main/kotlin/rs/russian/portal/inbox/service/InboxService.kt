@@ -20,11 +20,9 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
@@ -213,36 +211,6 @@ class InboxService(
             recipient = username,
             extraParticipants = extra,
             recipientUnread = true,
-            extraUnread = true,
-        )
-    }
-
-    /**
-     * Manual deactivation only (UserController path). Schedulers must not call this.
-     * Mirrors [notifyOverdue]: volunteer as recipient, ADMIN_VOLUNTEER as unread managers.
-     * MAIN_VOLUNTEER sees the thread via manager inbox listing.
-     */
-    @Transactional
-    fun notifyAccountDeactivated(
-        username: String,
-        fullName: String,
-        deactivatedBy: String,
-        contractEnd: LocalDate?,
-    ): InboxThread {
-        val extra = accountRepository.findAllActiveByGroup(ADMIN_VOLUNTEER.name).map { it.username }
-        val endLine = contractEnd?.let {
-            "\nДоговор ещё действует до ${it.format(CONTRACT_DATE)}."
-        } ?: ""
-        return openThread(
-            subject = "Деактивация: $fullName",
-            body = "Учётная запись деактивирована вручную.\n\n" +
-                "Волонтёр: $fullName ($username).\n" +
-                "Кем: $deactivatedBy.$endLine",
-            kind = InboxThread.KIND_ACCOUNT_DEACTIVATED,
-            createdBy = deactivatedBy,
-            recipient = username,
-            extraParticipants = extra + deactivatedBy,
-            recipientUnread = false,
             extraUnread = true,
         )
     }
@@ -483,6 +451,5 @@ class InboxService(
 
     companion object {
         private val REPORT_PATH = Regex("/report/([0-9a-fA-F-]{36})")
-        private val CONTRACT_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
     }
 }
