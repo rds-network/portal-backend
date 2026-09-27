@@ -106,6 +106,6 @@ class MupLetterServiceDraftTest {
         assertTrue(account.mupLetterSentAt != null)
         assertTrue(account.mupLetterReason == "VOLUNTEER_REQUEST")
         verify { accountService.switchActiveState(2, false) }
-        verify { emailService.sendCommonEmail(any(), any(), any()) }
+        verify { emailService.sendCommonEmail(any<String>(), any<String>(), any<String>()) }
     }
 }
