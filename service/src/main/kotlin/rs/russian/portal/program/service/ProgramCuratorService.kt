@@ -119,19 +119,8 @@ class ProgramCuratorService(
                 curatorFullName = curator.fullName,
             )
         }
-        // Только модераторы/суперадмины портала — не WP-группа administrator (UserGroup.ADMIN)
-        // и не MAIN_VOLUNTEER: иначе в «Заказчик» попадают ложные «— админ».
-        PICKER_ADMIN_GROUPS
-            .flatMap { accountRepository.findAllActiveByGroup(it.name) }
-            .distinctBy { it.username.lowercase() }
-            .filter { admin -> result.none { it.username.equals(admin.username, ignoreCase = true) } }
-            .forEach { admin ->
-                result += ReportApproverDto(
-                    username = admin.username,
-                    fullName = admin.fullName,
-                    role = "ADMIN",
-                )
-            }
+        // В «Заказчик» только кураторы и делегаты — без role=ADMIN (ADMIN_VOLUNTEER в БД
+        // не делает человека заказчиком и не должен засорять picker).
         return result.sortedWith(
             compareBy({ it.programCode ?: LAST }, { it.role }, { it.fullName.lowercase() })
         )
@@ -298,13 +287,8 @@ class ProgramCuratorService(
     }
 
     companion object {
-        /** Сортировка: админы без программы — в конец списка. */
+        /** Сортировка: записи без программы — в конец списка. */
         private const val LAST = "\uFFFF"
-        /** Кто попадает в picker «Заказчик» как role=ADMIN (модераторы портала). */
-        private val PICKER_ADMIN_GROUPS = setOf(
-            UserGroup.ADMIN_SSO,
-            UserGroup.ADMIN_VOLUNTEER,
-        )
         /** Кто может управлять кураторами/делегатами (включая WP administrator и главных волонтёров). */
         private val MANAGER_GROUPS = setOf(
             UserGroup.ADMIN,

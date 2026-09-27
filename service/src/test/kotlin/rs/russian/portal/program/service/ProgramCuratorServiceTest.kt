@@ -6,6 +6,9 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import rs.russian.portal.program.domain.Program
+import rs.russian.portal.program.domain.ProgramCurator
+import rs.russian.portal.program.domain.ProgramCuratorDelegate
 import rs.russian.portal.program.repository.ProgramCuratorDelegateRepository
 import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.program.repository.ProgramRepository
@@ -29,7 +32,41 @@ class ProgramCuratorServiceTest {
     )
 
     @Test
-    fun `listApprovers appends only portal moderators not WP administrator or main volunteer`() {
+    fun `listApprovers returns only curators and delegates without admin roles`() {
+        val program = Program(
+            code = "MEDIA",
+            nameRu = "Медиа",
+            nameEn = "Media",
+            nameSr = "Mediji",
+        )
+        val curator = account(1, "curator", "Куратор", UserGroup.VOLUNTEER)
+        val delegate = account(2, "delegate", "Делегат", UserGroup.VOLUNTEER)
+        every { programRepository.findAll() } returns listOf(program)
+        every { curatorRepository.findAllByOrderByProgramCodeAscUsernameAsc() } returns listOf(
+            ProgramCurator(programCode = "MEDIA", username = "curator"),
+        )
+        every {
+            delegateRepository.findAllByOrderByProgramCodeAscCuratorUsernameAscDelegateUsernameAsc()
+        } returns listOf(
+            ProgramCuratorDelegate(
+                programCode = "MEDIA",
+                curatorUsername = "curator",
+                delegateUsername = "delegate",
+            ),
+        )
+        every { accountRepository.findAllByUsernameIn(any()) } returns listOf(curator, delegate)
+
+        val approvers = service.listApprovers()
+
+        assertEquals(2, approvers.size)
+        assertEquals(setOf("CURATOR", "DELEGATE"), approvers.map { it.role }.toSet())
+        assertEquals(setOf("curator", "delegate"), approvers.map { it.username }.toSet())
+        assertTrue(approvers.none { it.role == "ADMIN" })
+        verify(exactly = 0) { accountRepository.findAllActiveByGroup(any()) }
+    }
+
+    @Test
+    fun `listApprovers does not append portal moderators as admins`() {
         every { programRepository.findAll() } returns emptyList()
         every { curatorRepository.findAllByOrderByProgramCodeAscUsernameAsc() } returns emptyList()
         every {
@@ -37,18 +74,10 @@ class ProgramCuratorServiceTest {
         } returns emptyList()
         every { accountRepository.findAllByUsernameIn(emptyList()) } returns emptyList()
 
-        val moderator = account(1, "moderator", "Модератор", UserGroup.ADMIN_VOLUNTEER)
-        val sso = account(2, "sso-admin", "SSO Админ", UserGroup.ADMIN_SSO)
-        every { accountRepository.findAllActiveByGroup(UserGroup.ADMIN_VOLUNTEER.name) } returns listOf(moderator)
-        every { accountRepository.findAllActiveByGroup(UserGroup.ADMIN_SSO.name) } returns listOf(sso)
-
         val approvers = service.listApprovers()
 
-        assertEquals(2, approvers.size)
-        assertEquals(setOf("moderator", "sso-admin"), approvers.map { it.username }.toSet())
-        assertTrue(approvers.all { it.role == "ADMIN" })
-        verify(exactly = 0) { accountRepository.findAllActiveByGroup(UserGroup.ADMIN.name) }
-        verify(exactly = 0) { accountRepository.findAllActiveByGroup(UserGroup.MAIN_VOLUNTEER.name) }
+        assertTrue(approvers.isEmpty())
+        verify(exactly = 0) { accountRepository.findAllActiveByGroup(any()) }
     }
 
     private fun account(id: Int, username: String, fullName: String, vararg groups: UserGroup) = Account(

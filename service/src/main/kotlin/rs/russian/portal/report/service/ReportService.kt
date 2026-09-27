@@ -268,8 +268,8 @@ class ReportService(
         // Отчёт принимает кто-то другой, поэтому сам себе заказчика не назначишь — даже под принудительным контролем.
         if (customers.any { it.equals(author.username, ignoreCase = true) }) {
             throw InvalidRequestException(
-                "Нельзя указать себя заказчиком: заказчиком может быть только куратор программы, " +
-                    "его делегат по приёмке или администратор портала"
+                "Нельзя указать себя заказчиком: заказчиком может быть только куратор программы " +
+                    "или его делегат по приёмке"
             )
         }
         val controller = author.reportControllerUsername?.takeIf { it.isNotBlank() }
@@ -284,13 +284,11 @@ class ReportService(
             return
         }
         customers.forEach { login ->
-            val customer = accountService.findAccountByLogin(login)
+            accountService.findAccountByLogin(login)
                 ?: throw InvalidRequestException("Заказчик '$login' не найден")
-            // Админские группы в списке, чтобы отчётность работала и до того, как кураторов расставили по программам.
             if (programCuratorService.isAllowedCustomer(login)) return@forEach
-            if (customer.groups.any { it in CUSTOMER_GROUPS }) return@forEach
             throw InvalidRequestException(
-                "Заказчиком может быть только куратор программы, его делегат по приёмке или администратор портала"
+                "Заказчиком может быть только куратор программы или его делегат по приёмке"
             )
         }
     }
@@ -355,10 +353,5 @@ class ReportService(
     companion object {
         private val MODERATORS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
         private val SUPER_ADMINS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO)
-        /** Не-кураторские заказчики: только модераторы/суперадмины портала (как в listApprovers). */
-        private val CUSTOMER_GROUPS = setOf(
-            UserGroup.ADMIN_SSO,
-            UserGroup.ADMIN_VOLUNTEER,
-        )
     }
 }
