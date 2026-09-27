@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.43.0-leave-ack-unblock-non-approver-and-decision
+      author: portal
+      comment: >
+        Unblock curators/others who wrongly received mandatory LEAVE_REQUEST ack;
+        clear pending LEAVE_DECISION acks (decision is informational only).
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |
+              -- Non-approver participants stuck on leave-request threads (e.g. Anna)
+              UPDATE inbox_participant p
+              SET received_at = COALESCE(p.received_at, NOW()),
+                  ack_required = false,
+                  unread = false
+              FROM inbox_thread t
+              WHERE p.thread_id = t.id
+                AND t.kind = 'LEAVE_REQUEST'
+                AND LOWER(p.username) <> LOWER('legkov777')
+                AND (p.received_at IS NULL OR p.ack_required = true);
+
+              -- Leave decisions must not gate the portal for anyone
+              UPDATE inbox_participant p
+              SET received_at = COALESCE(p.received_at, NOW()),
+                  ack_required = false,
+                  unread = false
+              FROM inbox_thread t
+              WHERE p.thread_id = t.id
+                AND t.kind = 'LEAVE_DECISION'
+                AND (p.received_at IS NULL OR p.ack_required = true);
