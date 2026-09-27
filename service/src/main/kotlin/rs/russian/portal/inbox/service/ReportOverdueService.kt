@@ -146,7 +146,59 @@ class ReportOverdueService(
             lastSentAt = active.drop(toCancel.size).maxOfOrNull { it.sentAt },
             notified = remaining >= 1,
             watchlist = remaining >= 2,
-            mupSent = alreadySentMup(login),
+            mupSent = alreadySentMup(login) || account.mupLetterSentAt != null,
+        )
+    }
+
+    /**
+     * Ручное порицание (1–3): создаёт запись в ledger и пишет в inbox волонтёру + ADMIN_VOLUNTEER.
+     * Авто-МУП при 3-м ударе не отправляется.
+     */
+    @Transactional
+    fun issueWarning(username: String, reason: String? = null): OverdueNoticePersonDto {
+        val login = username.trim()
+        if (login.isEmpty()) throw NotAuthorizedException()
+        val account = accountService.findAccountByLogin(login)
+            ?: throw jakarta.persistence.EntityNotFoundException("Account $login not found")
+        val current = reportOverdueNoticeRepository
+            .countByUsernameAndLevelLessThanAndCancelledAtIsNull(login, MUP_LEVEL).toInt()
+        if (current >= 3) {
+            throw rs.russian.portal.shared.exception.InvalidRequestException(
+                "Уже вынесено 3 порицания — дальше только ручное письмо в МУП"
+            )
+        }
+        val nextLevel = current + 1
+        val periodKey = "MANUAL-${OffsetDateTime.now().toInstant().toEpochMilli()}-L$nextLevel"
+        val note = reason?.trim()?.takeIf { it.isNotEmpty() }
+        val name = account.fullName
+        val subject = when (nextLevel) {
+            3 -> SUBJECT_3
+            2 -> SUBJECT_2
+            else -> SUBJECT_1
+        }
+        val body = buildString {
+            append("Здравствуйте, $name.\n\n")
+            append("Вам вынесено порицание $nextLevel из 3")
+            if (note != null) append(".\n\nПричина: $note") else append(".")
+            append("\n\nЭто предупреждение $nextLevel из 3.")
+        }
+        inboxService.notifyOverdue(login, nextLevel, subject, body)
+        reportOverdueNoticeRepository.save(
+            ReportOverdueNotice(
+                username = account.username,
+                level = nextLevel,
+                periodKey = periodKey,
+            )
+        )
+        return OverdueNoticePersonDto(
+            username = account.username,
+            fullName = name,
+            program = account.info?.program?.code,
+            warningCount = nextLevel,
+            lastSentAt = OffsetDateTime.now(),
+            notified = true,
+            watchlist = nextLevel >= 2,
+            mupSent = alreadySentMup(login) || account.mupLetterSentAt != null,
         )
     }
 

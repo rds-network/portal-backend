@@ -88,6 +88,27 @@ class ReportOverdueServiceNotifyTest {
         verify(exactly = 0) { inboxService.notifyOverdue(any(), any(), any(), any()) }
     }
 
+    @Test
+    fun `issueWarning advances level from 1 to 2`() {
+        val account = rs.russian.portal.user.domain.Account(
+            id = 5,
+            username = "volunteer",
+            email = "volunteer@example.com",
+            fullName = "Volunteer",
+            active = true,
+            groups = emptySet(),
+        )
+        every { accountService.findAccountByLogin("volunteer") } returns account
+        every { noticeRepository.countByUsernameAndLevelLessThanAndCancelledAtIsNull("volunteer", ReportOverdueService.MUP_LEVEL) } returns 1
+        every { noticeRepository.existsByUsernameAndLevelAndPeriodKey(any(), any(), any()) } returns false
+
+        val result = service.issueWarning("volunteer", "Пропуск отчётов")
+
+        assertEquals(2, result.warningCount)
+        verify(exactly = 1) { inboxService.notifyOverdue("volunteer", 2, any(), match { it.contains("Пропуск отчётов") }) }
+        verify(exactly = 1) { noticeRepository.save(match { it.level == 2 && it.periodKey.startsWith("MANUAL-") }) }
+    }
+
     private fun overdue(username: String, weeksMissed: Int) = ReportOverdueDto(
         username = username,
         fullName = username.replaceFirstChar { it.uppercase() },

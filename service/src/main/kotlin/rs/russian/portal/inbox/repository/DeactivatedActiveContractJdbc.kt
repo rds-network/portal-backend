@@ -19,6 +19,7 @@ class DeactivatedActiveContractJdbc(
                 contractEnd = rs.getDate("contract_end")?.toLocalDate(),
                 contractType = rs.getString("contract_type"),
                 deactivatedReason = rs.getString("deactivated_reason"),
+                mupLetterSentAt = rs.getObject("mup_letter_sent_at", java.time.OffsetDateTime::class.java),
             )
         }
 
@@ -31,7 +32,8 @@ class DeactivatedActiveContractJdbc(
           ui.program_code AS program,
           c.end_date AS contract_end,
           c.type AS contract_type,
-          NULL::text AS deactivated_reason
+          NULL::text AS deactivated_reason,
+          a.mup_letter_sent_at
         FROM account a
         LEFT JOIN user_info ui ON ui.username = a.username
         JOIN LATERAL (

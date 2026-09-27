@@ -271,6 +271,32 @@ class InboxService(
     }
 
     @Transactional
+    fun notifyDissolutionRequest(recipient: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_DISSOLUTION_REQUEST,
+            createdBy = createdBy,
+            recipient = recipient,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
+    fun notifyDissolutionDecision(username: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_DISSOLUTION_DECISION,
+            createdBy = createdBy,
+            recipient = username,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
     fun notifyAccountStatusRequest(recipient: String, subject: String, body: String, createdBy: String) {
         openThread(
             subject = subject,

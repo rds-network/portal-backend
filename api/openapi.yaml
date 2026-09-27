@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.42.0
+  version: 1.43.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -1632,6 +1632,15 @@ components:
           format: date-time
           nullable: true
           description: Когда назначен принудительный контроль
+        mupLetterSentAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда в МУП ушло письмо о расторжении договора
+        mupLetterReason:
+          type: string
+          nullable: true
+          description: Причина письма в МУП (NON_COMPLIANCE / VOLUNTEER_REQUEST)
     ReportBlockRequest:
       type: object
       description: Причина стопа на сдачу отчётов

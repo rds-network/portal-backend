@@ -93,6 +93,12 @@ class Account(
 
     var reportControllerAt: OffsetDateTime? = null,
 
+    /** Когда в МУП ушло письмо о расторжении (ручная отправка). */
+    var mupLetterSentAt: OffsetDateTime? = null,
+
+    /** Причина письма в МУП: NON_COMPLIANCE / VOLUNTEER_REQUEST. */
+    var mupLetterReason: String? = null,
+
     ) : JpaEntity<Int>() {
 
     override fun equalityProperties() = setOf(Account::username)

@@ -67,4 +67,17 @@ class ReportOverdueController(
                 reason = request?.reason,
             )
         )
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @PostMapping("/warnings/{username}")
+    fun issueWarning(
+        @PathVariable username: String,
+        @RequestBody(required = false) request: OverdueIssueWarningRequest?,
+    ): ResponseEntity<OverdueNoticePersonDto> =
+        ResponseEntity.ok(
+            reportOverdueService.issueWarning(
+                username = username,
+                reason = request?.reason,
+            )
+        )
 }
