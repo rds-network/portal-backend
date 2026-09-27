@@ -31,11 +31,10 @@ data class ProgramCuratorDelegateWriteRequest(
     val delegateUsername: String,
 )
 
-/** Who can be chosen as report task customer. */
+/** Who can be chosen as report task customer (curators and acceptance delegates only). */
 data class ReportApproverDto(
     val username: String,
     val fullName: String,
-    /** Администраторы принимают отчёты вне программ, поэтому у роли ADMIN программы нет. */
     val programCode: String? = null,
     val programNameRu: String? = null,
     val programNameEn: String? = null,

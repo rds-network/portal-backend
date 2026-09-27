@@ -9,6 +9,8 @@ import rs.russian.generated.model.ReportDto
 import rs.russian.generated.model.TaskDto
 import rs.russian.portal.config.DefaultUserFilter
 import rs.russian.portal.config.DefaultUserFilter.Companion.USERNAME
+import rs.russian.portal.program.domain.ProgramCurator
+import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
@@ -33,6 +35,9 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
 
     @Autowired
     lateinit var accountService: AccountService
+
+    @Autowired
+    lateinit var programCuratorRepository: ProgramCuratorRepository
 
     @Autowired
     lateinit var defaultUserFilter: DefaultUserFilter
@@ -116,9 +121,12 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
                     username = login,
                     email = "report_approver@example.com",
                     fullName = "Report Approver",
-                    groups = setOf(UserGroup.ADMIN_VOLUNTEER),
+                    groups = setOf(UserGroup.VOLUNTEER),
                 )
             )
+        }
+        if (!programCuratorRepository.existsByUsernameIgnoreCase(login)) {
+            programCuratorRepository.save(ProgramCurator(programCode = "IT", username = login))
         }
         return login
     }

@@ -152,4 +152,44 @@ class ReportServiceCustomerTest {
         }
         assertTrue(error.message!!.contains("куратор", ignoreCase = true))
     }
+
+    @Test
+    fun `createReport rejects ADMIN_VOLUNTEER alone as customer`() {
+        val author = Account(
+            id = 1,
+            username = "volunteer",
+            email = "volunteer@example.com",
+            fullName = "Volunteer",
+            groups = setOf(UserGroup.VOLUNTEER),
+        )
+        val moderator = Account(
+            id = 4,
+            username = "moderator",
+            email = "moderator@example.com",
+            fullName = "Moderator",
+            groups = setOf(UserGroup.ADMIN_VOLUNTEER),
+        )
+        every { accountService.getCurrentAccount() } returns author
+        every { accountService.findAccountByLogin("moderator") } returns moderator
+        every { programCuratorService.isAllowedCustomer("moderator") } returns false
+
+        val error = assertThrows<InvalidRequestException> {
+            service.createReport(
+                ReportDto(
+                    id = UUID.randomUUID(),
+                    tasks = mutableListOf(
+                        TaskDto(
+                            id = UUID.randomUUID(),
+                            date = LocalDate.now(),
+                            name = "Task",
+                            description = "Desc",
+                            timeSpent = 60,
+                            customer = "moderator",
+                        )
+                    ),
+                )
+            )
+        }
+        assertTrue(error.message!!.contains("куратор", ignoreCase = true))
+    }
 }

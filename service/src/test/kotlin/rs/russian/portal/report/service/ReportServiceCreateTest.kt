@@ -8,6 +8,8 @@ import org.springframework.security.core.context.SecurityContextHolder
 import rs.russian.generated.model.ReportDto
 import rs.russian.generated.model.TaskDto
 import rs.russian.portal.config.DefaultUserFilter
+import rs.russian.portal.program.domain.ProgramCurator
+import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.testconfig.AbstractIntegrationTest
 import rs.russian.portal.user.domain.Account
@@ -27,6 +29,9 @@ class ReportServiceCreateTest : AbstractIntegrationTest() {
 
     @Autowired
     lateinit var accountService: AccountService
+
+    @Autowired
+    lateinit var programCuratorRepository: ProgramCuratorRepository
 
     @Autowired
     lateinit var defaultUserFilter: DefaultUserFilter
@@ -124,9 +129,12 @@ class ReportServiceCreateTest : AbstractIntegrationTest() {
                     username = login,
                     email = "report_approver@example.com",
                     fullName = "Report Approver",
-                    groups = setOf(UserGroup.ADMIN_VOLUNTEER),
+                    groups = setOf(UserGroup.VOLUNTEER),
                 )
             )
+        }
+        if (!programCuratorRepository.existsByUsernameIgnoreCase(login)) {
+            programCuratorRepository.save(ProgramCurator(programCode = "IT", username = login))
         }
         return login
     }
