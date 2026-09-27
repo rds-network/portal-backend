@@ -1,9 +1,16 @@
 package rs.russian.portal.leave.api
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import rs.russian.portal.leave.domain.enums.LeaveRequestStatus
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
+
+data class LeaveRequestMetaDto(
+    val approverUsername: String,
+    @get:JsonProperty("isLeaveApprover")
+    val isLeaveApprover: Boolean,
+)
 
 data class LeaveRequestDto(
     val id: UUID,

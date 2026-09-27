@@ -18,6 +18,10 @@ class LeaveRequestController(
     private val leaveRequestService: LeaveRequestService,
 ) {
 
+    @GetMapping("/meta")
+    fun meta(): ResponseEntity<LeaveRequestMetaDto> =
+        ResponseEntity.ok(leaveRequestService.meta())
+
     @PostMapping
     fun create(@RequestBody request: LeaveRequestCreateRequest): ResponseEntity<LeaveRequestDto> =
         ResponseEntity.ok(leaveRequestService.create(request))

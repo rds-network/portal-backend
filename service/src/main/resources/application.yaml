@@ -64,6 +64,8 @@ app:
     api-key: ${CLANOVI_API_KEY:}
   account-status:
     approver-username: ${ACCOUNT_STATUS_APPROVER:legkov777}
+  leave:
+    approver-username: ${LEAVE_APPROVER:legkov777}
   schedulers:
     email-outbox: ${SCHEDULER_EMAIL_OUTBOX_CRON:*/15 * * * * *} # every 15 seconds
     user-sync: ${SCHEDULER_USER_SYNC_CRON:0 0 */1 * * *} # every hour

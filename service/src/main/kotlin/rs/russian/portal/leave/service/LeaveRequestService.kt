@@ -1,21 +1,24 @@
 package rs.russian.portal.leave.service
 
 import jakarta.persistence.EntityNotFoundException
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.config.AppProperties
 import rs.russian.portal.inbox.service.InboxService
 import rs.russian.portal.leave.api.LeaveRequestCreateRequest
 import rs.russian.portal.leave.api.LeaveRequestDto
+import rs.russian.portal.leave.api.LeaveRequestMetaDto
 import rs.russian.portal.leave.api.LeaveRequestRejectRequest
 import rs.russian.portal.leave.domain.LeaveRequest
 import rs.russian.portal.leave.domain.enums.LeaveRequestStatus
 import rs.russian.portal.leave.repository.LeaveRequestRepository
-import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
@@ -25,13 +28,31 @@ import java.util.UUID
 
 @Service
 class LeaveRequestService(
+    private val appProperties: AppProperties,
     private val leaveRequestRepository: LeaveRequestRepository,
     private val accountRepository: AccountRepository,
     private val accountService: AccountService,
     private val programCuratorService: ProgramCuratorService,
-    private val programCuratorRepository: ProgramCuratorRepository,
     private val inboxService: InboxService,
 ) {
+
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    @Transactional(readOnly = true)
+    fun meta(): LeaveRequestMetaDto {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        return LeaveRequestMetaDto(
+            approverUsername = approverUsername(),
+            isLeaveApprover = isLeaveApprover(login),
+        )
+    }
+
+    fun isLeaveApprover(username: String?): Boolean {
+        if (username.isNullOrBlank()) return false
+        return username.equals(approverUsername(), ignoreCase = true)
+    }
+
+    fun approverUsername(): String = appProperties.leave.approverUsername.trim()
 
     @Transactional
     fun create(request: LeaveRequestCreateRequest): LeaveRequestDto {
@@ -67,22 +88,17 @@ class LeaveRequestService(
     @Transactional(readOnly = true)
     fun pending(): List<LeaveRequestDto> {
         val actor = accountService.getCurrentAccount()
-        if (isManager(actor.groups)) {
-            return leaveRequestRepository.findAllByStatusOrderByCreatedAtAsc(LeaveRequestStatus.PENDING)
-                .map(::toDto)
+        if (!isLeaveApprover(actor.username)) {
+            return emptyList()
         }
-        if (!programCuratorService.isCurator(actor.username)) {
-            throw NotAuthorizedException()
-        }
-        val programCodes = programCuratorService.programCodesOf(actor.username)
-        if (programCodes.isEmpty()) return emptyList()
-        val candidates = leaveRequestRepository.findAllByStatusOrderByCreatedAtAsc(LeaveRequestStatus.PENDING)
-        return candidates.mapNotNull { visibleToCurator(it, programCodes) }
+        return leaveRequestRepository.findAllByStatusOrderByCreatedAtAsc(LeaveRequestStatus.PENDING)
+            .map(::toDto)
     }
 
     /**
      * Решённые заявки: [pending] после согласования пустеет, и согласующий теряет отпуск из вида —
      * вспомнить, кто и когда отдыхает, становится негде.
+     * Approver sees all; everyone else sees only their own decided requests.
      */
     @Transactional(readOnly = true)
     fun history(): List<LeaveRequestDto> {
@@ -91,22 +107,19 @@ class LeaveRequestService(
             LeaveRequestStatus.PENDING,
             PageRequest.of(0, HISTORY_LIMIT),
         )
-        if (isManager(actor.groups)) {
+        if (isLeaveApprover(actor.username)) {
             return decided.map(::toDto)
         }
-        if (!programCuratorService.isCurator(actor.username)) {
-            throw NotAuthorizedException()
-        }
-        val programCodes = programCuratorService.programCodesOf(actor.username)
-        if (programCodes.isEmpty()) return emptyList()
-        return decided.mapNotNull { visibleToCurator(it, programCodes) }
+        return decided
+            .filter { it.username.equals(actor.username, ignoreCase = true) }
+            .map(::toDto)
     }
 
     @Transactional
     fun accept(id: UUID): LeaveRequestDto {
         val leave = leaveRequestRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Leave request $id not found") }
-        assertCanDecide(leave)
+        assertCanDecide()
         if (leave.status != LeaveRequestStatus.PENDING) {
             throw InvalidRequestException("Leave request is not pending")
         }
@@ -122,7 +135,7 @@ class LeaveRequestService(
     fun reject(id: UUID, request: LeaveRequestRejectRequest?): LeaveRequestDto {
         val leave = leaveRequestRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Leave request $id not found") }
-        assertCanDecide(leave)
+        assertCanDecide()
         if (leave.status != LeaveRequestStatus.PENDING) {
             throw InvalidRequestException("Leave request is not pending")
         }
@@ -151,66 +164,47 @@ class LeaveRequestService(
             .map(::toDto)
     }
 
-    private fun visibleToCurator(leave: LeaveRequest, programCodes: Collection<String>): LeaveRequestDto? {
-        // Curators themselves are decided only by managers — skip them here.
-        if (programCuratorService.isCurator(leave.username)) return null
-        val account = accountRepository.findByUsername(leave.username).orElse(null) ?: return null
-        val programCode = account.info?.program?.code ?: return null
-        if (programCodes.none { it.equals(programCode, ignoreCase = true) }) return null
-        return toDto(leave, account.fullName, programCode)
-    }
-
-    private fun assertCanDecide(leave: LeaveRequest) {
+    private fun assertCanDecide() {
         val actor = accountService.getCurrentAccount()
-        if (isManager(actor.groups)) return
-
-        // Requester is a curator (or has no program curator path) → only managers may decide.
-        if (programCuratorService.isCurator(leave.username)) {
-            throw NotAuthorizedException()
-        }
-
-        if (!programCuratorService.isCurator(actor.username)) {
-            throw NotAuthorizedException()
-        }
-        val account = accountRepository.findByUsername(leave.username).orElse(null)
-            ?: throw NotAuthorizedException()
-        val programCode = account.info?.program?.code
-            ?: throw NotAuthorizedException()
-        val programs = programCuratorService.programCodesOf(actor.username)
-        if (programs.none { it.equals(programCode, ignoreCase = true) }) {
+        if (!isLeaveApprover(actor.username)) {
             throw NotAuthorizedException()
         }
     }
 
     private fun notifyNewLeave(leave: LeaveRequest, fullName: String) {
         val actor = currentUserLogin() ?: return
+        val approver = resolveApprover() ?: return
+        if (approver.username.equals(leave.username, ignoreCase = true)) {
+            return
+        }
         val period = "${leave.startDate} — ${leave.endDate}"
         val reason = leave.reason?.let { "\nПричина: $it" } ?: ""
         val subject = "Запрос на отпуск: $fullName"
         val body = "Запрос на отпуск от $fullName (${leave.username}).\nПериод: $period.$reason\n\nОткройте раздел «Отпуск» для принятия решения."
-        // Curators (and users without a program) → senior admins only.
-        // Regular volunteers → program curators only. Never blast ADMIN_VOLUNTEER / all managers.
-        val candidates = mutableSetOf<String>()
-        if (programCuratorService.isCurator(leave.username)) {
-            candidates += seniorManagerUsernames()
-        } else {
-            // PRIMARY-программа (user_info.program) — дополнительные программы на маршрутизацию отпуска не влияют.
-            val programCode = accountRepository.findByUsername(leave.username).orElse(null)?.info?.program?.code
-            if (programCode.isNullOrBlank()) {
-                candidates += seniorManagerUsernames()
-            } else {
-                candidates += programCuratorRepository.findAllByProgramCodeIgnoreCase(programCode).map { it.username }
-            }
+        inboxService.notifyLeaveRequest(
+            recipient = approver.username,
+            subject = subject,
+            body = body,
+            createdBy = actor,
+        )
+    }
+
+    private fun resolveApprover(): Account? {
+        val username = approverUsername()
+        if (username.isBlank()) {
+            log.warn("Leave approver username is blank")
+            return null
         }
-        candidates.removeIf { it.equals(leave.username, ignoreCase = true) }
-        activeUsernames(candidates).forEach { recipient ->
-            inboxService.notifyLeaveRequest(
-                recipient = recipient,
-                subject = subject,
-                body = body,
-                createdBy = actor,
-            )
+        val account = accountRepository.findByUsername(username).orElse(null)
+        if (account == null) {
+            log.warn("Leave approver '{}' not found", username)
+            return null
         }
+        if (!account.active) {
+            log.warn("Leave approver '{}' is inactive", username)
+            return null
+        }
+        return account
     }
 
     private fun notifyDecision(leave: LeaveRequest, accepted: Boolean, rejectReason: String? = null) {
@@ -229,20 +223,6 @@ class LeaveRequestService(
             body = body,
             createdBy = actor,
         )
-    }
-
-    /** MAIN_VOLUNTEER + ADMIN only — decides leave for curators / users without a program. */
-    private fun seniorManagerUsernames(): List<String> =
-        listOf(UserGroup.MAIN_VOLUNTEER, UserGroup.ADMIN)
-            .flatMap { accountRepository.findAllActiveUsernamesByGroup(it.name) }
-            .distinct()
-
-    private fun activeUsernames(logins: Collection<String>): List<String> {
-        if (logins.isEmpty()) return emptyList()
-        return accountRepository.findAllByUsernameIn(logins.toList())
-            .filter { it.active }
-            .map { it.username }
-            .distinct()
     }
 
     private fun isManager(groups: Set<UserGroup>): Boolean {

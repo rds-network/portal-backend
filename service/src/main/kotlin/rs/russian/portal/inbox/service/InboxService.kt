@@ -498,7 +498,6 @@ class InboxService(
         kind == InboxThread.KIND_MANUAL ||
             kind == InboxThread.KIND_TASK ||
             kind == InboxThread.KIND_LEAVE_REQUEST ||
-            kind == InboxThread.KIND_LEAVE_DECISION ||
             kind == InboxThread.KIND_ACCOUNT_STATUS_REQUEST ||
             kind == InboxThread.KIND_ACCOUNT_STATUS_DECISION ||
             kind == InboxThread.KIND_ACCOUNT_STATUS_CHANGED ||

@@ -13,6 +13,7 @@ data class AppProperties(
     val corsAllowedOrigins: List<String> = emptyList(),
     val clanovi: ClanoviProperties = ClanoviProperties(),
     val accountStatus: AccountStatusProperties = AccountStatusProperties(),
+    val leave: LeaveProperties = LeaveProperties(),
 ) {
     /**
      * Validated CORS origins: frontendUri + additional configured origins.
@@ -49,6 +50,11 @@ data class ClanoviProperties(
 
 data class AccountStatusProperties(
     /** Username of the person who must approve account activation/deactivation. */
+    val approverUsername: String = "legkov777",
+)
+
+data class LeaveProperties(
+    /** Username of the person who must approve leave/vacation requests. */
     val approverUsername: String = "legkov777",
 )
 
