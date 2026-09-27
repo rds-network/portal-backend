@@ -19,6 +19,7 @@ import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.DissolutionQueueService
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -30,6 +31,7 @@ class DissolutionRequestService(
     private val programCuratorService: ProgramCuratorService,
     private val programCuratorRepository: ProgramCuratorRepository,
     private val inboxService: InboxService,
+    private val dissolutionQueueService: DissolutionQueueService,
 ) {
 
     @Transactional
@@ -110,6 +112,11 @@ class DissolutionRequestService(
         item.status = DissolutionRequestStatus.ACCEPTED
         item.decidedAt = OffsetDateTime.now()
         item.decidedBy = actor
+        val account = accountRepository.findByUsername(item.username).orElse(null)
+            ?: throw InvalidRequestException("Unknown user ${item.username}")
+        val queueReason = item.reason?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Заявление участника с ${item.fromDate}"
+        dissolutionQueueService.enqueueAccount(account, actor, queueReason)
         notifyDecision(item, accepted = true)
         return toDto(item)
     }

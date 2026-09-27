@@ -52,6 +52,15 @@ class DissolutionQueueServiceTest {
         assertThrows<NotAuthorizedException> { service.enqueue(volunteer.id!!, null) }
     }
 
+    @Test
+    fun `enqueueAccount sets queue fields without manager check`() {
+        val queued = service.enqueueAccount(volunteer, "curator_it", "  заявление  ")
+
+        assertNotNull(queued.dissolutionQueuedAt)
+        assertEquals("curator_it", queued.dissolutionQueuedBy)
+        assertEquals("заявление", queued.dissolutionQueueReason)
+    }
+
     private fun current(account: Account) {
         every { accountService.getCurrentAccount() } returns account
     }

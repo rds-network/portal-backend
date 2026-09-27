@@ -7,6 +7,7 @@ import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import rs.russian.portal.dissolution.api.DissolutionRequestCreateRequest
@@ -24,6 +25,7 @@ import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.DissolutionQueueService
 import java.time.LocalDate
 import java.util.Optional
 import java.util.UUID
@@ -36,6 +38,7 @@ class DissolutionRequestServiceTest {
     private val programCuratorService = mockk<ProgramCuratorService>(relaxed = true)
     private val programCuratorRepository = mockk<ProgramCuratorRepository>(relaxed = true)
     private val inboxService = mockk<InboxService>(relaxed = true)
+    private val dissolutionQueueService = DissolutionQueueService(accountService)
 
     private val service = DissolutionRequestService(
         repository,
@@ -44,6 +47,7 @@ class DissolutionRequestServiceTest {
         programCuratorService,
         programCuratorRepository,
         inboxService,
+        dissolutionQueueService,
     )
 
     private val volunteer = Account(
@@ -181,5 +185,58 @@ class DissolutionRequestServiceTest {
         assertEquals(DissolutionRequestStatus.ACCEPTED, dto.status)
         assertEquals(manager.username, dto.decidedBy)
         verify { inboxService.notifyDissolutionDecision("volunteer", any(), any(), manager.username) }
+    }
+
+    @Test
+    fun `accept puts account on dissolution queue`() {
+        val id = UUID.randomUUID()
+        val fromDate = LocalDate.of(2026, 10, 1)
+        val item = DissolutionRequest(
+            id = id,
+            username = "volunteer",
+            fromDate = fromDate,
+            reason = "Личные обстоятельства",
+            status = DissolutionRequestStatus.PENDING,
+        )
+        every { currentUserLogin() } returns curator.username
+        every { accountService.getCurrentAccount() } returns curator
+        every { programCuratorService.isCurator("volunteer") } returns false
+        every { programCuratorService.isCurator(curator.username) } returns true
+        volunteer.info = UserInfo(id = volunteer.username, account = volunteer).apply {
+            program = Program(code = "IT", nameRu = "IT", nameEn = "IT", nameSr = "IT")
+        }
+        every { programCuratorService.programCodesOf(curator.username) } returns listOf("IT")
+        every { repository.findById(id) } returns Optional.of(item)
+        every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
+
+        val dto = service.accept(id)
+
+        assertEquals(DissolutionRequestStatus.ACCEPTED, dto.status)
+        assertNotNull(volunteer.dissolutionQueuedAt)
+        assertEquals(curator.username, volunteer.dissolutionQueuedBy)
+        assertEquals("Личные обстоятельства", volunteer.dissolutionQueueReason)
+    }
+
+    @Test
+    fun `accept uses fallback queue reason when request reason blank`() {
+        val id = UUID.randomUUID()
+        val fromDate = LocalDate.of(2026, 11, 5)
+        val item = DissolutionRequest(
+            id = id,
+            username = "volunteer",
+            fromDate = fromDate,
+            reason = "   ",
+            status = DissolutionRequestStatus.PENDING,
+        )
+        every { currentUserLogin() } returns manager.username
+        every { accountService.getCurrentAccount() } returns manager
+        every { repository.findById(id) } returns Optional.of(item)
+        every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
+
+        service.accept(id)
+
+        assertEquals("Заявление участника с $fromDate", volunteer.dissolutionQueueReason)
+        assertEquals(manager.username, volunteer.dissolutionQueuedBy)
+        assertNotNull(volunteer.dissolutionQueuedAt)
     }
 }
