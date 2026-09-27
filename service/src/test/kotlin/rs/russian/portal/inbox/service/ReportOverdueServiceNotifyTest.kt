@@ -3,6 +3,7 @@ package rs.russian.portal.inbox.service
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -11,7 +12,6 @@ import rs.russian.portal.inbox.domain.ReportOverdueNotice
 import rs.russian.portal.inbox.repository.ReportOverdueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueNoticeRepository
 import rs.russian.portal.inbox.repository.WarningCountProjection
-import rs.russian.portal.mup.service.MupLetterService
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 
@@ -19,14 +19,12 @@ class ReportOverdueServiceNotifyTest {
     private val reportOverdueJdbc = mockk<ReportOverdueJdbc>()
     private val noticeRepository = mockk<ReportOverdueNoticeRepository>(relaxed = true)
     private val inboxService = mockk<InboxService>(relaxed = true)
-    private val mupLetterService = mockk<MupLetterService>(relaxed = true)
     private val accountService = mockk<AccountService>(relaxed = true)
 
     private val service = ReportOverdueService(
         reportOverdueJdbc,
         noticeRepository,
         inboxService,
-        mupLetterService,
         accountService,
     )
 
@@ -56,6 +54,24 @@ class ReportOverdueServiceNotifyTest {
 
         verify(exactly = 2) { inboxService.notifyOverdue("volunteer", any(), any(), any()) }
         verify(exactly = 2) { noticeRepository.save(any()) }
+    }
+
+    @Test
+    fun `third warning only sends an overdue notice without a MUP record or deactivation`() {
+        every { reportOverdueJdbc.findOverdue() } returns listOf(overdue("volunteer", weeksMissed = 3))
+        every { noticeRepository.countGrouped() } returns listOf(count("volunteer", 2))
+
+        val result = service.notifyDue()
+
+        assertEquals(1, result.sent)
+        assertEquals(3, result.recipients.single().warningCount)
+        assertFalse(result.recipients.single().mupSent)
+        verify(exactly = 1) {
+            inboxService.notifyOverdue("volunteer", 3, any(), match { !it.contains("МУП") })
+        }
+        verify(exactly = 1) { noticeRepository.save(match { it.level == 3 }) }
+        verify(exactly = 0) { noticeRepository.save(match { it.level == ReportOverdueService.MUP_LEVEL }) }
+        verify(exactly = 0) { accountService.switchActiveState(any(), any()) }
     }
 
     @Test

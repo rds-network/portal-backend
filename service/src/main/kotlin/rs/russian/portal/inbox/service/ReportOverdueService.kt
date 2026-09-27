@@ -11,7 +11,6 @@ import rs.russian.portal.inbox.api.ReportOverdueDto
 import rs.russian.portal.inbox.domain.ReportOverdueNotice
 import rs.russian.portal.inbox.repository.ReportOverdueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueNoticeRepository
-import rs.russian.portal.mup.service.MupLetterService
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup
@@ -25,7 +24,6 @@ class ReportOverdueService(
     private val reportOverdueJdbc: ReportOverdueJdbc,
     private val reportOverdueNoticeRepository: ReportOverdueNoticeRepository,
     private val inboxService: InboxService,
-    private val mupLetterService: MupLetterService,
     private val accountService: AccountService,
 ) {
 
@@ -152,7 +150,7 @@ class ReportOverdueService(
         val recipients = mutableListOf<OverdueNoticePersonDto>()
         for (item in list()) {
             if (item.username.lowercase() in skip) continue
-            // Уже 3 активных порицания — дальше только МУП (он уходит при третьем ударе).
+            // После трёх активных предупреждений новые уведомления не отправляем.
             if (item.warningCount >= 3) continue
             // Последовательные удары: 1 → 2 → 3, а не уровень из weeksMissed (иначе та же неделя бьётся о unique).
             val nextLevel = minOf(item.warningCount + 1, 3)
@@ -172,10 +170,6 @@ class ReportOverdueService(
                     periodKey = periodKey,
                 )
             )
-            val mup = nextLevel >= 3 && !alreadySentMup(item.username)
-            if (mup) {
-                sendMup(item.username)
-            }
             recipients += OverdueNoticePersonDto(
                 username = item.username,
                 fullName = item.fullName,
@@ -184,7 +178,7 @@ class ReportOverdueService(
                 lastSentAt = OffsetDateTime.now(),
                 notified = true,
                 watchlist = nextLevel >= 2,
-                mupSent = mup || alreadySentMup(item.username),
+                mupSent = alreadySentMup(item.username),
             )
         }
         log.info("[SCHEDULER] Overdue report notices sent: {}", recipients.size)
@@ -193,22 +187,6 @@ class ReportOverdueService(
 
     private fun alreadySentMup(username: String): Boolean =
         reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(username, MUP_LEVEL, MUP_PERIOD)
-
-    private fun sendMup(username: String) {
-        try {
-            mupLetterService.sendForVolunteer(username)
-            reportOverdueNoticeRepository.save(
-                ReportOverdueNotice(
-                    username = username,
-                    level = MUP_LEVEL,
-                    periodKey = MUP_PERIOD,
-                )
-            )
-            log.info("Automatic MUP letter sent for {}", username)
-        } catch (ex: Exception) {
-            log.error("Failed to send automatic MUP letter for {}", username, ex)
-        }
-    }
 
     private fun noticeLevel(item: ReportOverdueDto): Int =
         when {
@@ -229,16 +207,11 @@ class ReportOverdueService(
     private fun bodyFor(item: ReportOverdueDto, warningNumber: Int): String {
         val last = item.lastReportWeek?.format(DATE) ?: "нет принятых отчётов"
         val hours = item.hoursShort
-        val counter = "Это предупреждение $warningNumber из 3. " +
-            if (warningNumber >= 3) {
-                "При третьем уведомлении информация о расторжении договора уходит в МУП автоматически."
-            } else {
-                "При 3 уведомлениях информация о расторжении договора уходит в МУП автоматически."
-            }
+        val counter = "Это предупреждение $warningNumber из 3."
         val base = when (noticeLevel(item)) {
             3 ->
                 "Здравствуйте, ${item.fullName}.\n\n" +
-                    "Вы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут.\n\n" +
+                    "Вы не сдавали отчёт 3 недели подряд. Просим закрыть отчётность.\n\n" +
                     "Недосдача часов: $hours. Последняя принятая неделя: $last."
             2 ->
                 "Здравствуйте, ${item.fullName}.\n\n" +
@@ -266,14 +239,14 @@ class ReportOverdueService(
         const val SUBJECT_HOURS = "Недосдача часов: текущий срез"
         const val SUBJECT_1 = "Напоминание: не сдан отчёт за прошлую неделю"
         const val SUBJECT_2 = "Напоминание: не сдан отчёт 2 недели"
-        const val SUBJECT_3 = "Предупреждение: блокировка аккаунта и расторжение договора"
+        const val SUBJECT_3 = "Предупреждение: не сдан отчёт 3 недели"
         const val TEMPLATE_HOURS =
-            "Здравствуйте, {имя}.\n\nПо срезу за последние 5 недель у вас недосдача больше 20 часов.\n\nЭто предупреждение N из 3. При 3 уведомлениях информация о расторжении уходит в МУП автоматически."
+            "Здравствуйте, {имя}.\n\nПо срезу за последние 5 недель у вас недосдача больше 20 часов.\n\nЭто предупреждение N из 3."
         const val TEMPLATE_1 =
-            "Здравствуйте, {имя}.\n\nЗа прошлую неделю нет принятого отчёта (+1 неделя).\n\nЭто предупреждение N из 3. При 3 уведомлениях информация о расторжении уходит в МУП автоматически."
+            "Здравствуйте, {имя}.\n\nЗа прошлую неделю нет принятого отчёта (+1 неделя).\n\nЭто предупреждение N из 3."
         const val TEMPLATE_2 =
-            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 2 недели подряд.\n\nЭто предупреждение N из 3. При 3 уведомлениях информация о расторжении уходит в МУП автоматически."
+            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 2 недели подряд.\n\nЭто предупреждение N из 3."
         const val TEMPLATE_3 =
-            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 3 недели подряд. Если отчёт не будет сдан, аккаунт будет заблокирован, а договор расторгнут.\n\nЭто предупреждение N из 3. При третьем уведомлении информация о расторжении уходит в МУП автоматически."
+            "Здравствуйте, {имя}.\n\nВы не сдавали отчёт 3 недели подряд. Просим закрыть отчётность.\n\nЭто предупреждение N из 3."
     }
 }
