@@ -12,6 +12,9 @@ import rs.russian.portal.config.DefaultUserFilter.Companion.USERNAME
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.testconfig.AbstractIntegrationTest
+import rs.russian.portal.user.domain.Account
+import rs.russian.portal.user.domain.enums.UserGroup
+import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 import java.util.*
 
@@ -25,6 +28,9 @@ class ReportServiceStatusTest : AbstractIntegrationTest() {
     lateinit var reportRepository: ReportRepository
 
     @Autowired
+    lateinit var accountService: AccountService
+
+    @Autowired
     lateinit var defaultUserFilter: DefaultUserFilter
 
     private lateinit var reportId: UUID
@@ -34,6 +40,7 @@ class ReportServiceStatusTest : AbstractIntegrationTest() {
         reportRepository.deleteAll()
 
         SecurityContextHolder.getContext().authentication = defaultUserFilter.getDefaultOAuth2Token()
+        val customer = ensureApprover()
 
         val report = reportService.createReport(
             ReportDto(
@@ -45,7 +52,7 @@ class ReportServiceStatusTest : AbstractIntegrationTest() {
                         name = "IT Test Task",
                         description = "Test description for IT Test Task",
                         timeSpent = 600,
-                        customer = USERNAME,
+                        customer = customer,
                     )
                 )
             )
@@ -56,12 +63,26 @@ class ReportServiceStatusTest : AbstractIntegrationTest() {
 
     @Test
     fun `moderator should be assigned when report status is changed`() {
-        // act
         reportService.changeStatus(reportId, ReportStatus.CREATED)
 
-        // assert
         val updatedReport = reportService.getReport(reportId)
         assert(updatedReport.moderator != null)
         assert(updatedReport.moderator!!.username == USERNAME)
+    }
+
+    private fun ensureApprover(): String {
+        val login = "report_approver"
+        if (accountService.findAccountByLogin(login) == null) {
+            accountService.save(
+                Account(
+                    id = 91001,
+                    username = login,
+                    email = "report_approver@example.com",
+                    fullName = "Report Approver",
+                    groups = setOf(UserGroup.ADMIN_VOLUNTEER),
+                )
+            )
+        }
+        return login
     }
 }

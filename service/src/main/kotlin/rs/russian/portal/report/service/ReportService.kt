@@ -264,10 +264,18 @@ class ReportService(
         if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {
             throw InvalidRequestException("Укажите заказчика задачи")
         }
+        val customers = reportDto.tasks.mapNotNull { it.customer }.distinct()
+        // Отчёт принимает кто-то другой, поэтому сам себе заказчика не назначишь — даже под принудительным контролем.
+        if (customers.any { it.equals(author.username, ignoreCase = true) }) {
+            throw InvalidRequestException(
+                "Нельзя указать себя заказчиком: заказчиком может быть только куратор программы, " +
+                    "его делегат по приёмке или администратор портала"
+            )
+        }
         val controller = author.reportControllerUsername?.takeIf { it.isNotBlank() }
         if (controller != null) {
             // Контроль назначен вне программы, поэтому обычная проверка «заказчик — куратор» тут не применима.
-            if (reportDto.tasks.any { !controller.equals(it.customer, ignoreCase = true) }) {
+            if (customers.any { !controller.equals(it, ignoreCase = true) }) {
                 val name = accountService.findAccountByLogin(controller)?.fullName ?: controller
                 throw InvalidRequestException(
                     "Вы на контроле у $name. Укажите $name заказчиком во всех задачах отчёта."
@@ -275,17 +283,15 @@ class ReportService(
             }
             return
         }
-        if (!programCuratorService.hasAny()) {
-            reportDto.tasks.mapNotNull { it.customer }.distinct().forEach { login ->
-                accountService.findAccountByLogin(login)
-                    ?: throw InvalidRequestException("Заказчик '$login' не найден")
-            }
-            return
-        }
-        reportDto.tasks.mapNotNull { it.customer }.distinct().forEach { login ->
-            if (!programCuratorService.isAllowedCustomer(login)) {
-                throw InvalidRequestException("Заказчик должен быть куратором или его делегатом по приёмке")
-            }
+        customers.forEach { login ->
+            val customer = accountService.findAccountByLogin(login)
+                ?: throw InvalidRequestException("Заказчик '$login' не найден")
+            // Админские группы в списке, чтобы отчётность работала и до того, как кураторов расставили по программам.
+            if (programCuratorService.isAllowedCustomer(login)) return@forEach
+            if (customer.groups.any { it in CUSTOMER_GROUPS }) return@forEach
+            throw InvalidRequestException(
+                "Заказчиком может быть только куратор программы, его делегат по приёмке или администратор портала"
+            )
         }
     }
 
@@ -349,5 +355,11 @@ class ReportService(
     companion object {
         private val MODERATORS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
         private val SUPER_ADMINS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO)
+        private val CUSTOMER_GROUPS = setOf(
+            UserGroup.ADMIN,
+            UserGroup.ADMIN_SSO,
+            UserGroup.ADMIN_VOLUNTEER,
+            UserGroup.MAIN_VOLUNTEER,
+        )
     }
 }

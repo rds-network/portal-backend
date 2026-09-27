@@ -152,24 +152,27 @@ class ReportOverdueService(
         val recipients = mutableListOf<OverdueNoticePersonDto>()
         for (item in list()) {
             if (item.username.lowercase() in skip) continue
-            val level = noticeLevel(item)
-            val periodKey = if (level == 0) HOURS_SNAPSHOT_KEY else weekKey
+            // Уже 3 активных порицания — дальше только МУП (он уходит при третьем ударе).
+            if (item.warningCount >= 3) continue
+            // Последовательные удары: 1 → 2 → 3, а не уровень из weeksMissed (иначе та же неделя бьётся о unique).
+            val nextLevel = minOf(item.warningCount + 1, 3)
+            val periodKey = "$weekKey-L$nextLevel"
             val already = reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(
                 item.username,
-                level,
+                nextLevel,
                 periodKey,
             )
             if (already) continue
-            val nextCount = item.warningCount + 1
-            inboxService.notifyOverdue(item.username, level, subjectFor(item), bodyFor(item, nextCount))
+            // Текст письма по-прежнему от недель просрочки; счётчик — от nextLevel.
+            inboxService.notifyOverdue(item.username, noticeLevel(item), subjectFor(item), bodyFor(item, nextLevel))
             reportOverdueNoticeRepository.save(
                 ReportOverdueNotice(
                     username = item.username,
-                    level = level,
+                    level = nextLevel,
                     periodKey = periodKey,
                 )
             )
-            val mup = nextCount >= 3 && !alreadySentMup(item.username)
+            val mup = nextLevel >= 3 && !alreadySentMup(item.username)
             if (mup) {
                 sendMup(item.username)
             }
@@ -177,10 +180,10 @@ class ReportOverdueService(
                 username = item.username,
                 fullName = item.fullName,
                 program = item.program,
-                warningCount = nextCount,
+                warningCount = nextLevel,
                 lastSentAt = OffsetDateTime.now(),
                 notified = true,
-                watchlist = nextCount >= 2,
+                watchlist = nextLevel >= 2,
                 mupSent = mup || alreadySentMup(item.username),
             )
         }
