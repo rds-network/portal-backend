@@ -14,13 +14,21 @@ class DissolutionQueueService(
 
     @Transactional
     fun enqueue(id: Int, reason: String?): Account {
-        val target = accountService.getAccount(id)
         assertCanManage()
+        val target = accountService.getAccount(id)
         val current = accountService.getCurrentAccount()
-        target.dissolutionQueuedAt = OffsetDateTime.now()
-        target.dissolutionQueuedBy = current.username
-        target.dissolutionQueueReason = reason?.trim()?.takeIf { it.isNotEmpty() }
-        return target
+        return enqueueAccount(target, current.username, reason)
+    }
+
+    /**
+     * Puts [account] on the dissolution queue without manager-role checks.
+     * Callers must already have authorized the action (e.g. curator accept).
+     */
+    fun enqueueAccount(account: Account, byUsername: String, reason: String?): Account {
+        account.dissolutionQueuedAt = OffsetDateTime.now()
+        account.dissolutionQueuedBy = byUsername
+        account.dissolutionQueueReason = reason?.trim()?.takeIf { it.isNotEmpty() }
+        return account
     }
 
     @Transactional
