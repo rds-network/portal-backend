@@ -58,7 +58,13 @@ class InboxService(
                     thread.participants.map { it.username }
             }
         )
-        return threads.map { toListDto(it, account.username, lastSeenMap(threads), names) }
+        return threads
+            .map { toListDto(it, account.username, lastSeenMap(threads), names) }
+            .sortedWith(
+                compareByDescending<InboxThreadDto> { it.needsAck }
+                    .thenByDescending { it.unread }
+                    .thenByDescending { it.createTime }
+            )
     }
 
     @Transactional
@@ -330,7 +336,7 @@ class InboxService(
             recipientLastSeen = toOffset(lastSeen[recipient?.lowercase()]),
             receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
-            needsAck = mine?.ackRequired == true && receivedAt == null,
+            needsAck = mine?.ackRequired == true && mine.receivedAt == null,
         )
     }
 
@@ -356,7 +362,7 @@ class InboxService(
             recipientLastSeen = toOffset(lastSeen),
             receivedAt = receivedAt,
             ackRequired = mine?.ackRequired == true,
-            needsAck = mine?.ackRequired == true && receivedAt == null,
+            needsAck = mine?.ackRequired == true && mine.receivedAt == null,
             messages = thread.messages.map {
                 InboxMessageDto(
                     id = it.id!!,
