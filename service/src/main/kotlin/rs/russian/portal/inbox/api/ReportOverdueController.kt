@@ -1,5 +1,6 @@
 package rs.russian.portal.inbox.api
 
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -35,10 +36,18 @@ class ReportOverdueController(
     fun preview(): ResponseEntity<OverduePreviewDto> =
         ResponseEntity.ok(reportOverdueService.preview())
 
+    /** Bulk «Разослать» отключён — порицания только вручную через issueWarning. */
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping("/notify")
-    fun notifyNow(@RequestBody(required = false) request: OverdueNotifyRequest?): ResponseEntity<OverdueNotifyResultDto> =
-        ResponseEntity.ok(reportOverdueService.notifyDue(request?.exclude.orEmpty()))
+    fun notifyNow(
+        @Suppress("UNUSED_PARAMETER") @RequestBody(required = false) request: OverdueNotifyRequest?,
+    ): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.GONE).body(
+            mapOf(
+                "message" to "Автоматическая и массовая рассылка по несдаче отключена. " +
+                    "Порицания выносятся вручную из профиля (issueWarning).",
+            )
+        )
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping("/notices")

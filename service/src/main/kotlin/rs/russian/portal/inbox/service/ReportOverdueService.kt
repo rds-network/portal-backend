@@ -1,11 +1,9 @@
 package rs.russian.portal.inbox.service
 
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.inbox.api.DeactivatedActiveContractDto
 import rs.russian.portal.inbox.api.OverdueNoticePersonDto
-import rs.russian.portal.inbox.api.OverdueNotifyResultDto
 import rs.russian.portal.inbox.api.OverduePreviewDto
 import rs.russian.portal.inbox.api.OverdueTemplateDto
 import rs.russian.portal.inbox.api.ReportOverdueDto
@@ -17,7 +15,6 @@ import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
-import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
@@ -203,48 +200,6 @@ class ReportOverdueService(
         )
     }
 
-    @Transactional
-    fun notifyDue(exclude: Collection<String> = emptyList()): OverdueNotifyResultDto {
-        val skip = exclude.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
-        val weekKey = LocalDate.now().with(java.time.DayOfWeek.MONDAY).format(WEEK_KEY)
-        val recipients = mutableListOf<OverdueNoticePersonDto>()
-        for (item in list()) {
-            if (item.username.lowercase() in skip) continue
-            // После трёх активных предупреждений новые уведомления не отправляем.
-            if (item.warningCount >= 3) continue
-            // Последовательные удары: 1 → 2 → 3, а не уровень из weeksMissed (иначе та же неделя бьётся о unique).
-            val nextLevel = minOf(item.warningCount + 1, 3)
-            val periodKey = "$weekKey-L$nextLevel"
-            val already = reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(
-                item.username,
-                nextLevel,
-                periodKey,
-            )
-            if (already) continue
-            // Текст письма по-прежнему от недель просрочки; счётчик — от nextLevel.
-            inboxService.notifyOverdue(item.username, noticeLevel(item), subjectFor(item), bodyFor(item, nextLevel))
-            reportOverdueNoticeRepository.save(
-                ReportOverdueNotice(
-                    username = item.username,
-                    level = nextLevel,
-                    periodKey = periodKey,
-                )
-            )
-            recipients += OverdueNoticePersonDto(
-                username = item.username,
-                fullName = item.fullName,
-                program = item.program,
-                warningCount = nextLevel,
-                lastSentAt = OffsetDateTime.now(),
-                notified = true,
-                watchlist = nextLevel >= 2,
-                mupSent = alreadySentMup(item.username),
-            )
-        }
-        log.info("[SCHEDULER] Overdue report notices sent: {}", recipients.size)
-        return OverdueNotifyResultDto(sent = recipients.size, recipients = recipients)
-    }
-
     private fun alreadySentMup(username: String): Boolean =
         reportOverdueNoticeRepository.existsByUsernameAndLevelAndPeriodKey(username, MUP_LEVEL, MUP_PERIOD)
 
@@ -290,8 +245,6 @@ class ReportOverdueService(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(ReportOverdueService::class.java)
-        private val WEEK_KEY: DateTimeFormatter = DateTimeFormatter.ofPattern("YYYY-'W'ww")
         private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
         const val HOURS_SNAPSHOT_KEY = "HOURS-SNAPSHOT"
         const val MUP_LEVEL = 99
