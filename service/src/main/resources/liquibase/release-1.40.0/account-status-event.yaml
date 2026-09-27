@@ -1,0 +1,70 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.40.0-account-status-event-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: account_status_event
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_account_status_event
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: id
+                    foreignKeyName: fk_account_status_event_account
+                  name: account_id
+                  type: INTEGER
+              - column:
+                  constraints:
+                    nullable: false
+                  name: active_to
+                  type: BOOLEAN
+              - column:
+                  constraints:
+                    nullable: false
+                  name: source
+                  type: VARCHAR(32)
+              - column:
+                  name: actor_username
+                  type: VARCHAR(255)
+              - column:
+                  name: reason
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  name: request_id
+                  type: UUID
+        - addForeignKeyConstraint:
+            baseTableName: account_status_event
+            baseColumnNames: request_id
+            referencedTableName: account_status_request
+            referencedColumnNames: id
+            constraintName: fk_account_status_event_request
+        - createIndex:
+            tableName: account_status_event
+            indexName: idx_account_status_event_account
+            columns:
+              - column:
+                  name: account_id
+        - createIndex:
+            tableName: account_status_event
+            indexName: idx_account_status_event_created
+            columns:
+              - column:
+                  name: created_at

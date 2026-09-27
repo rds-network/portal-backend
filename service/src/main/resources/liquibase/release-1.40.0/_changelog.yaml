@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.40.0/account-status-request.yaml
+  - include:
+      file: liquibase/release-1.40.0/account-status-event.yaml

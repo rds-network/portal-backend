@@ -7,6 +7,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.thymeleaf.TemplateEngine
 import org.thymeleaf.context.Context
+import rs.russian.portal.accountstatus.domain.enums.AccountStatusEventSource
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.application.domain.ApplicationStatus
 import rs.russian.portal.application.domain.ApplicationType
 import rs.russian.portal.application.repository.ApplicationRepository
@@ -15,7 +17,6 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.Contract
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
-import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -24,7 +25,7 @@ class ContractExpirationSchedulerTest {
 
     private lateinit var accountRepository: AccountRepository
     private lateinit var applicationRepository: ApplicationRepository
-    private lateinit var accountService: AccountService
+    private lateinit var accountStatusService: AccountStatusService
     private lateinit var emailService: EmailService
     private lateinit var templateEngine: TemplateEngine
     private lateinit var scheduler: ContractExpirationScheduler
@@ -33,13 +34,13 @@ class ContractExpirationSchedulerTest {
     fun setUp() {
         accountRepository = mockk(relaxed = true)
         applicationRepository = mockk(relaxed = true)
-        accountService = mockk(relaxed = true)
+        accountStatusService = mockk(relaxed = true)
         emailService = mockk(relaxed = true)
         templateEngine = mockk(relaxed = true)
         scheduler = ContractExpirationScheduler(
             accountRepository,
             applicationRepository,
-            accountService,
+            accountStatusService,
             emailService,
             templateEngine
         )
@@ -75,7 +76,9 @@ class ContractExpirationSchedulerTest {
                 reminderBody
             )
         }
-        verify(exactly = 0) { accountService.switchActiveState(any(), false) }
+        verify(exactly = 0) {
+            accountStatusService.applyImmediate(any(), any(), any(), any(), any(), any(), any())
+        }
     }
 
     @Test
@@ -99,7 +102,16 @@ class ContractExpirationSchedulerTest {
 
         scheduler.run()
 
-        verify { accountService.switchActiveState(account.id!!, false) }
+        verify {
+            accountStatusService.applyImmediate(
+                accountId = account.id!!,
+                activeTo = false,
+                source = AccountStatusEventSource.SCHEDULER,
+                actorUsername = null,
+                reason = "contract expired",
+                notifyApprover = true,
+            )
+        }
         verify { templateEngine.process("contract_deactivation_admin", any<Context>()) }
         verify {
             emailService.sendCommonEmail(
@@ -139,12 +151,39 @@ class ContractExpirationSchedulerTest {
             )
         } returns false
         every { templateEngine.process("contract_deactivation_admin", any<Context>()) } returns adminBody
-        every { accountService.switchActiveState(account1.id!!, false) } throws RuntimeException("boom")
+        every {
+            accountStatusService.applyImmediate(
+                accountId = account1.id!!,
+                activeTo = false,
+                source = AccountStatusEventSource.SCHEDULER,
+                actorUsername = null,
+                reason = "contract expired",
+                notifyApprover = true,
+            )
+        } throws RuntimeException("boom")
 
         scheduler.run()
 
-        verify { accountService.switchActiveState(account1.id!!, false) }
-        verify { accountService.switchActiveState(account2.id!!, false) }
+        verify {
+            accountStatusService.applyImmediate(
+                accountId = account1.id!!,
+                activeTo = false,
+                source = AccountStatusEventSource.SCHEDULER,
+                actorUsername = null,
+                reason = "contract expired",
+                notifyApprover = true,
+            )
+        }
+        verify {
+            accountStatusService.applyImmediate(
+                accountId = account2.id!!,
+                activeTo = false,
+                source = AccountStatusEventSource.SCHEDULER,
+                actorUsername = null,
+                reason = "contract expired",
+                notifyApprover = true,
+            )
+        }
     }
 
     @Test
@@ -168,7 +207,16 @@ class ContractExpirationSchedulerTest {
 
         scheduler.run()
 
-        verify { accountService.switchActiveState(account.id!!, false) }
+        verify {
+            accountStatusService.applyImmediate(
+                accountId = account.id!!,
+                activeTo = false,
+                source = AccountStatusEventSource.SCHEDULER,
+                actorUsername = null,
+                reason = "contract expired",
+                notifyApprover = true,
+            )
+        }
     }
 
     private fun createAccount(id: Int, username: String, email: String, endDate: LocalDate): Account {

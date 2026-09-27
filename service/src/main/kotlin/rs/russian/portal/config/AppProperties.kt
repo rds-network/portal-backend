@@ -12,6 +12,7 @@ data class AppProperties(
     val frontendUri: String,
     val corsAllowedOrigins: List<String> = emptyList(),
     val clanovi: ClanoviProperties = ClanoviProperties(),
+    val accountStatus: AccountStatusProperties = AccountStatusProperties(),
 ) {
     /**
      * Validated CORS origins: frontendUri + additional configured origins.
@@ -44,6 +45,11 @@ private fun validateCorsOrigins(frontendUri: String, corsAllowedOrigins: List<St
 
 data class ClanoviProperties(
     val apiKey: String = "",
+)
+
+data class AccountStatusProperties(
+    /** Username of the person who must approve account activation/deactivation. */
+    val approverUsername: String = "legkov777",
 )
 
 @ConfigurationProperties(prefix = "app.s3")
