@@ -46,5 +46,6 @@ class InboxThread(
         const val KIND_REPORT_CUSTOMER = "REPORT_CUSTOMER"
         const val KIND_LEAVE_REQUEST = "LEAVE_REQUEST"
         const val KIND_LEAVE_DECISION = "LEAVE_DECISION"
+        const val KIND_ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED"
     }
 }
