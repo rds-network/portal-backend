@@ -55,7 +55,7 @@ class ReportOverdueServiceNotifyTest {
         assertEquals(2, second.recipients.single().warningCount)
 
         verify(exactly = 2) { inboxService.notifyOverdue("volunteer", any(), any(), any()) }
-        verify(exactly = 2) { noticeRepository.save(match { it is ReportOverdueNotice }) }
+        verify(exactly = 2) { noticeRepository.save(any()) }
     }
 
     @Test

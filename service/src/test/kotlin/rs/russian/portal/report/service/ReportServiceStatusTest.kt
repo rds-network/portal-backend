@@ -75,6 +75,7 @@ class ReportServiceStatusTest : AbstractIntegrationTest() {
         if (accountService.findAccountByLogin(login) == null) {
             accountService.save(
                 Account(
+                    id = 91001,
                     username = login,
                     email = "report_approver@example.com",
                     fullName = "Report Approver",
