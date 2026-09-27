@@ -72,7 +72,9 @@ class ActivityService(
         private val log = LoggerFactory.getLogger(ActivityService::class.java)
 
         fun label(method: String, path: String): String = when {
-            path.startsWith("/report-overdue") && method == "POST" -> "Рассылка о несдаче"
+            path.startsWith("/report-overdue/warnings") && path.contains("/cancel") && method == "POST" -> "Снятие порицания"
+            path.startsWith("/report-overdue/warnings") && method == "POST" -> "Вынес порицание"
+            path.startsWith("/report-overdue") && method == "POST" -> "Действие по несдаче"
             path.startsWith("/report-overdue") -> "Список несдачи"
             path.startsWith("/work-assignments") && method == "POST" -> "Создал задачу"
             path.startsWith("/work-assignments") && method == "PATCH" -> "Изменил задачу"

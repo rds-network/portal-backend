@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.41.0-reset-report-overdue-notices
+      author: portal
+      changes:
+        - sql:
+            sql: |
+              UPDATE report_overdue_notice
+              SET cancelled_at = NOW(),
+                  cancelled_by = 'system-reset',
+                  cancel_reason = 'Сброс: переход на ручную выдачу порицаний'
+              WHERE cancelled_at IS NULL;
