@@ -51,7 +51,7 @@ class ProgramCuratorServiceTest {
         verify(exactly = 0) { accountRepository.findAllActiveByGroup(UserGroup.MAIN_VOLUNTEER.name) }
     }
 
-    private fun account(id: Long, username: String, fullName: String, vararg groups: UserGroup) = Account(
+    private fun account(id: Int, username: String, fullName: String, vararg groups: UserGroup) = Account(
         id = id,
         username = username,
         email = "$username@example.com",
