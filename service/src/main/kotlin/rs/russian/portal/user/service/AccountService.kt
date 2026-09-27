@@ -32,6 +32,7 @@ import rs.russian.portal.user.mapper.ContractMapper
 import rs.russian.portal.user.mapper.ResidencePermitMapper
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.repository.AccountRepository
+import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import rs.russian.portal.user.service.authentik.AuthentikService
 
 @Service
@@ -43,6 +44,7 @@ class AccountService(
     private val fileService: FileService,
     private val contractMapper: ContractMapper,
     private val accountRepository: AccountRepository,
+    private val secondaryProgramRepository: UserSecondaryProgramRepository,
     private val authentikUserService: AuthentikService,
     private val entityManager: EntityManager,
     private val sessionService: SessionService,
@@ -277,6 +279,9 @@ class AccountService(
                 userInfo.project = null
             }
         }
+
+        // Основная программа не может одновременно числиться дополнительной.
+        secondaryProgramRepository.deleteByAccountIdAndProgramCodeIgnoreCase(id, program.code)
 
         account.info = userInfo
         return account

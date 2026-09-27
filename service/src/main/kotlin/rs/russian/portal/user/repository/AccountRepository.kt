@@ -41,6 +41,9 @@ interface AccountRepository : JpaRepository<Account, Int> {
     @EntityGraph(value = GRAPH_FULL)
     fun findAllByUsernameIn(usernames: List<String>): List<Account>
 
+    @EntityGraph(value = GRAPH_FULL)
+    fun findAllByReportControllerUsernameIgnoreCaseAndActiveTrue(reportControllerUsername: String): List<Account>
+
     @Modifying
     @Query(
         """

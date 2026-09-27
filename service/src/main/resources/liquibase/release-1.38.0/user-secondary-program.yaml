@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.38.0-user-secondary-program
+      author: portal
+      changes:
+        - createTable:
+            tableName: user_secondary_program
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_user_secondary_program
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: id
+                    foreignKeyName: fk_user_secondary_program_account
+                  name: account_id
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: program
+                    referencedColumnNames: code
+                    foreignKeyName: fk_user_secondary_program_program
+                  name: program_code
+                  type: VARCHAR(50)
+        - addUniqueConstraint:
+            tableName: user_secondary_program
+            columnNames: account_id, program_code
+            constraintName: uq_user_secondary_program
+        - createIndex:
+            tableName: user_secondary_program
+            indexName: idx_user_secondary_program_account
+            columns:
+              - column:
+                  name: account_id

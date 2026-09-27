@@ -45,6 +45,7 @@ class AccountServiceDepersonalizationResetTest {
             mockk(relaxed = true),
             contractMapper,
             accountRepository,
+            mockk(relaxed = true),
             authentikUserService,
             mockk(relaxed = true),
             mockk(relaxed = true),

@@ -21,6 +21,7 @@ import rs.russian.portal.user.domain.Contract
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
+import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import java.time.LocalDateTime
 import java.util.*
 
@@ -38,6 +39,9 @@ abstract class UserMapper {
 
     @Autowired
     private lateinit var accountRepository: AccountRepository
+
+    @Autowired
+    private lateinit var secondaryProgramRepository: UserSecondaryProgramRepository
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "info", ignore = true)
@@ -130,6 +134,7 @@ abstract class UserMapper {
     @Mapping(target = "reportBlockedByFullName", ignore = true)
     @Mapping(target = "reportControllerUsername", source = "account.reportControllerUsername")
     @Mapping(target = "reportControllerFullName", ignore = true)
+    @Mapping(target = "secondaryProgramCodes", ignore = true)
     abstract fun map(userInfo: UserInfo?): UserInfoDto
 
     @Mapping(target = "account", source = "account")
@@ -173,6 +178,15 @@ abstract class UserMapper {
         target.reportControllerFullName = accountRepository.findByUsername(login)
             .map { it.fullName }
             .orElse(login)
+    }
+
+    @AfterMapping
+    fun fillSecondaryPrograms(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
+        val accountId = userInfo?.account?.id ?: return
+        target.secondaryProgramCodes = secondaryProgramRepository
+            .findAllByAccountIdOrderByProgramCodeAsc(accountId)
+            .map { it.programCode }
+            .toMutableList()
     }
 
     @Named("mapGroups")

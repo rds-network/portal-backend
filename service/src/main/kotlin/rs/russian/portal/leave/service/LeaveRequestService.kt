@@ -194,6 +194,7 @@ class LeaveRequestService(
         if (programCuratorService.isCurator(leave.username)) {
             candidates += seniorManagerUsernames()
         } else {
+            // PRIMARY-программа (user_info.program) — дополнительные программы на маршрутизацию отпуска не влияют.
             val programCode = accountRepository.findByUsername(leave.username).orElse(null)?.info?.program?.code
             if (programCode.isNullOrBlank()) {
                 candidates += seniorManagerUsernames()
