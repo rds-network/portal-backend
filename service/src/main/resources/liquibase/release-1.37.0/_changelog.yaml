@@ -1,0 +1,3 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.37.0/rename-programs-projects.yaml
