@@ -151,7 +151,8 @@ class ReportOverdueService(
     }
 
     /**
-     * Ручное порицание (1–3): создаёт запись в ledger и пишет в inbox волонтёру + ADMIN_VOLUNTEER.
+     * Ручное порицание (1–3): создаёт запись в ledger и пишет в inbox только волонтёру
+     * (актор — тихий участник). Админы смотрят страницу просрочек, не inbox-рассылку.
      * Авто-МУП при 3-м ударе не отправляется.
      */
     @Transactional
@@ -182,7 +183,7 @@ class ReportOverdueService(
             if (note != null) append(".\n\nПричина: $note") else append(".")
             append("\n\nЭто предупреждение $nextLevel из 3.")
         }
-        inboxService.notifyOverdue(login, nextLevel, subject, body)
+        inboxService.notifyOverdue(login, nextLevel, subject, body, currentUserLogin())
         reportOverdueNoticeRepository.save(
             ReportOverdueNotice(
                 username = account.username,

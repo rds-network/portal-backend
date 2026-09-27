@@ -183,6 +183,8 @@ class DissolutionRequestService(
         val body = "Заявление на расторжение договора от $fullName (${item.username}).\n" +
             "С даты: ${item.fromDate}.$reason\n\n" +
             "Откройте раздел «Расторжение» или «Заявления на расторжение» для решения. Письмо в МУП отправляется вручную."
+        // Curators (and users without a program) → senior admins only.
+        // Regular volunteers → program curators only. Never blast ADMIN_VOLUNTEER / all managers.
         val candidates = mutableSetOf<String>()
         if (programCuratorService.isCurator(item.username)) {
             candidates += seniorManagerUsernames()
@@ -194,9 +196,6 @@ class DissolutionRequestService(
                 candidates += programCuratorRepository.findAllByProgramCodeIgnoreCase(programCode).map { it.username }
             }
         }
-        // Always notify ADMIN_VOLUNTEER / MAIN_VOLUNTEER / ADMIN for dissolution.
-        candidates += seniorManagerUsernames()
-        candidates += accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name)
         candidates.removeIf { it.equals(item.username, ignoreCase = true) }
         activeUsernames(candidates).forEach { recipient ->
             inboxService.notifyDissolutionRequest(
@@ -226,6 +225,7 @@ class DissolutionRequestService(
         )
     }
 
+    /** MAIN_VOLUNTEER + ADMIN only — decides dissolution for curators / users without a program. */
     private fun seniorManagerUsernames(): List<String> =
         listOf(UserGroup.MAIN_VOLUNTEER, UserGroup.ADMIN)
             .flatMap { accountRepository.findAllActiveUsernamesByGroup(it.name) }

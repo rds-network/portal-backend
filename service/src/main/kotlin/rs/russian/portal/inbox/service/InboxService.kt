@@ -47,11 +47,8 @@ class InboxService(
     @Transactional(readOnly = true)
     fun list(): List<InboxThreadDto> {
         val account = accountService.getCurrentAccount()
-        val threads = if (isManager(account.groups)) {
-            inboxThreadRepository.findAllForManagers()
-        } else {
-            inboxThreadRepository.findAllForUser(account.username)
-        }
+        // Everyone — including managers — only sees threads they participate in.
+        val threads = inboxThreadRepository.findAllForUser(account.username)
         val names = nameMap(
             threads.flatMap { thread ->
                 listOfNotNull(recipientOf(thread), thread.createdBy) +
@@ -72,7 +69,7 @@ class InboxService(
         val account = accountService.getCurrentAccount()
         val thread = inboxThreadRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Inbox thread $id not found") }
-        if (!canSee(thread, account.username, isManager(account.groups))) {
+        if (!canSee(thread, account.username)) {
             throw NotAuthorizedException()
         }
         rememberReceived(thread)
@@ -121,7 +118,7 @@ class InboxService(
         val account = accountService.getCurrentAccount()
         val thread = inboxThreadRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Inbox thread $id not found") }
-        if (!canSee(thread, account.username, isManager(account.groups))) {
+        if (!canSee(thread, account.username)) {
             throw NotAuthorizedException()
         }
         val body = request.body.trim()
@@ -145,7 +142,7 @@ class InboxService(
         val account = accountService.getCurrentAccount()
         val thread = inboxThreadRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Inbox thread $id not found") }
-        if (!canSee(thread, account.username, isManager(account.groups))) {
+        if (!canSee(thread, account.username)) {
             throw NotAuthorizedException()
         }
         val now = OffsetDateTime.now()
@@ -195,9 +192,19 @@ class InboxService(
         )
     }
 
+    /**
+     * Overdue notice to the volunteer only. Admins use the overdue page — do not blast ADMIN_VOLUNTEER.
+     * Optional [actorUsername] (manual issueWarning) is added as a silent participant when different from the volunteer.
+     */
     @Transactional
-    fun notifyOverdue(username: String, level: Int, subject: String, body: String): InboxThread {
-        val extra = accountRepository.findAllActiveByGroup(ADMIN_VOLUNTEER.name).map { it.username }
+    fun notifyOverdue(
+        username: String,
+        level: Int,
+        subject: String,
+        body: String,
+        actorUsername: String? = null,
+    ): InboxThread {
+        val actor = actorUsername?.trim()?.takeIf { it.isNotEmpty() && !it.equals(username, ignoreCase = true) }
         return openThread(
             subject = subject,
             body = body,
@@ -207,11 +214,10 @@ class InboxService(
                 level >= 1 -> InboxThread.KIND_OVERDUE_1
                 else -> InboxThread.KIND_OVERDUE_HOURS
             },
-            createdBy = null,
+            createdBy = actor,
             recipient = username,
-            extraParticipants = extra,
+            extraParticipants = listOfNotNull(actor),
             recipientUnread = true,
-            extraUnread = true,
         )
     }
 
@@ -368,10 +374,8 @@ class InboxService(
         }
     }
 
-    private fun canSee(thread: InboxThread, username: String, manager: Boolean): Boolean {
-        if (manager) return true
-        return thread.participants.any { it.username.equals(username, ignoreCase = true) }
-    }
+    private fun canSee(thread: InboxThread, username: String): Boolean =
+        thread.participants.any { it.username.equals(username, ignoreCase = true) }
 
     private fun toListDto(
         thread: InboxThread,

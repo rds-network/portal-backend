@@ -54,7 +54,7 @@ class ReportOverdueServiceNotifyTest {
         assertEquals(1, second.sent)
         assertEquals(2, second.recipients.single().warningCount)
 
-        verify(exactly = 2) { inboxService.notifyOverdue("volunteer", any(), any(), any()) }
+        verify(exactly = 2) { inboxService.notifyOverdue("volunteer", any(), any(), any(), any()) }
         verify(exactly = 2) { noticeRepository.save(any()) }
     }
 
@@ -69,7 +69,7 @@ class ReportOverdueServiceNotifyTest {
         assertEquals(3, result.recipients.single().warningCount)
         assertFalse(result.recipients.single().mupSent)
         verify(exactly = 1) {
-            inboxService.notifyOverdue("volunteer", 3, any(), match { !it.contains("МУП") })
+            inboxService.notifyOverdue("volunteer", 3, any(), match { !it.contains("МУП") }, any())
         }
         verify(exactly = 1) { noticeRepository.save(match { it.level == 3 }) }
         verify(exactly = 0) { noticeRepository.save(match { it.level == ReportOverdueService.MUP_LEVEL }) }
@@ -85,7 +85,7 @@ class ReportOverdueServiceNotifyTest {
         val result = service.notifyDue()
 
         assertEquals(0, result.sent)
-        verify(exactly = 0) { inboxService.notifyOverdue(any(), any(), any(), any()) }
+        verify(exactly = 0) { inboxService.notifyOverdue(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -105,7 +105,9 @@ class ReportOverdueServiceNotifyTest {
         val result = service.issueWarning("volunteer", "Пропуск отчётов")
 
         assertEquals(2, result.warningCount)
-        verify(exactly = 1) { inboxService.notifyOverdue("volunteer", 2, any(), match { it.contains("Пропуск отчётов") }) }
+        verify(exactly = 1) {
+            inboxService.notifyOverdue("volunteer", 2, any(), match { it.contains("Пропуск отчётов") }, any())
+        }
         verify(exactly = 1) { noticeRepository.save(match { it.level == 2 && it.periodKey.startsWith("MANUAL-") }) }
     }
 

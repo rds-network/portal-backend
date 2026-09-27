@@ -14,10 +14,13 @@ import rs.russian.portal.dissolution.domain.DissolutionRequest
 import rs.russian.portal.dissolution.domain.enums.DissolutionRequestStatus
 import rs.russian.portal.dissolution.repository.DissolutionRequestRepository
 import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.domain.Program
+import rs.russian.portal.program.domain.ProgramCurator
 import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.Account
+import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
@@ -51,8 +54,24 @@ class DissolutionRequestServiceTest {
         active = true,
         groups = emptySet(),
     )
-    private val manager = Account(
+    private val senior = Account(
         id = 2,
+        username = "main_volunteer",
+        email = "main@example.com",
+        fullName = "Main Volunteer",
+        active = true,
+        groups = setOf(UserGroup.MAIN_VOLUNTEER),
+    )
+    private val curator = Account(
+        id = 3,
+        username = "curator_it",
+        email = "curator@example.com",
+        fullName = "Curator IT",
+        active = true,
+        groups = emptySet(),
+    )
+    private val manager = Account(
+        id = 4,
         username = "admin_user",
         email = "admin@example.com",
         fullName = "Admin",
@@ -62,11 +81,17 @@ class DissolutionRequestServiceTest {
 
     @BeforeEach
     fun setUp() {
+        volunteer.info = null
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
         every { repository.save(any()) } answers { firstArg() }
         every { programCuratorService.isCurator(any()) } returns false
-        every { accountRepository.findAllActiveUsernamesByGroup(any()) } returns listOf(manager.username)
-        every { accountRepository.findAllByUsernameIn(any()) } returns listOf(manager)
+        every { accountRepository.findAllActiveUsernamesByGroup(UserGroup.MAIN_VOLUNTEER.name) } returns listOf(senior.username)
+        every { accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN.name) } returns emptyList()
+        every { accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name) } returns listOf(manager.username)
+        every { accountRepository.findAllByUsernameIn(any()) } answers {
+            val logins = firstArg<List<String>>().map { it.lowercase() }.toSet()
+            listOf(senior, curator, manager).filter { it.username.lowercase() in logins }
+        }
     }
 
     @AfterEach
@@ -75,7 +100,7 @@ class DissolutionRequestServiceTest {
     }
 
     @Test
-    fun `create stores pending request and notifies managers`() {
+    fun `create without program notifies senior managers only`() {
         every { currentUserLogin() } returns volunteer.username
         every { accountService.getCurrentAccount() } returns volunteer
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
@@ -91,7 +116,49 @@ class DissolutionRequestServiceTest {
         assertEquals(DissolutionRequestStatus.PENDING, dto.status)
         assertEquals(LocalDate.of(2026, 10, 1), dto.fromDate)
         assertEquals("Личные обстоятельства", dto.reason)
-        verify { inboxService.notifyDissolutionRequest(manager.username, any(), any(), volunteer.username) }
+        verify(exactly = 1) {
+            inboxService.notifyDissolutionRequest(senior.username, any(), any(), volunteer.username)
+        }
+        verify(exactly = 0) {
+            inboxService.notifyDissolutionRequest(manager.username, any(), any(), any())
+        }
+        verify(exactly = 0) {
+            accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name)
+        }
+    }
+
+    @Test
+    fun `create with program notifies program curators only`() {
+        volunteer.info = UserInfo(id = volunteer.username, account = volunteer).apply {
+            program = Program(code = "IT", nameRu = "IT", nameEn = "IT", nameSr = "IT")
+        }
+        every { currentUserLogin() } returns volunteer.username
+        every { accountService.getCurrentAccount() } returns volunteer
+        every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
+        every { repository.existsByUsernameIgnoreCaseAndStatus("volunteer", DissolutionRequestStatus.PENDING) } returns false
+        every { programCuratorRepository.findAllByProgramCodeIgnoreCase("IT") } returns listOf(
+            ProgramCurator(programCode = "IT", username = curator.username),
+        )
+
+        service.create(
+            DissolutionRequestCreateRequest(
+                fromDate = LocalDate.of(2026, 10, 1),
+                reason = "Переезд",
+            )
+        )
+
+        verify(exactly = 1) {
+            inboxService.notifyDissolutionRequest(curator.username, any(), any(), volunteer.username)
+        }
+        verify(exactly = 0) {
+            inboxService.notifyDissolutionRequest(senior.username, any(), any(), any())
+        }
+        verify(exactly = 0) {
+            inboxService.notifyDissolutionRequest(manager.username, any(), any(), any())
+        }
+        verify(exactly = 0) {
+            accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name)
+        }
     }
 
     @Test
