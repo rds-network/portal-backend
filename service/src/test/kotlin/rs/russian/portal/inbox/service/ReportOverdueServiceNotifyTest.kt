@@ -13,6 +13,7 @@ import rs.russian.portal.user.service.AccountService
 class ReportOverdueServiceNotifyTest {
     private val reportOverdueJdbc = mockk<ReportOverdueJdbc>()
     private val deactivatedActiveContractJdbc = mockk<rs.russian.portal.inbox.repository.DeactivatedActiveContractJdbc>(relaxed = true)
+    private val dissolutionQueueJdbc = mockk<rs.russian.portal.inbox.repository.DissolutionQueueJdbc>(relaxed = true)
     private val noticeRepository = mockk<ReportOverdueNoticeRepository>(relaxed = true)
     private val inboxService = mockk<InboxService>(relaxed = true)
     private val accountService = mockk<AccountService>(relaxed = true)
@@ -20,6 +21,7 @@ class ReportOverdueServiceNotifyTest {
     private val service = ReportOverdueService(
         reportOverdueJdbc,
         deactivatedActiveContractJdbc,
+        dissolutionQueueJdbc,
         noticeRepository,
         inboxService,
         accountService,

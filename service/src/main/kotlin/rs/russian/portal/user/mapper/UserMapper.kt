@@ -63,6 +63,9 @@ abstract class UserMapper {
     @Mapping(target = "reportControllerAt", ignore = true)
     @Mapping(target = "mupLetterSentAt", ignore = true)
     @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun map(oidcUserInfo: OidcUserInfo): Account
@@ -86,6 +89,9 @@ abstract class UserMapper {
     @Mapping(target = "reportControllerAt", ignore = true)
     @Mapping(target = "mupLetterSentAt", ignore = true)
     @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun map(ssoUser: User): Account
 
@@ -109,6 +115,9 @@ abstract class UserMapper {
     @Mapping(target = "reportControllerAt", ignore = true)
     @Mapping(target = "mupLetterSentAt", ignore = true)
     @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun update(oidcUserInfo: OidcUserInfo, @MappingTarget account: Account)
@@ -131,6 +140,9 @@ abstract class UserMapper {
     @Mapping(target = "reportControllerAt", ignore = true)
     @Mapping(target = "mupLetterSentAt", ignore = true)
     @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "fullName", source = "ssoUser", qualifiedByName = ["nameSso"])
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun update(ssoUser: User, @MappingTarget account: Account)
@@ -154,6 +166,8 @@ abstract class UserMapper {
     @Mapping(target = "reportControllerAt", source = "account.reportControllerAt")
     @Mapping(target = "mupLetterSentAt", source = "account.mupLetterSentAt")
     @Mapping(target = "mupLetterReason", source = "account.mupLetterReason")
+    @Mapping(target = "dissolutionQueuedAt", source = "account.dissolutionQueuedAt")
+    @Mapping(target = "dissolutionQueuedBy", source = "account.dissolutionQueuedBy")
     @Mapping(target = "secondaryProgramCodes", ignore = true)
     abstract fun map(userInfo: UserInfo?): UserInfoDto
 

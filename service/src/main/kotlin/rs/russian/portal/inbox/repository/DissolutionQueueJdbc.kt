@@ -2,24 +2,26 @@ package rs.russian.portal.inbox.repository
 
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
-import rs.russian.portal.inbox.api.DeactivatedActiveContractDto
+import rs.russian.portal.inbox.api.DissolutionQueueDto
 
 @Repository
-class DeactivatedActiveContractJdbc(
+class DissolutionQueueJdbc(
     private val jdbc: JdbcTemplate,
 ) {
 
-    fun findDeactivatedWithActiveContract(): List<DeactivatedActiveContractDto> =
+    fun findQueued(): List<DissolutionQueueDto> =
         jdbc.query(SQL) { rs, _ ->
-            DeactivatedActiveContractDto(
+            DissolutionQueueDto(
                 accountId = rs.getInt("account_id"),
                 username = rs.getString("username"),
                 fullName = rs.getString("full_name"),
                 program = rs.getString("program"),
                 contractEnd = rs.getDate("contract_end")?.toLocalDate(),
                 contractType = rs.getString("contract_type"),
-                deactivatedReason = rs.getString("deactivated_reason"),
-                mupLetterSentAt = rs.getObject("mup_letter_sent_at", java.time.OffsetDateTime::class.java),
+                active = rs.getBoolean("active"),
+                dissolutionQueuedAt = rs.getObject("dissolution_queued_at", java.time.OffsetDateTime::class.java),
+                dissolutionQueuedBy = rs.getString("dissolution_queued_by"),
+                dissolutionQueueReason = rs.getString("dissolution_queue_reason"),
             )
         }
 
@@ -29,14 +31,16 @@ class DeactivatedActiveContractJdbc(
           a.id AS account_id,
           a.username,
           a.full_name,
+          a.active,
           ui.program_code AS program,
           c.end_date AS contract_end,
           c.type AS contract_type,
-          NULL::text AS deactivated_reason,
-          a.mup_letter_sent_at
+          a.dissolution_queued_at,
+          a.dissolution_queued_by,
+          a.dissolution_queue_reason
         FROM account a
         LEFT JOIN user_info ui ON ui.username = a.username
-        JOIN LATERAL (
+        LEFT JOIN LATERAL (
           SELECT ct.end_date, ct.type::text AS type
           FROM contract ct
           WHERE ct.username = a.username
@@ -47,9 +51,9 @@ class DeactivatedActiveContractJdbc(
             ct.end_date DESC
           LIMIT 1
         ) c ON true
-        WHERE a.active = false
-          AND a.dissolution_queued_at IS NULL
-        ORDER BY c.end_date ASC, a.full_name
+        WHERE a.dissolution_queued_at IS NOT NULL
+          AND a.mup_letter_sent_at IS NULL
+        ORDER BY a.dissolution_queued_at ASC, a.full_name
         """
     }
 }

@@ -32,6 +32,11 @@ class ReportOverdueController(
         ResponseEntity.ok(reportOverdueService.listDeactivatedActiveContract())
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/dissolution-queue")
+    fun dissolutionQueue(): ResponseEntity<List<DissolutionQueueDto>> =
+        ResponseEntity.ok(reportOverdueService.listDissolutionQueue())
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping("/preview")
     fun preview(): ResponseEntity<OverduePreviewDto> =
         ResponseEntity.ok(reportOverdueService.preview())

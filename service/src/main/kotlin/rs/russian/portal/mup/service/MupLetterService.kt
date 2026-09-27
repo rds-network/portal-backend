@@ -135,6 +135,9 @@ class MupLetterService(
         val account = accountService.findAccountByLogin(username) ?: return
         account.mupLetterSentAt = java.time.OffsetDateTime.now()
         account.mupLetterReason = (reason ?: MupLetterReason.NON_COMPLIANCE).name
+        account.dissolutionQueuedAt = null
+        account.dissolutionQueuedBy = null
+        account.dissolutionQueueReason = null
     }
 
     private fun deactivateVolunteer(username: String): Boolean {
