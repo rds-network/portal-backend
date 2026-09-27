@@ -1566,6 +1566,12 @@ components:
           type: string
         program:
           $ref: "#/components/schemas/ProgramDto"
+        secondaryProgramCodes:
+          type: array
+          default: [ ]
+          description: Коды дополнительных программ (без основной)
+          items:
+            type: string
         project:
           $ref: "#/components/schemas/ProjectDto"
         avatar:
