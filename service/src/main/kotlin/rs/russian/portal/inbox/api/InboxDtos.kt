@@ -128,6 +128,10 @@ data class OverdueCancelRequest(
     val reason: String? = null,
 )
 
+data class OverdueIssueWarningRequest(
+    val reason: String? = null,
+)
+
 data class DeactivatedActiveContractDto(
     val accountId: Int,
     val username: String,
@@ -137,4 +141,5 @@ data class DeactivatedActiveContractDto(
     val contractEnd: LocalDate? = null,
     val contractType: String? = null,
     val deactivatedReason: String? = null,
+    val mupLetterSentAt: java.time.OffsetDateTime? = null,
 )

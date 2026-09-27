@@ -3,3 +3,7 @@ databaseChangeLog:
       file: liquibase/release-1.40.0/account-status-request.yaml
   - include:
       file: liquibase/release-1.40.0/account-status-event.yaml
+  - include:
+      file: liquibase/release-1.40.0/account-mup-letter.yaml
+  - include:
+      file: liquibase/release-1.40.0/dissolution-request.yaml

@@ -79,6 +79,7 @@ class ActivityService(
             path.startsWith("/work-assignments") && method == "DELETE" -> "Удалил задачу"
             path.startsWith("/inbox") && method == "POST" -> "Сообщение в ЛК"
             path.startsWith("/announcements") && method == "POST" -> "Рассылка уведомления"
+            path.startsWith("/mup-letters") && method == "POST" -> "Письмо в МУП"
             path.startsWith("/org-links") && method == "POST" -> "Добавил ресурс"
             path.contains("/heatmap") || path.contains("HeatMap") || path.contains("heat-map") -> "Тепловая карта"
             path.startsWith("/report") && method == "POST" -> "Сохранил отчёт"
@@ -95,6 +96,7 @@ class ActivityService(
                 path.startsWith("/inbox") -> "/messages"
                 path.startsWith("/announcements") -> "/announcements/admin"
                 path.startsWith("/org-links") -> "/resources"
+                path.startsWith("/mup-letters") -> "/activity"
                 path.contains("heat-map") || path.contains("HeatMap") -> "/volunteers/heatmap$q"
                 path.startsWith("/reports") -> "/reports"
                 else -> null
