@@ -26,7 +26,7 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.ResidencePermit
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.DepersonalizationStatus
-import rs.russian.portal.user.domain.specification.hasActiveRegularContract
+import rs.russian.portal.user.domain.specification.hasActiveHeatMapContract
 import rs.russian.portal.user.domain.specification.searchSpecification
 import rs.russian.portal.user.mapper.ContractMapper
 import rs.russian.portal.user.mapper.ResidencePermitMapper
@@ -163,7 +163,8 @@ class AccountService(
         pageRequest: PageRequest,
         filter: UserSearchFilter?,
     ): Page<Account> {
-        val specification = searchSpecification(query, filter).and(hasActiveRegularContract())
+        // Heatmap: REGULAR + ASSOCIATED with an active contract; hoursRequired stays 0 for ASSOCIATED in SQL.
+        val specification = searchSpecification(query, filter).and(hasActiveHeatMapContract())
         return findAllFull(specification, convert(pageRequest))
     }
 

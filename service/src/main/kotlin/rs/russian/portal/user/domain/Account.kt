@@ -89,6 +89,10 @@ class Account(
 
     var reportControllerUsername: String? = null,
 
+    var reportControllerReason: String? = null,
+
+    var reportControllerAt: OffsetDateTime? = null,
+
     ) : JpaEntity<Int>() {
 
     override fun equalityProperties() = setOf(Account::username)
