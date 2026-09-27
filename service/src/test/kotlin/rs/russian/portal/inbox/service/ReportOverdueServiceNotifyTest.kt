@@ -17,12 +17,14 @@ import java.time.LocalDate
 
 class ReportOverdueServiceNotifyTest {
     private val reportOverdueJdbc = mockk<ReportOverdueJdbc>()
+    private val deactivatedActiveContractJdbc = mockk<rs.russian.portal.inbox.repository.DeactivatedActiveContractJdbc>(relaxed = true)
     private val noticeRepository = mockk<ReportOverdueNoticeRepository>(relaxed = true)
     private val inboxService = mockk<InboxService>(relaxed = true)
     private val accountService = mockk<AccountService>(relaxed = true)
 
     private val service = ReportOverdueService(
         reportOverdueJdbc,
+        deactivatedActiveContractJdbc,
         noticeRepository,
         inboxService,
         accountService,

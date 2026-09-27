@@ -127,3 +127,14 @@ data class OverdueCancelRequest(
     val all: Boolean = false,
     val reason: String? = null,
 )
+
+data class DeactivatedActiveContractDto(
+    val accountId: Int,
+    val username: String,
+    val fullName: String,
+    val program: String? = null,
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    val contractEnd: LocalDate? = null,
+    val contractType: String? = null,
+    val deactivatedReason: String? = null,
+)

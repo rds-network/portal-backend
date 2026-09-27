@@ -4,9 +4,11 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.generated.api.UserApi
 import rs.russian.generated.model.*
+import rs.russian.portal.inbox.service.InboxService
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.jpa.convert
 import rs.russian.portal.shared.security.Authorized
+import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.mapper.UserMapper
@@ -14,6 +16,7 @@ import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.user.service.ReportBlockService
 import rs.russian.portal.user.service.ReportControllerService
 import rs.russian.portal.user.service.SessionService
+import java.time.LocalDate
 import java.util.*
 
 @RestController
@@ -23,6 +26,7 @@ class UserController(
     private val reportControllerService: ReportControllerService,
     private val sessionService: SessionService,
     private val userMapper: UserMapper,
+    private val inboxService: InboxService,
 ) : UserApi {
 
     override fun getCurrentAccount(): ResponseEntity<UserInfoDto> {
@@ -123,7 +127,23 @@ class UserController(
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
     override fun deactivateAccount(id: Int): ResponseEntity<UserInfoDto> {
-        return ResponseEntity.ok(userMapper.map(accountService.switchActiveState(id, false).info))
+        val before = accountService.getAccount(id)
+        val wasActive = before.active
+        val account = accountService.switchActiveState(id, false)
+        if (wasActive && !account.active) {
+            val actor = currentUserLogin() ?: "system"
+            val today = LocalDate.now()
+            val contractEnd = account.contracts
+                .filter { it.endDate >= today }
+                .maxOfOrNull { it.endDate }
+            inboxService.notifyAccountDeactivated(
+                username = account.username,
+                fullName = account.fullName,
+                deactivatedBy = actor,
+                contractEnd = contractEnd,
+            )
+        }
+        return ResponseEntity.ok(userMapper.map(account.info))
     }
 
     @Authorized(allowed = [ADMIN_VOLUNTEER])
