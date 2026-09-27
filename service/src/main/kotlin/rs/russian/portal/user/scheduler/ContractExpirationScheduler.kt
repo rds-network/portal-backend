@@ -6,6 +6,8 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.thymeleaf.TemplateEngine
 import org.thymeleaf.context.Context
+import rs.russian.portal.accountstatus.domain.enums.AccountStatusEventSource
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.application.domain.ApplicationStatus.DENY
 import rs.russian.portal.application.domain.ApplicationStatus.DONE
 import rs.russian.portal.application.domain.ApplicationType.PROLONGATION
@@ -14,7 +16,6 @@ import rs.russian.portal.mail.service.EmailService
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
-import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -22,7 +23,7 @@ import java.time.format.DateTimeFormatter
 class ContractExpirationScheduler(
     private val accountRepository: AccountRepository,
     private val applicationRepository: ApplicationRepository,
-    private val accountService: AccountService,
+    private val accountStatusService: AccountStatusService,
     private val emailService: EmailService,
     private val templateEngine: TemplateEngine,
 ) {
@@ -81,7 +82,16 @@ class ContractExpirationScheduler(
         var failures = 0
         expired.forEach { account ->
             try {
-                account.id?.let { accountService.switchActiveState(it, false) }
+                account.id?.let {
+                    accountStatusService.applyImmediate(
+                        accountId = it,
+                        activeTo = false,
+                        source = AccountStatusEventSource.SCHEDULER,
+                        actorUsername = null,
+                        reason = "contract expired",
+                        notifyApprover = true,
+                    )
+                }
                 notifyAdminsOfDeactivation(admins, account)
             } catch (ex: Exception) {
                 failures += 1

@@ -33,6 +33,7 @@ class UserSyncSchedulerTest {
 
         userSyncScheduler = UserSyncScheduler(
             accountService,
+            mockk(relaxed = true),
             accountRepository,
             listOf(multiWordpressAccountSynchroniser),
             authentikUserService

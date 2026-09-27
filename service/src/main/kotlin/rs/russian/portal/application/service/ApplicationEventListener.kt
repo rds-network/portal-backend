@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.event.TransactionalEventListener
 import org.thymeleaf.TemplateEngine
 import org.thymeleaf.context.Context
+import rs.russian.portal.accountstatus.domain.enums.AccountStatusEventSource
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.application.domain.Application
 import rs.russian.generated.model.ContractDto
 import rs.russian.portal.application.domain.ApplicationStatus
@@ -23,6 +25,7 @@ import java.util.*
 class ApplicationEventListener(
     private val emailService: EmailService,
     private val accountService: AccountService,
+    private val accountStatusService: AccountStatusService,
     private val contractMapper: ContractMapper,
     private val templateEngine: TemplateEngine,
     private val applicationMapper: ApplicationMapper,
@@ -79,7 +82,14 @@ class ApplicationEventListener(
                     )
                     return
                 }
-                accountService.switchActiveState(account.id!!, true)
+                accountStatusService.applyImmediate(
+                    accountId = account.id!!,
+                    activeTo = true,
+                    source = AccountStatusEventSource.DIRECT,
+                    actorUsername = null,
+                    reason = "application prolongation",
+                    notifyApprover = true,
+                )
                 val contracts = contractMapper.map(account.contracts)
                 contracts.add(
                     ContractDto(

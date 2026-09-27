@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.generated.api.UserApi
 import rs.russian.generated.model.*
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.jpa.convert
 import rs.russian.portal.shared.security.Authorized
@@ -15,10 +16,12 @@ import rs.russian.portal.user.service.ReportBlockService
 import rs.russian.portal.user.service.ReportControllerService
 import rs.russian.portal.user.service.SessionService
 import java.util.*
+import org.springframework.http.HttpStatus
 
 @RestController
 class UserController(
     private val accountService: AccountService,
+    private val accountStatusService: AccountStatusService,
     private val reportBlockService: ReportBlockService,
     private val reportControllerService: ReportControllerService,
     private val sessionService: SessionService,
@@ -118,12 +121,18 @@ class UserController(
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
     override fun activateAccount(id: Int): ResponseEntity<UserInfoDto> {
-        return ResponseEntity.ok(userMapper.map(accountService.switchActiveState(id, true).info))
+        val result = accountStatusService.requestOrApply(id, true)
+        val account = accountService.getAccount(id)
+        val status = if (result.pending) HttpStatus.ACCEPTED else HttpStatus.OK
+        return ResponseEntity.status(status).body(userMapper.map(account.info))
     }
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
     override fun deactivateAccount(id: Int): ResponseEntity<UserInfoDto> {
-        return ResponseEntity.ok(userMapper.map(accountService.switchActiveState(id, false).info))
+        val result = accountStatusService.requestOrApply(id, false)
+        val account = accountService.getAccount(id)
+        val status = if (result.pending) HttpStatus.ACCEPTED else HttpStatus.OK
+        return ResponseEntity.status(status).body(userMapper.map(account.info))
     }
 
     @Authorized(allowed = [ADMIN_VOLUNTEER])

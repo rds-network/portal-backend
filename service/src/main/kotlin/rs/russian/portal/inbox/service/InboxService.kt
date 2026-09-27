@@ -270,6 +270,45 @@ class InboxService(
         )
     }
 
+    @Transactional
+    fun notifyAccountStatusRequest(recipient: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_ACCOUNT_STATUS_REQUEST,
+            createdBy = createdBy,
+            recipient = recipient,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
+    fun notifyAccountStatusDecision(username: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_ACCOUNT_STATUS_DECISION,
+            createdBy = createdBy,
+            recipient = username,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
+    @Transactional
+    fun notifyAccountStatusChanged(recipient: String, subject: String, body: String, createdBy: String?) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_ACCOUNT_STATUS_CHANGED,
+            createdBy = createdBy,
+            recipient = recipient,
+            extraParticipants = listOfNotNull(createdBy),
+            recipientUnread = true,
+        )
+    }
+
     private fun openThread(
         subject: String,
         body: String,
@@ -430,6 +469,9 @@ class InboxService(
             kind == InboxThread.KIND_TASK ||
             kind == InboxThread.KIND_LEAVE_REQUEST ||
             kind == InboxThread.KIND_LEAVE_DECISION ||
+            kind == InboxThread.KIND_ACCOUNT_STATUS_REQUEST ||
+            kind == InboxThread.KIND_ACCOUNT_STATUS_DECISION ||
+            kind == InboxThread.KIND_ACCOUNT_STATUS_CHANGED ||
             kind.startsWith("OVERDUE")
 
     private fun heatmapUser(thread: InboxThread): String? {
