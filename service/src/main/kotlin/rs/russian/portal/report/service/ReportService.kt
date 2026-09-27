@@ -355,11 +355,10 @@ class ReportService(
     companion object {
         private val MODERATORS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
         private val SUPER_ADMINS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO)
+        /** Не-кураторские заказчики: только модераторы/суперадмины портала (как в listApprovers). */
         private val CUSTOMER_GROUPS = setOf(
-            UserGroup.ADMIN,
             UserGroup.ADMIN_SSO,
             UserGroup.ADMIN_VOLUNTEER,
-            UserGroup.MAIN_VOLUNTEER,
         )
     }
 }

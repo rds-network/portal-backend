@@ -112,4 +112,44 @@ class ReportServiceCustomerTest {
         }
         assertTrue(error.message!!.contains("куратор", ignoreCase = true))
     }
+
+    @Test
+    fun `createReport rejects WP administrator group alone as customer`() {
+        val author = Account(
+            id = 1,
+            username = "volunteer",
+            email = "volunteer@example.com",
+            fullName = "Volunteer",
+            groups = setOf(UserGroup.VOLUNTEER),
+        )
+        val wpAdmin = Account(
+            id = 3,
+            username = "wp-admin",
+            email = "wp-admin@example.com",
+            fullName = "WP Admin",
+            groups = setOf(UserGroup.ADMIN),
+        )
+        every { accountService.getCurrentAccount() } returns author
+        every { accountService.findAccountByLogin("wp-admin") } returns wpAdmin
+        every { programCuratorService.isAllowedCustomer("wp-admin") } returns false
+
+        val error = assertThrows<InvalidRequestException> {
+            service.createReport(
+                ReportDto(
+                    id = UUID.randomUUID(),
+                    tasks = mutableListOf(
+                        TaskDto(
+                            id = UUID.randomUUID(),
+                            date = LocalDate.now(),
+                            name = "Task",
+                            description = "Desc",
+                            timeSpent = 60,
+                            customer = "wp-admin",
+                        )
+                    ),
+                )
+            )
+        }
+        assertTrue(error.message!!.contains("куратор", ignoreCase = true))
+    }
 }
