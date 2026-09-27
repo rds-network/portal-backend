@@ -119,8 +119,9 @@ class ProgramCuratorService(
                 curatorFullName = curator.fullName,
             )
         }
-        // Администраторы тоже могут быть заказчиками, иначе куратору некого указать в своём отчёте.
-        CUSTOMER_GROUPS
+        // Только модераторы/суперадмины портала — не WP-группа administrator (UserGroup.ADMIN)
+        // и не MAIN_VOLUNTEER: иначе в «Заказчик» попадают ложные «— админ».
+        PICKER_ADMIN_GROUPS
             .flatMap { accountRepository.findAllActiveByGroup(it.name) }
             .distinctBy { it.username.lowercase() }
             .filter { admin -> result.none { it.username.equals(admin.username, ignoreCase = true) } }
@@ -280,14 +281,14 @@ class ProgramCuratorService(
 
     private fun assertManager() {
         val account = accountService.getCurrentAccount()
-        if (account.groups.none { it in CUSTOMER_GROUPS }) {
+        if (account.groups.none { it in MANAGER_GROUPS }) {
             throw NotAuthorizedException()
         }
     }
 
     private fun assertCanManageDelegates(programCode: String, curatorUsername: String) {
         val account = accountService.getCurrentAccount()
-        if (account.groups.any { it in CUSTOMER_GROUPS }) return
+        if (account.groups.any { it in MANAGER_GROUPS }) return
         if (account.username.equals(curatorUsername, ignoreCase = true) &&
             curatorRepository.existsByProgramCodeAndUsernameIgnoreCase(programCode, account.username)
         ) {
@@ -299,7 +300,13 @@ class ProgramCuratorService(
     companion object {
         /** Сортировка: админы без программы — в конец списка. */
         private const val LAST = "\uFFFF"
-        private val CUSTOMER_GROUPS = setOf(
+        /** Кто попадает в picker «Заказчик» как role=ADMIN (модераторы портала). */
+        private val PICKER_ADMIN_GROUPS = setOf(
+            UserGroup.ADMIN_SSO,
+            UserGroup.ADMIN_VOLUNTEER,
+        )
+        /** Кто может управлять кураторами/делегатами (включая WP administrator и главных волонтёров). */
+        private val MANAGER_GROUPS = setOf(
             UserGroup.ADMIN,
             UserGroup.ADMIN_SSO,
             UserGroup.ADMIN_VOLUNTEER,
