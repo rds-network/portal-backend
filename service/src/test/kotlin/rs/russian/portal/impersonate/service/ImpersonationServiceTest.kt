@@ -66,15 +66,18 @@ class ImpersonationServiceTest {
     @BeforeEach
     fun setUp() {
         PrivilegedOps.approverUsername = "legkov777"
+        PrivilegedOps.accountLookup = null
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
         every { accountRepository.findByUsername("legkov777") } returns Optional.of(leonid)
         every { accountRepository.findByUsername("admin_sso") } returns Optional.of(adminSso)
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
         every { accountRepository.findByUsername("stranger") } returns Optional.of(stranger)
+        every { accountRepository.findByEmail(any()) } returns Optional.empty()
     }
 
     @AfterEach
     fun tearDown() {
+        PrivilegedOps.accountLookup = null
         unmockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
     }
 
@@ -157,5 +160,41 @@ class ImpersonationServiceTest {
         val status = service.status(request)
         assertFalse(status.canImpersonate)
         assertFalse(status.active)
+    }
+
+    @Test
+    fun `approver email preferred_username can start impersonation`() {
+        every { realUserLogin() } returns "legkov777@gmail.com"
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN_VOLUNTEER)
+        every { accountRepository.findByUsername("legkov777@gmail.com") } returns Optional.empty()
+        every { accountRepository.findByEmail("legkov777@gmail.com") } returns Optional.of(leonid)
+        val session = mockk<HttpSession>(relaxed = true)
+        val request = mockk<HttpServletRequest>()
+        var stored: String? = null
+        every { request.getSession(true) } returns session
+        every { request.getSession(false) } returns session
+        every { request.getHeader(ImpersonationKeys.HEADER_USERNAME) } returns null
+        every { session.setAttribute(ImpersonationKeys.SESSION_USERNAME, any()) } answers {
+            stored = secondArg()
+        }
+        every { session.getAttribute(ImpersonationKeys.SESSION_USERNAME) } answers { stored }
+
+        val status = service.start(ImpersonationStartRequest("volunteer"), request)
+
+        assertTrue(status.canImpersonate)
+        assertTrue(status.active)
+        assertEquals("legkov777", status.realUsername)
+    }
+
+    @Test
+    fun `account username match allows status when oidc login differs`() {
+        every { realUserLogin() } returns "other_oidc_login"
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN_VOLUNTEER)
+        every { accountRepository.findByUsername("other_oidc_login") } returns Optional.of(leonid)
+        every { accountRepository.findByEmail("other_oidc_login") } returns Optional.empty()
+
+        val status = service.status(null)
+        assertTrue(status.canImpersonate)
+        assertEquals("legkov777", status.realUsername)
     }
 }
