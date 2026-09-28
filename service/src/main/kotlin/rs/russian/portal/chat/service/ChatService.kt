@@ -10,10 +10,13 @@ import rs.russian.portal.chat.api.ChatMessageDto
 import rs.russian.portal.chat.api.ChatRoomDto
 import rs.russian.portal.chat.api.ChatRoomsResponse
 import rs.russian.portal.chat.api.ChatSendMessageRequest
+import rs.russian.portal.chat.api.ChatUnreadResponse
 import rs.russian.portal.chat.domain.ChatMessage
 import rs.russian.portal.chat.domain.ChatRoom
+import rs.russian.portal.chat.domain.ChatRoomRead
 import rs.russian.portal.chat.domain.enums.ChatRoomType
 import rs.russian.portal.chat.repository.ChatMessageRepository
+import rs.russian.portal.chat.repository.ChatRoomReadRepository
 import rs.russian.portal.chat.repository.ChatRoomRepository
 import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.program.repository.ProgramRepository
@@ -43,6 +46,7 @@ import java.util.UUID
 class ChatService(
     private val chatRoomRepository: ChatRoomRepository,
     private val chatMessageRepository: ChatMessageRepository,
+    private val chatRoomReadRepository: ChatRoomReadRepository,
     private val accountService: AccountService,
     private val accountRepository: AccountRepository,
     private val programRepository: ProgramRepository,
@@ -55,18 +59,7 @@ class ChatService(
         val account = requireActiveAccount()
         val canSeeAll = canSeeAllRooms(account)
         val canCreate = canCreateProgramRoom(account)
-        val allRooms = chatRoomRepository.findAllWithProgram()
-        val visible = if (canSeeAll) {
-            allRooms
-        } else {
-            val codes = userProgramCodes(account)
-            allRooms.filter { room ->
-                room.type == ChatRoomType.GENERAL ||
-                    (room.type == ChatRoomType.PROGRAM &&
-                        room.program?.code != null &&
-                        codes.any { it.equals(room.program!!.code, ignoreCase = true) })
-            }
-        }
+        val visible = visibleRooms(account)
         return ChatRoomsResponse(
             rooms = visible.map { toRoomDto(it) },
             canSeeAll = canSeeAll,
@@ -191,6 +184,35 @@ class ChatService(
         accountRepository.touchLastSeen(account.username, now, now.minusMinutes(1))
     }
 
+    @Transactional
+    fun markRead(roomId: UUID) {
+        val account = requireActiveAccount()
+        val room = loadRoom(roomId)
+        assertCanAccessRoom(account, room)
+        val now = OffsetDateTime.now()
+        val existing = chatRoomReadRepository.findByUsernameIgnoreCaseAndRoomId(account.username, room.id!!)
+        if (existing != null) {
+            existing.lastReadAt = now
+        } else {
+            chatRoomReadRepository.save(
+                ChatRoomRead(
+                    username = account.username,
+                    roomId = room.id!!,
+                    lastReadAt = now,
+                ),
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun unreadSummary(): ChatUnreadResponse {
+        val account = requireActiveAccount()
+        val roomIds = visibleRooms(account).mapNotNull { it.id }
+        if (roomIds.isEmpty()) return ChatUnreadResponse(count = 0)
+        val count = chatRoomReadRepository.countUnread(account.username, roomIds)
+        return ChatUnreadResponse(count = count)
+    }
+
     fun assertCanAccessRoom(account: Account, room: ChatRoom) {
         if (!account.active) throw NotAuthorizedException()
         if (canSeeAllRooms(account)) return
@@ -215,6 +237,18 @@ class ChatService(
     private fun loadRoom(roomId: UUID): ChatRoom =
         chatRoomRepository.findByIdWithProgram(roomId)
             .orElseThrow { EntityNotFoundException("Chat room $roomId not found") }
+
+    private fun visibleRooms(account: Account): List<ChatRoom> {
+        val allRooms = chatRoomRepository.findAllWithProgram()
+        if (canSeeAllRooms(account)) return allRooms
+        val codes = userProgramCodes(account)
+        return allRooms.filter { room ->
+            room.type == ChatRoomType.GENERAL ||
+                (room.type == ChatRoomType.PROGRAM &&
+                    room.program?.code != null &&
+                    codes.any { it.equals(room.program!!.code, ignoreCase = true) })
+        }
+    }
 
     private fun canSeeAllRooms(account: Account): Boolean {
         val roles = currentUserRoles() ?: account.groups

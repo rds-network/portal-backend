@@ -49,3 +49,11 @@ data class ChatMemberDto(
     val online: Boolean = false,
     val seenLabel: String? = null,
 )
+
+data class ChatUnreadResponse(
+    val count: Long,
+)
+
+data class ChatOkResponse(
+    val ok: Boolean = true,
+)

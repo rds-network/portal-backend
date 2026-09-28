@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.50.0-chat-room-read-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: chat_room_read
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_chat_room_read
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_chat_room_read
+                  name: room_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: last_read_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - addForeignKeyConstraint:
+            baseTableName: chat_room_read
+            baseColumnNames: room_id
+            referencedTableName: chat_room
+            referencedColumnNames: id
+            constraintName: fk_chat_room_read_room
+        - createIndex:
+            tableName: chat_room_read
+            indexName: idx_chat_room_read_username
+            columns:
+              - column:
+                  name: username

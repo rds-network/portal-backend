@@ -51,4 +51,14 @@ class ChatController(
         chatService.touchPresence()
         return ResponseEntity.noContent().build()
     }
+
+    @GetMapping("/unread")
+    fun unread(): ResponseEntity<ChatUnreadResponse> =
+        ResponseEntity.ok(chatService.unreadSummary())
+
+    @PostMapping("/rooms/{roomId}/read")
+    fun markRead(@PathVariable roomId: UUID): ResponseEntity<ChatOkResponse> {
+        chatService.markRead(roomId)
+        return ResponseEntity.ok(ChatOkResponse())
+    }
 }

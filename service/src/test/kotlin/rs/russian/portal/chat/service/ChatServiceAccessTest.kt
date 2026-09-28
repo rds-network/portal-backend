@@ -19,6 +19,7 @@ import rs.russian.portal.chat.domain.ChatMessage
 import rs.russian.portal.chat.domain.ChatRoom
 import rs.russian.portal.chat.domain.enums.ChatRoomType
 import rs.russian.portal.chat.repository.ChatMessageRepository
+import rs.russian.portal.chat.repository.ChatRoomReadRepository
 import rs.russian.portal.chat.repository.ChatRoomRepository
 import rs.russian.portal.program.domain.Program
 import rs.russian.portal.program.repository.ProgramCuratorRepository
@@ -43,6 +44,7 @@ class ChatServiceAccessTest {
 
     private val chatRoomRepository = mockk<ChatRoomRepository>()
     private val chatMessageRepository = mockk<ChatMessageRepository>()
+    private val chatRoomReadRepository = mockk<ChatRoomReadRepository>(relaxed = true)
     private val accountService = mockk<AccountService>()
     private val accountRepository = mockk<AccountRepository>()
     private val programRepository = mockk<ProgramRepository>()
@@ -52,6 +54,7 @@ class ChatServiceAccessTest {
     private val service = ChatService(
         chatRoomRepository,
         chatMessageRepository,
+        chatRoomReadRepository,
         accountService,
         accountRepository,
         programRepository,
