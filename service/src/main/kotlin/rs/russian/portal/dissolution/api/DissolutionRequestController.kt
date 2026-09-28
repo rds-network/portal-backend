@@ -16,6 +16,10 @@ class DissolutionRequestController(
     private val dissolutionRequestService: DissolutionRequestService,
 ) {
 
+    @GetMapping("/meta")
+    fun meta(): ResponseEntity<DissolutionRequestMetaDto> =
+        ResponseEntity.ok(dissolutionRequestService.meta())
+
     @PostMapping
     fun create(@RequestBody request: DissolutionRequestCreateRequest): ResponseEntity<DissolutionRequestDto> =
         ResponseEntity.ok(dissolutionRequestService.create(request))
