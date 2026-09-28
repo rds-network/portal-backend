@@ -47,8 +47,8 @@ class ChatController(
 
     /** Heartbeat while the chat page is open — refreshes account.lastSeenAt. */
     @PostMapping("/presence")
-    fun presence(): ResponseEntity<Void> {
+    fun presence(): ResponseEntity<Map<String, Boolean>> {
         chatService.touchPresence()
-        return ResponseEntity.noContent().build()
+        return ResponseEntity.ok(mapOf("ok" to true))
     }
 }
