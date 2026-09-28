@@ -1,0 +1,77 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.47.0-chat-room-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: chat_room
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_chat_room
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: type
+                  type: VARCHAR(16)
+              - column:
+                  name: program_code
+                  type: VARCHAR(50)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: title
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+        - addForeignKeyConstraint:
+            baseTableName: chat_room
+            baseColumnNames: program_code
+            referencedTableName: program
+            referencedColumnNames: code
+            constraintName: fk_chat_room_program
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_chat_room_general
+              ON chat_room (type)
+              WHERE type = 'GENERAL';
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX uq_chat_room_program
+              ON chat_room (type, program_code)
+              WHERE type = 'PROGRAM';
+        - createIndex:
+            tableName: chat_room
+            indexName: idx_chat_room_program_code
+            columns:
+              - column:
+                  name: program_code
+        - sql:
+            sql: >
+              INSERT INTO chat_room (id, version, type, program_code, title, created_by, created_at)
+              VALUES (
+                gen_random_uuid(),
+                NOW(),
+                'GENERAL',
+                NULL,
+                'Общий чат',
+                'system',
+                NOW()
+              );
