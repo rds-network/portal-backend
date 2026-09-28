@@ -194,6 +194,7 @@ class SecurityConfig(
             "/projects",
             "/public/maintenance",
             "/public/maintenance/unlock",
+            "/public/application-join",
         )
 
         // Endpoints that don't need CSRF (public endpoints protected by captcha or non-sensitive)
@@ -204,6 +205,7 @@ class SecurityConfig(
             "/clanovi/**",
             "/public/maintenance",
             "/public/maintenance/unlock",
+            "/public/application-join",
         )
     }
 
