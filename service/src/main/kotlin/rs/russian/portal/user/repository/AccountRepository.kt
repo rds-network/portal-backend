@@ -283,4 +283,33 @@ interface AccountRepository : JpaRepository<Account, Int> {
         @Param("yearStart") yearStart: LocalDate,
         @Param("yearEnd") yearEnd: LocalDate,
     ): List<CityVolunteerCountProjection>
+
+    @Query(
+        """
+        SELECT a
+        FROM Account a
+        WHERE a.active = true
+        ORDER BY a.fullName ASC
+        """
+    )
+    fun findActiveAccounts(pageable: Pageable): List<Account>
+
+    @Query(
+        """
+        SELECT DISTINCT a
+        FROM Account a
+        LEFT JOIN a.info ui
+        WHERE a.active = true
+          AND (
+            LOWER(ui.program.code) = LOWER(:programCode)
+            OR EXISTS (
+              SELECT 1 FROM UserSecondaryProgram usp
+              WHERE usp.accountId = a.id
+                AND LOWER(usp.programCode) = LOWER(:programCode)
+            )
+          )
+        ORDER BY a.fullName ASC
+        """
+    )
+    fun findActiveByProgramCode(@Param("programCode") programCode: String): List<Account>
 }
