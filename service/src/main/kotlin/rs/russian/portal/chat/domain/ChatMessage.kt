@@ -26,6 +26,8 @@ class ChatMessage(
 
     var body: String,
 
+    var imageUrl: String? = null,
+
     var createdAt: OffsetDateTime = OffsetDateTime.now(),
 ) : JpaEntity<UUID>() {
 

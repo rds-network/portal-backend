@@ -44,4 +44,11 @@ class ChatController(
     @GetMapping("/rooms/{roomId}/members")
     fun listMembers(@PathVariable roomId: UUID): ResponseEntity<List<ChatMemberDto>> =
         ResponseEntity.ok(chatService.listMembers(roomId))
+
+    /** Heartbeat while the chat page is open — refreshes account.lastSeenAt. */
+    @PostMapping("/presence")
+    fun presence(): ResponseEntity<Void> {
+        chatService.touchPresence()
+        return ResponseEntity.noContent().build()
+    }
 }

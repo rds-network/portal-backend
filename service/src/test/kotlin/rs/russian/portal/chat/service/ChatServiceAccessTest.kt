@@ -4,13 +4,18 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.data.domain.Pageable
+import rs.russian.portal.chat.api.ChatSendMessageRequest
+import rs.russian.portal.chat.domain.ChatMessage
 import rs.russian.portal.chat.domain.ChatRoom
 import rs.russian.portal.chat.domain.enums.ChatRoomType
 import rs.russian.portal.chat.repository.ChatMessageRepository
@@ -18,6 +23,7 @@ import rs.russian.portal.chat.repository.ChatRoomRepository
 import rs.russian.portal.program.domain.Program
 import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.program.repository.ProgramRepository
+import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
@@ -29,6 +35,7 @@ import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import rs.russian.portal.user.service.AccountService
+import java.time.LocalDateTime
 import java.util.Optional
 import java.util.UUID
 
@@ -144,6 +151,76 @@ class ChatServiceAccessTest {
         assertEquals(3, result.rooms.size)
     }
 
+    @Test
+    fun `listMembers marks online within 5 minutes and sorts online first`() {
+        val viewer = account("viewer", program = law)
+        loginAs(viewer, emptySet())
+        every { chatRoomRepository.findByIdWithProgram(general.id!!) } returns Optional.of(general)
+
+        val online = account("online_user", program = law, fullName = "Я Online").apply {
+            lastSeenAt = LocalDateTime.now().minusMinutes(2)
+        }
+        val offline = account("offline_user", program = law, fullName = "А Offline").apply {
+            lastSeenAt = LocalDateTime.now().minusHours(3)
+        }
+        val never = account("never_user", program = law, fullName = "Б Never")
+
+        every { accountRepository.findActiveAccounts(any<Pageable>()) } returns listOf(offline, never, online)
+
+        val members = service.listMembers(general.id!!)
+
+        assertEquals(listOf("online_user", "offline_user", "never_user"), members.map { it.username })
+        assertTrue(members[0].online)
+        assertNull(members[0].seenLabel)
+        assertFalse(members[1].online)
+        assertTrue(members[1].seenLabel!!.contains("ч назад"))
+        assertEquals("давно не был", members[2].seenLabel)
+    }
+
+    @Test
+    fun `sendMessage allows empty body when imageUrl present`() {
+        val volunteer = account("vol_img", program = law)
+        loginAs(volunteer, emptySet())
+        every { chatRoomRepository.findByIdWithProgram(general.id!!) } returns Optional.of(general)
+
+        val savedId = UUID.randomUUID()
+        every { chatMessageRepository.save(any()) } answers {
+            firstArg<ChatMessage>().also { it.id = savedId }
+        }
+
+        val dto = service.sendMessage(
+            general.id!!,
+            ChatSendMessageRequest(body = "  ", imageUrl = "https://cdn.example/a.png"),
+        )
+
+        assertEquals(savedId, dto.id)
+        assertEquals("", dto.body)
+        assertEquals("https://cdn.example/a.png", dto.imageUrl)
+        assertTrue(dto.mine)
+    }
+
+    @Test
+    fun `sendMessage rejects blank body without imageUrl`() {
+        val volunteer = account("vol_blank", program = law)
+        loginAs(volunteer, emptySet())
+        every { chatRoomRepository.findByIdWithProgram(general.id!!) } returns Optional.of(general)
+
+        assertThrows<InvalidRequestException> {
+            service.sendMessage(general.id!!, ChatSendMessageRequest(body = "   "))
+        }
+    }
+
+    @Test
+    fun `touchPresence updates lastSeen`() {
+        val volunteer = account("vol_presence", program = law)
+        loginAs(volunteer, emptySet())
+        every { accountRepository.touchLastSeen(any(), any(), any()) } returns 1
+
+        service.touchPresence()
+
+        verify(exactly = 1) { accountRepository.touchLastSeen(eq("vol_presence"), any(), any()) }
+    }
+
     private fun loginAs(account: Account, roles: Set<UserGroup>) {
         every { currentUserLogin() } returns account.username
         every { currentUserRoles() } returns roles
@@ -155,12 +232,13 @@ class ChatServiceAccessTest {
         username: String,
         program: Program?,
         groups: Set<UserGroup> = emptySet(),
+        fullName: String = username,
     ): Account {
         val acc = Account(
             id = username.hashCode().and(0x7fffffff),
             username = username,
             email = "$username@example.com",
-            fullName = username,
+            fullName = fullName,
             active = true,
             groups = groups,
         )

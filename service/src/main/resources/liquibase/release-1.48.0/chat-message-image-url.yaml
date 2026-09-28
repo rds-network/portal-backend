@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.48.0-chat-message-image-url
+      author: portal
+      changes:
+        - addColumn:
+            tableName: chat_message
+            columns:
+              - column:
+                  name: image_url
+                  type: VARCHAR(1024)
+                  constraints:
+                    nullable: true
