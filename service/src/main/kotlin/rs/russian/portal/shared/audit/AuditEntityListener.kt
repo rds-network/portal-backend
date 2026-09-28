@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation.REQUIRES_NEW
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.shared.jpa.JpaEntity
-import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.realUserLogin
 
 @Component
 class AuditEntityListener(
@@ -41,7 +41,7 @@ class AuditEntityListener(
             entityType = entityName.uppercase(),
             entityId = entityId,
             operation = operation,
-            userLogin = currentUserLogin() ?: "",
+            userLogin = realUserLogin() ?: "",
             data = entity.toString()
         )
 
