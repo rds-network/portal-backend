@@ -9,6 +9,8 @@ import rs.russian.portal.program.domain.Program
 import rs.russian.portal.program.domain.Program_
 import rs.russian.portal.program.domain.Project
 import rs.russian.portal.program.domain.Project_
+import rs.russian.portal.report.domain.Report
+import rs.russian.portal.report.domain.Task
 import rs.russian.portal.shared.jpa.empty
 import rs.russian.portal.shared.jpa.equal
 import rs.russian.portal.shared.jpa.like
@@ -67,17 +69,44 @@ fun searchSpecification(query: String, filter: UserSearchFilter?): Specification
 }
 
 fun hasActiveRegularContract(on: LocalDate = LocalDate.now()): Specification<Account> =
-    hasActiveContractOfTypes(on, setOf(ContractTypeEnum.REGULAR))
+    hasContractOfTypesOverlapping(on, on, setOf(ContractTypeEnum.REGULAR))
 
 /**
  * Тепловая карта показывает и обычных волонтёров, и ассоциированных с действующим договором.
  * Обязательные часы по-прежнему считаются только по REGULAR (SQL heatmap).
  */
 fun hasActiveHeatMapContract(on: LocalDate = LocalDate.now()): Specification<Account> =
-    hasActiveContractOfTypes(on, setOf(ContractTypeEnum.REGULAR, ContractTypeEnum.ASSOCIATED))
+    hasHeatMapContractOverlapping(on, on)
 
-private fun hasActiveContractOfTypes(
-    on: LocalDate,
+/**
+ * REGULAR/ASSOCIATED договор пересекается с интервалом [from, to]
+ * (startDate <= to AND endDate >= from).
+ */
+fun hasHeatMapContractOverlapping(from: LocalDate, to: LocalDate): Specification<Account> =
+    hasContractOfTypesOverlapping(from, to, setOf(ContractTypeEnum.REGULAR, ContractTypeEnum.ASSOCIATED))
+
+/**
+ * Есть хотя бы один (не удалённый) отчёт с задачей, дата которой попадает в [from, to].
+ * Используется при поиске по имени, чтобы волонтёры с отчётами не пропадали из тепловой карты
+ * из‑за отсутствующего/истёкшего договора.
+ */
+fun hasReportWithTaskInRange(from: LocalDate, to: LocalDate): Specification<Account> =
+    Specification { root, query, cb ->
+        val subquery = query!!.subquery(Long::class.java)
+        val report = subquery.from(Report::class.java)
+        val task = report.join<Report, Task>("tasks")
+        subquery.select(cb.literal(1L))
+        subquery.where(
+            cb.equal(report.get<Account>("account"), root),
+            cb.greaterThanOrEqualTo(task.get("date"), from),
+            cb.lessThanOrEqualTo(task.get("date"), to),
+        )
+        cb.exists(subquery)
+    }
+
+private fun hasContractOfTypesOverlapping(
+    from: LocalDate,
+    to: LocalDate,
     types: Set<ContractTypeEnum>,
 ): Specification<Account> =
     Specification { root, query, cb ->
@@ -87,8 +116,8 @@ private fun hasActiveContractOfTypes(
         subquery.where(
             cb.equal(contract.get<Account>("account"), root),
             contract.get<ContractTypeEnum>("type").`in`(types),
-            cb.lessThanOrEqualTo(contract.get("startDate"), on),
-            cb.greaterThanOrEqualTo(contract.get("endDate"), on),
+            cb.lessThanOrEqualTo(contract.get("startDate"), to),
+            cb.greaterThanOrEqualTo(contract.get("endDate"), from),
         )
         cb.exists(subquery)
     }
