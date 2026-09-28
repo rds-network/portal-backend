@@ -23,7 +23,9 @@ import rs.russian.portal.config.AppProperties
 import rs.russian.portal.inbox.service.InboxService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
@@ -63,7 +65,7 @@ class AccountStatusServiceTest {
     private val approver = Account(
         id = 1,
         username = "legkov777",
-        email = "approver@example.com",
+        email = "leonid@example.com",
         fullName = "Leonid",
         active = true,
         groups = setOf(UserGroup.ADMIN_VOLUNTEER),
@@ -79,14 +81,26 @@ class AccountStatusServiceTest {
 
     @BeforeEach
     fun setUp() {
+        PrivilegedOps.approverUsername = "legkov777"
+        PrivilegedOps.accountLookup = null
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN_VOLUNTEER)
         every { eventRepository.save(any()) } answers { firstArg() }
         every { requestRepository.save(any()) } answers { firstArg() }
         every { accountRepository.findByUsername("legkov777") } returns Optional.of(approver)
+        every { accountRepository.findByUsername("admin_user") } returns Optional.of(admin)
+        every { accountRepository.findByEmail(any()) } answers {
+            val email = firstArg<String>()
+            when (email) {
+                "leonid@example.com" -> Optional.of(approver)
+                else -> Optional.empty()
+            }
+        }
     }
 
     @AfterEach
     fun tearDown() {
+        PrivilegedOps.accountLookup = null
         unmockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
     }
 
@@ -160,6 +174,33 @@ class AccountStatusServiceTest {
         }
         verify(exactly = 0) { inboxService.notifyAccountStatusRequest(any(), any(), any(), any()) }
         verify(exactly = 0) { requestRepository.save(any()) }
+    }
+
+    @Test
+    fun `OIDC email login is treated as approver`() {
+        every { currentUserLogin() } returns "leonid@example.com"
+        every { accountService.getCurrentAccount() } returns approver
+        every { accountService.getAccount(10) } returns target
+        every { accountService.switchActiveState(10, false) } answers {
+            target.active = false
+            target
+        }
+
+        val result = service.requestOrApply(10, false)
+
+        assertFalse(result.pending)
+        assertTrue(service.isApprover("leonid@example.com", approver))
+        verify { accountService.switchActiveState(10, false) }
+    }
+
+    @Test
+    fun `meta marks email login as account status approver`() {
+        every { currentUserLogin() } returns "leonid@example.com"
+
+        val meta = service.meta()
+
+        assertTrue(meta.isAccountStatusApprover)
+        assertEquals("legkov777", meta.approverUsername)
     }
 
     @Test

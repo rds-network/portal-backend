@@ -21,7 +21,9 @@ import rs.russian.portal.config.AppProperties
 import rs.russian.portal.inbox.service.InboxService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
@@ -44,13 +46,17 @@ class AccountStatusService(
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         return AccountStatusMetaDto(
             approverUsername = approverUsername(),
-            isAccountStatusApprover = isApprover(login),
+            isAccountStatusApprover = isApprover(login, resolveAccount(login)),
         )
     }
 
-    fun isApprover(username: String?): Boolean {
-        if (username.isNullOrBlank()) return false
-        return username.equals(approverUsername(), ignoreCase = true)
+    /**
+     * Same gate as leave/impersonation: configured username, email local-part, matching Account, or ADMIN_SSO.
+     * OIDC [login] may not equal portal username `legkov777`.
+     */
+    fun isApprover(login: String?, account: Account? = null): Boolean {
+        val resolved = account ?: resolveAccount(login)
+        return PrivilegedOps.isAllowed(login, currentUserRoles(), resolved)
     }
 
     fun approverUsername(): String = appProperties.accountStatus.approverUsername.trim()
@@ -77,7 +83,8 @@ class AccountStatusService(
     fun requestOrApply(accountId: Int, requestedActive: Boolean, reason: String? = null): AccountStatusChangeResultDto {
         assertCanManageStatus()
         val actor = accountService.getCurrentAccount()
-        return if (isApprover(actor.username)) {
+        val login = currentUserLogin()
+        return if (isApprover(login, actor)) {
             val account = applyImmediate(
                 accountId = accountId,
                 activeTo = requestedActive,
@@ -339,7 +346,8 @@ class AccountStatusService(
 
     private fun assertCanView() {
         val actor = accountService.getCurrentAccount()
-        if (isApprover(actor.username)) return
+        val login = currentUserLogin()
+        if (isApprover(login, actor)) return
         if (!actor.groups.any { it == UserGroup.ADMIN_SSO || it == UserGroup.ADMIN_VOLUNTEER }) {
             throw NotAuthorizedException()
         }
@@ -347,8 +355,14 @@ class AccountStatusService(
 
     private fun assertIsApprover() {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        if (!isApprover(login)) throw NotAuthorizedException()
+        if (!isApprover(login, resolveAccount(login))) throw NotAuthorizedException()
     }
+
+    private fun resolveAccount(login: String?): Account? =
+        login?.trim()?.takeIf { it.isNotEmpty() }?.let { key ->
+            accountRepository.findByUsername(key).orElse(null)
+                ?: accountRepository.findByEmail(key).orElse(null)
+        }
 
     private fun toDto(request: AccountStatusRequest) = AccountStatusRequestDto(
         id = request.id!!,
