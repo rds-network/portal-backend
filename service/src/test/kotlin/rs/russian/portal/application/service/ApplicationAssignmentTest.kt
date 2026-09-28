@@ -21,7 +21,6 @@ import rs.russian.portal.application.repository.ApplicationRepository
 import rs.russian.portal.note.domain.Note
 import rs.russian.portal.note.service.NoteService
 import rs.russian.portal.shared.exception.InvalidRequestException
-import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup.*
 import rs.russian.portal.user.repository.AccountRepository
@@ -63,10 +62,10 @@ class ApplicationAssignmentTest {
     }
 
     @Test
-    fun `real status change assigns authenticated employee and ignores supplied assignee`() {
+    fun `status change preserves existing assignee`() {
         val updated = service.update(ApplicationDto(id = application.id!!, status = IN_PROGRESS.name, assignee = "forged"))
         assertEquals(IN_PROGRESS, updated.status)
-        assertEquals("employee", updated.assignee)
+        assertEquals("previous", updated.assignee)
     }
 
     @Test
@@ -145,10 +144,11 @@ class ApplicationAssignmentTest {
     }
 
     @Test
-    fun `status change without authenticated employee is rejected`() {
+    fun `status change without authenticated employee preserves assignee`() {
         SecurityContextHolder.clearContext()
-        assertThrows<NotAuthorizedException> { service.update(ApplicationDto(id = application.id!!, status = IN_PROGRESS.name)) }
-        verify(exactly = 0) { repository.save(any()) }
+        val updated = service.update(ApplicationDto(id = application.id!!, status = IN_PROGRESS.name))
+        assertEquals(IN_PROGRESS, updated.status)
+        assertEquals("previous", updated.assignee)
     }
 
     @Test
