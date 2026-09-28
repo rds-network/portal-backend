@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.44.0-leave-inbox-participants-cleanup
+      author: portal
+      comment: >
+        Remove leaked LEAVE_REQUEST / LEAVE_DECISION inbox participants from pre-approver-only notify;
+        keep only requester + leave approver (legkov777) on requests, and recipient + created_by on decisions.
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |
+              -- Drop everyone who should not see leave-request threads
+              DELETE FROM inbox_participant p
+              USING inbox_thread t
+              WHERE p.thread_id = t.id
+                AND t.kind = 'LEAVE_REQUEST'
+                AND LOWER(p.username) <> LOWER('legkov777')
+                AND (t.created_by IS NULL OR LOWER(p.username) <> LOWER(t.created_by));
+
+              -- Canonical recipient is the leave approver
+              UPDATE inbox_thread
+              SET recipient = 'legkov777'
+              WHERE kind = 'LEAVE_REQUEST';
+
+              -- Ensure approver is a participant (ack still required for recipient)
+              INSERT INTO inbox_participant (id, version, thread_id, username, unread, ack_required, received_at)
+              SELECT gen_random_uuid(), NOW(), t.id, a.username, true, true, NULL
+              FROM inbox_thread t
+              JOIN account a ON LOWER(a.username) = LOWER('legkov777')
+              WHERE t.kind = 'LEAVE_REQUEST'
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM inbox_participant p
+                  WHERE p.thread_id = t.id
+                    AND LOWER(p.username) = LOWER(a.username)
+                );
+
+              -- Leave decisions: only volunteer (recipient) and approver (created_by)
+              DELETE FROM inbox_participant p
+              USING inbox_thread t
+              WHERE p.thread_id = t.id
+                AND t.kind = 'LEAVE_DECISION'
+                AND (t.recipient IS NULL OR LOWER(p.username) <> LOWER(t.recipient))
+                AND (t.created_by IS NULL OR LOWER(p.username) <> LOWER(t.created_by));
