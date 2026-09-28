@@ -1,14 +1,21 @@
 package rs.russian.portal.shared.security
 
+import jakarta.servlet.http.HttpServletRequest
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.web.context.request.RequestContextHolder
+import org.springframework.web.context.request.ServletRequestAttributes
+import rs.russian.portal.impersonate.service.ImpersonationService
 import rs.russian.portal.user.domain.enums.UserGroup
 
 fun currentAuthentication(): Authentication? = SecurityContextHolder.getContext().authentication
+
+fun currentHttpRequest(): HttpServletRequest? =
+    (RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes)?.request
 
 fun currentUser(): OidcUser? {
     return try {
@@ -18,7 +25,8 @@ fun currentUser(): OidcUser? {
     }
 }
 
-fun currentUserLogin(): String? {
+/** Real authenticated principal login (never switched by impersonation). */
+fun realUserLogin(): String? {
     val authentication = currentAuthentication()
     return when (val principal = authentication?.principal) {
         is OidcUser -> principal.nickName
@@ -26,6 +34,22 @@ fun currentUserLogin(): String? {
         else -> null
     }
 }
+
+/**
+ * Effective login for business logic: impersonation target when the real actor is allowed
+ * and a target is set (session or [rs.russian.portal.impersonate.ImpersonationKeys.HEADER_USERNAME]),
+ * otherwise [realUserLogin].
+ */
+fun effectiveUserLogin(): String? {
+    val real = realUserLogin() ?: return null
+    if (!PrivilegedOps.isAllowed(real, currentUserRoles())) return real
+    val target = ImpersonationService.resolveTarget(currentHttpRequest()) ?: return real
+    if (target.equals(real, ignoreCase = true)) return real
+    return target
+}
+
+/** Alias for [effectiveUserLogin] so existing call sites see the impersonated volunteer. */
+fun currentUserLogin(): String? = effectiveUserLogin()
 
 fun currentUserRoles(): Set<UserGroup>? {
     return when (val authentication = currentAuthentication()) {

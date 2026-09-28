@@ -192,6 +192,8 @@ class SecurityConfig(
             "/csrf",
             "/programs",
             "/projects",
+            "/public/maintenance",
+            "/public/maintenance/unlock",
         )
 
         // Endpoints that don't need CSRF (public endpoints protected by captcha or non-sensitive)
@@ -200,6 +202,8 @@ class SecurityConfig(
             "/actuator/health",
             "/turnstile",
             "/clanovi/**",
+            "/public/maintenance",
+            "/public/maintenance/unlock",
         )
     }
 

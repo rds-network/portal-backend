@@ -5,7 +5,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.web.filter.OncePerRequestFilter
 import rs.russian.portal.activity.service.ActivityService
-import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.realUserLogin
 
 class ActivityLoggingFilter(
     private val activityService: ActivityService,
@@ -31,7 +31,7 @@ class ActivityLoggingFilter(
         val ip = request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()?.trim()
             ?: request.remoteAddr
         activityService.record(
-            username = currentUserLogin(),
+            username = realUserLogin(),
             ip = ip,
             method = request.method,
             path = path.ifBlank { request.requestURI },
