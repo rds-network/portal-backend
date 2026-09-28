@@ -29,14 +29,29 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
     @Query(
         """
         SELECT COUNT(p) FROM InboxParticipant p
+        JOIN p.thread t
         WHERE p.username = :username AND p.unread = true
+          AND (
+            t.kind <> 'LEAVE_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'LEAVE_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
         """
     )
-    fun countUnread(@Param("username") username: String): Long
+    fun countUnread(
+        @Param("username") username: String,
+        @Param("leaveApprover") leaveApprover: String,
+    ): Long
 
     @Query(
         """
         SELECT COUNT(p) FROM InboxParticipant p
+        JOIN p.thread t
         WHERE LOWER(p.username) = LOWER(:username)
           AND p.ackRequired = true
           AND p.receivedAt IS NULL
@@ -44,7 +59,20 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
             SELECT 1 FROM InboxMessage m
             WHERE m.thread = p.thread AND LOWER(m.author) = LOWER(p.username)
           )
+          AND (
+            t.kind <> 'LEAVE_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'LEAVE_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
         """
     )
-    fun countPendingAck(@Param("username") username: String): Long
+    fun countPendingAck(
+        @Param("username") username: String,
+        @Param("leaveApprover") leaveApprover: String,
+    ): Long
 }

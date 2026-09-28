@@ -3,6 +3,7 @@ package rs.russian.portal.inbox.service
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.config.AppProperties
 import rs.russian.portal.inbox.api.InboxCreateRequest
 import rs.russian.portal.inbox.api.InboxMessageDto
 import rs.russian.portal.inbox.api.InboxReplyRequest
@@ -30,25 +31,28 @@ class InboxService(
     private val inboxThreadRepository: InboxThreadRepository,
     private val accountService: AccountService,
     private val accountRepository: AccountRepository,
+    private val appProperties: AppProperties,
 ) {
 
     @Transactional(readOnly = true)
     fun unreadCount(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return inboxThreadRepository.countUnread(login)
+        return inboxThreadRepository.countUnread(login, leaveApproverUsername())
     }
 
     @Transactional(readOnly = true)
     fun pendingAckCount(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return inboxThreadRepository.countPendingAck(login)
+        return inboxThreadRepository.countPendingAck(login, leaveApproverUsername())
     }
 
     @Transactional(readOnly = true)
     fun list(): List<InboxThreadDto> {
         val account = accountService.getCurrentAccount()
         // Everyone — including managers — only sees threads they participate in.
+        // Leave kinds are further restricted (see canSee) so stale participants do not leak.
         val threads = inboxThreadRepository.findAllForUser(account.username)
+            .filter { canSee(it, account.username) }
         val names = nameMap(
             threads.flatMap { thread ->
                 listOfNotNull(recipientOf(thread), thread.createdBy) +
@@ -374,8 +378,26 @@ class InboxService(
         }
     }
 
-    private fun canSee(thread: InboxThread, username: String): Boolean =
-        thread.participants.any { it.username.equals(username, ignoreCase = true) }
+    /**
+     * Visible if the user is a participant, with leave kinds further restricted:
+     * - LEAVE_REQUEST: leave approver or requester (createdBy) only
+     * - LEAVE_DECISION: recipient (volunteer) or createdBy (approver) only
+     */
+    internal fun canSee(thread: InboxThread, username: String): Boolean {
+        val isParticipant = thread.participants.any { it.username.equals(username, ignoreCase = true) }
+        if (!isParticipant) return false
+        return when (thread.kind) {
+            InboxThread.KIND_LEAVE_REQUEST ->
+                username.equals(leaveApproverUsername(), ignoreCase = true) ||
+                    username.equals(thread.createdBy, ignoreCase = true)
+            InboxThread.KIND_LEAVE_DECISION ->
+                username.equals(thread.recipient, ignoreCase = true) ||
+                    username.equals(thread.createdBy, ignoreCase = true)
+            else -> true
+        }
+    }
+
+    private fun leaveApproverUsername(): String = appProperties.leave.approverUsername.trim()
 
     private fun toListDto(
         thread: InboxThread,
