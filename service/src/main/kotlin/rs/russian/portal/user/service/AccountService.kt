@@ -26,7 +26,8 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.ResidencePermit
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.DepersonalizationStatus
-import rs.russian.portal.user.domain.specification.hasActiveHeatMapContract
+import rs.russian.portal.user.domain.specification.hasHeatMapContractOverlapping
+import rs.russian.portal.user.domain.specification.hasReportWithTaskInRange
 import rs.russian.portal.user.domain.specification.searchSpecification
 import rs.russian.portal.user.mapper.ContractMapper
 import rs.russian.portal.user.mapper.ResidencePermitMapper
@@ -34,6 +35,7 @@ import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import rs.russian.portal.user.service.authentik.AuthentikService
+import java.time.LocalDate
 
 @Service
 class AccountService(
@@ -162,9 +164,17 @@ class AccountService(
         query: String,
         pageRequest: PageRequest,
         filter: UserSearchFilter?,
+        year: Int = LocalDate.now().year,
     ): Page<Account> {
-        // Heatmap: REGULAR + ASSOCIATED with an active contract; hoursRequired stays 0 for ASSOCIATED in SQL.
-        val specification = searchSpecification(query, filter).and(hasActiveHeatMapContract())
+        // Heatmap list: REGULAR/ASSOCIATED overlapping the selected year (not only "today").
+        // Name search also unions people who already have reports in that year.
+        val yearStart = LocalDate.of(year, 1, 1)
+        val yearEnd = LocalDate.of(year, 12, 31)
+        var eligibility = hasHeatMapContractOverlapping(yearStart, yearEnd)
+        if (query.isNotBlank()) {
+            eligibility = eligibility.or(hasReportWithTaskInRange(yearStart, yearEnd))
+        }
+        val specification = searchSpecification(query, filter).and(eligibility)
         return findAllFull(specification, convert(pageRequest))
     }
 

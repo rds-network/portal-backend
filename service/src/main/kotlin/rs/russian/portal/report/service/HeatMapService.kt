@@ -54,14 +54,16 @@ class HeatMapService(
         filter: ReportsHeatMapFilter,
     ): ReportsHeatMapPageResponse {
         val scopedFilter = resolveHeatMapFilter(filter)
+        val year = scopedFilter.year ?: now().year
         val accounts = userService.searchWithActiveRegularContract(
             searchQuery,
             pageRequest,
-            UserSearchFilter(program = scopedFilter.program, project = scopedFilter.project, onlyActive = true)
+            UserSearchFilter(program = scopedFilter.program, project = scopedFilter.project, onlyActive = true),
+            year = year,
         )
         val data = reportHeatMapRepository.findVolunteerHeatmap(
             usernames = accounts.map { it.username }.toSet(),
-            year = scopedFilter.year ?: now().year
+            year = year,
         )
         val heatMap = HashMap<String, MutableList<HeatMapItem>>()
         data.forEach { row ->
