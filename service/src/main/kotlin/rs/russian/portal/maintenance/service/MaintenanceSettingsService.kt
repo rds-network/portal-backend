@@ -7,6 +7,9 @@ import rs.russian.portal.maintenance.domain.PortalMaintenanceSettings
 import rs.russian.portal.maintenance.repository.PortalMaintenanceSettingsRepository
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.PrivilegedOps
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.shared.security.realUserLogin
+import rs.russian.portal.user.repository.AccountRepository
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
@@ -15,6 +18,7 @@ import java.util.UUID
 @Service
 class MaintenanceSettingsService(
     private val repository: PortalMaintenanceSettingsRepository,
+    private val accountRepository: AccountRepository,
 ) {
 
     fun getRow(): PortalMaintenanceSettings =
@@ -70,7 +74,14 @@ class MaintenanceSettingsService(
     }
 
     fun assertPrivileged() {
-        if (!PrivilegedOps.currentActorAllowed()) throw NotAuthorizedException()
+        val realLogin = realUserLogin()
+        val account = realLogin?.trim()?.takeIf { it.isNotEmpty() }?.let { key ->
+            accountRepository.findByUsername(key).orElse(null)
+                ?: accountRepository.findByEmail(key).orElse(null)
+        }
+        if (!PrivilegedOps.isAllowed(realLogin, currentUserRoles(), account)) {
+            throw NotAuthorizedException()
+        }
     }
 
     private fun defaultRow(): PortalMaintenanceSettings =

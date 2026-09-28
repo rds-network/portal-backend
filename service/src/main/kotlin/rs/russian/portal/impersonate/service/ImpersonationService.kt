@@ -23,16 +23,20 @@ class ImpersonationService(
     @Transactional(readOnly = true)
     fun status(request: HttpServletRequest? = currentHttpRequest()): ImpersonationStatusDto {
         val realLogin = realUserLogin()
-        val canImpersonate = PrivilegedOps.isAllowed(realLogin, rs.russian.portal.shared.security.currentUserRoles())
+        val realAccount = resolveAccount(realLogin)
+        val canImpersonate = PrivilegedOps.isAllowed(
+            realLogin,
+            rs.russian.portal.shared.security.currentUserRoles(),
+            realAccount,
+        )
         val target = resolveTarget(request)?.takeIf { canImpersonate }
         val targetAccount = target?.let { accountRepository.findByUsername(it).orElse(null) }
-        val realAccount = realLogin?.let { accountRepository.findByUsername(it).orElse(null) }
         return ImpersonationStatusDto(
             active = targetAccount != null,
             canImpersonate = canImpersonate,
             targetUsername = targetAccount?.username,
             targetFullName = targetAccount?.fullName,
-            realUsername = realLogin,
+            realUsername = realAccount?.username ?: realLogin,
             realFullName = realAccount?.fullName,
         )
     }
@@ -43,7 +47,10 @@ class ImpersonationService(
         val username = body.username.trim()
         if (username.isBlank()) throw InvalidRequestException("username is required")
         val real = realUserLogin() ?: throw NotAuthorizedException()
-        if (username.equals(real, ignoreCase = true)) {
+        val realAccount = resolveAccount(real)
+        if (username.equals(real, ignoreCase = true) ||
+            (realAccount != null && username.equals(realAccount.username, ignoreCase = true))
+        ) {
             throw InvalidRequestException("Cannot impersonate yourself")
         }
         val target = accountRepository.findByUsername(username).orElseThrow {
@@ -53,7 +60,7 @@ class ImpersonationService(
             throw InvalidRequestException("Cannot impersonate ADMIN_SSO")
         }
         request.getSession(true).setAttribute(ImpersonationKeys.SESSION_USERNAME, target.username)
-        log.info("IMPERSONATION_START actor={} target={}", real, target.username)
+        log.info("IMPERSONATION_START actor={} target={}", realAccount?.username ?: real, target.username)
         return status(request)
     }
 
@@ -68,8 +75,22 @@ class ImpersonationService(
     }
 
     fun assertCanImpersonate() {
-        if (!PrivilegedOps.currentActorAllowed()) throw NotAuthorizedException()
+        val realLogin = realUserLogin()
+        if (!PrivilegedOps.isAllowed(
+                realLogin,
+                rs.russian.portal.shared.security.currentUserRoles(),
+                resolveAccount(realLogin),
+            )
+        ) {
+            throw NotAuthorizedException()
+        }
     }
+
+    private fun resolveAccount(login: String?) =
+        login?.trim()?.takeIf { it.isNotEmpty() }?.let { key ->
+            accountRepository.findByUsername(key).orElse(null)
+                ?: accountRepository.findByEmail(key).orElse(null)
+        }
 
     companion object {
         private val log = LoggerFactory.getLogger(ImpersonationService::class.java)

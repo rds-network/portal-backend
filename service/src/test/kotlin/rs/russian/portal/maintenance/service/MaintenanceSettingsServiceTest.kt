@@ -20,22 +20,26 @@ import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserRoles
 import rs.russian.portal.shared.security.realUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup
+import rs.russian.portal.user.repository.AccountRepository
 import java.time.Instant
 import java.util.Optional
 
 class MaintenanceSettingsServiceTest {
 
     private val repository = mockk<PortalMaintenanceSettingsRepository>()
-    private val service = MaintenanceSettingsService(repository)
+    private val accountRepository = mockk<AccountRepository>(relaxed = true)
+    private val service = MaintenanceSettingsService(repository, accountRepository)
 
     @BeforeEach
     fun setUp() {
         PrivilegedOps.approverUsername = "legkov777"
+        PrivilegedOps.accountLookup = null
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
     }
 
     @AfterEach
     fun tearDown() {
+        PrivilegedOps.accountLookup = null
         unmockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
     }
 
