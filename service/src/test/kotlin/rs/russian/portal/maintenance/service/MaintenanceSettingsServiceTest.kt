@@ -27,7 +27,7 @@ import java.util.Optional
 class MaintenanceSettingsServiceTest {
 
     private val repository = mockk<PortalMaintenanceSettingsRepository>()
-    private val accountRepository = mockk<AccountRepository>(relaxed = true)
+    private val accountRepository = mockk<AccountRepository>()
     private val service = MaintenanceSettingsService(repository, accountRepository)
 
     @BeforeEach
@@ -35,6 +35,8 @@ class MaintenanceSettingsServiceTest {
         PrivilegedOps.approverUsername = "legkov777"
         PrivilegedOps.accountLookup = null
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { accountRepository.findByUsername(any()) } returns Optional.empty()
+        every { accountRepository.findByEmail(any()) } returns Optional.empty()
     }
 
     @AfterEach
