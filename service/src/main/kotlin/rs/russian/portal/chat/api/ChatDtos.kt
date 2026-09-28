@@ -31,16 +31,21 @@ data class ChatMessageDto(
     val authorUsername: String,
     val authorFullName: String? = null,
     val body: String,
+    val imageUrl: String? = null,
     val createdAt: OffsetDateTime,
     val mine: Boolean = false,
 )
 
 data class ChatSendMessageRequest(
-    val body: String,
+    val body: String? = null,
+    val imageUrl: String? = null,
 )
 
 data class ChatMemberDto(
     val username: String,
     val fullName: String,
     val programCode: String? = null,
+    val lastSeenAt: OffsetDateTime? = null,
+    val online: Boolean = false,
+    val seenLabel: String? = null,
 )

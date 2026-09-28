@@ -32,6 +32,11 @@ import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import rs.russian.portal.user.service.AccountService
+import java.time.Duration
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
@@ -132,15 +137,23 @@ class ChatService(
         val room = loadRoom(roomId)
         assertCanAccessRoom(account, room)
 
-        val body = request.body.trim()
-        if (body.isEmpty()) throw InvalidRequestException("body is required")
+        val body = request.body?.trim().orEmpty()
+        val imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotEmpty() }
+
+        if (body.isEmpty() && imageUrl == null) {
+            throw InvalidRequestException("body or imageUrl is required")
+        }
         if (body.length > MAX_BODY) throw InvalidRequestException("body is too long")
+        if (imageUrl != null && imageUrl.length > MAX_IMAGE_URL) {
+            throw InvalidRequestException("imageUrl is too long")
+        }
 
         val saved = chatMessageRepository.save(
             ChatMessage(
                 room = room,
                 authorUsername = account.username,
                 body = body,
+                imageUrl = imageUrl,
             )
         )
         return toMessageDto(saved, account.username, mapOf(account.username.lowercase() to account.fullName))
@@ -152,16 +165,30 @@ class ChatService(
         val room = loadRoom(roomId)
         assertCanAccessRoom(account, room)
 
-        return when (room.type) {
+        val members = when (room.type) {
             ChatRoomType.GENERAL ->
                 accountRepository.findActiveAccounts(PageRequest.of(0, GENERAL_MEMBERS_LIMIT))
-                    .map { toMemberDto(it) }
 
             ChatRoomType.PROGRAM -> {
                 val code = room.program?.code ?: return emptyList()
-                accountRepository.findActiveByProgramCode(code).map { toMemberDto(it) }
+                accountRepository.findActiveByProgramCode(code)
             }
         }
+
+        val now = LocalDateTime.now()
+        return members
+            .map { toMemberDto(it, now) }
+            .sortedWith(
+                compareByDescending<ChatMemberDto> { it.online }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.fullName },
+            )
+    }
+
+    @Transactional
+    fun touchPresence() {
+        val account = requireActiveAccount()
+        val now = LocalDateTime.now()
+        accountRepository.touchLastSeen(account.username, now, now.minusMinutes(1))
     }
 
     fun assertCanAccessRoom(account: Account, room: ChatRoom) {
@@ -236,16 +263,36 @@ class ChatService(
             authorUsername = message.authorUsername,
             authorFullName = names[message.authorUsername.lowercase()],
             body = message.body,
+            imageUrl = message.imageUrl,
             createdAt = message.createdAt,
             mine = message.authorUsername.equals(currentUsername, ignoreCase = true),
         )
 
-    private fun toMemberDto(account: Account): ChatMemberDto =
-        ChatMemberDto(
+    private fun toMemberDto(account: Account, now: LocalDateTime): ChatMemberDto {
+        val lastSeen = account.lastSeenAt
+        val online = lastSeen != null && !lastSeen.isBefore(now.minusMinutes(ONLINE_MINUTES))
+        return ChatMemberDto(
             username = account.username,
             fullName = account.fullName,
             programCode = account.info?.program?.code,
+            lastSeenAt = lastSeen?.let { toOffset(it) },
+            online = online,
+            seenLabel = if (online) null else formatSeenLabel(lastSeen, now),
         )
+    }
+
+    private fun formatSeenLabel(lastSeen: LocalDateTime?, now: LocalDateTime): String {
+        if (lastSeen == null) return "давно не был"
+        val sec = Duration.between(lastSeen, now).seconds.coerceAtLeast(0)
+        return when {
+            sec < 3600 -> "был ${maxOf(1, sec / 60)} мин назад"
+            sec < 86400 -> "был ${sec / 3600} ч назад"
+            else -> "был ${SEEN_DATE.format(lastSeen)}"
+        }
+    }
+
+    private fun toOffset(at: LocalDateTime): OffsetDateTime =
+        at.atZone(ZoneId.systemDefault()).toOffsetDateTime()
 
     private fun nameMap(usernames: Collection<String>): Map<String, String> {
         if (usernames.isEmpty()) return emptyMap()
@@ -257,6 +304,9 @@ class ChatService(
         const val DEFAULT_LIMIT = 80
         const val MAX_LIMIT = 200
         const val MAX_BODY = 4000
+        const val MAX_IMAGE_URL = 1024
         const val GENERAL_MEMBERS_LIMIT = 500
+        const val ONLINE_MINUTES = 5L
+        private val SEEN_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM HH:mm")
     }
 }
