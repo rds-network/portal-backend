@@ -50,7 +50,7 @@ class InboxService(
     fun list(): List<InboxThreadDto> {
         val account = accountService.getCurrentAccount()
         // Everyone — including managers — only sees threads they participate in.
-        // Leave kinds are further restricted (see canSee) so stale participants do not leak.
+        // Leave/dissolution kinds are further restricted (see canSee) so stale participants do not leak.
         val threads = inboxThreadRepository.findAllForUser(account.username)
             .filter { canSee(it, account.username) }
         val names = nameMap(
@@ -379,18 +379,18 @@ class InboxService(
     }
 
     /**
-     * Visible if the user is a participant, with leave kinds further restricted:
-     * - LEAVE_REQUEST: leave approver or requester (createdBy) only
-     * - LEAVE_DECISION: recipient (volunteer) or createdBy (approver) only
+     * Visible if the user is a participant, with leave/dissolution kinds further restricted:
+     * - LEAVE_REQUEST / DISSOLUTION_REQUEST: leave approver or requester (createdBy) only
+     * - LEAVE_DECISION / DISSOLUTION_DECISION: recipient (volunteer) or createdBy (approver) only
      */
     internal fun canSee(thread: InboxThread, username: String): Boolean {
         val isParticipant = thread.participants.any { it.username.equals(username, ignoreCase = true) }
         if (!isParticipant) return false
         return when (thread.kind) {
-            InboxThread.KIND_LEAVE_REQUEST ->
+            InboxThread.KIND_LEAVE_REQUEST, InboxThread.KIND_DISSOLUTION_REQUEST ->
                 username.equals(leaveApproverUsername(), ignoreCase = true) ||
                     username.equals(thread.createdBy, ignoreCase = true)
-            InboxThread.KIND_LEAVE_DECISION ->
+            InboxThread.KIND_LEAVE_DECISION, InboxThread.KIND_DISSOLUTION_DECISION ->
                 username.equals(thread.recipient, ignoreCase = true) ||
                     username.equals(thread.createdBy, ignoreCase = true)
             else -> true
@@ -520,6 +520,7 @@ class InboxService(
         kind == InboxThread.KIND_MANUAL ||
             kind == InboxThread.KIND_TASK ||
             kind == InboxThread.KIND_LEAVE_REQUEST ||
+            kind == InboxThread.KIND_DISSOLUTION_REQUEST ||
             kind == InboxThread.KIND_ACCOUNT_STATUS_REQUEST ||
             kind == InboxThread.KIND_ACCOUNT_STATUS_DECISION ||
             kind == InboxThread.KIND_ACCOUNT_STATUS_CHANGED ||

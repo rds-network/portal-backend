@@ -1,21 +1,23 @@
 package rs.russian.portal.dissolution.service
 
 import jakarta.persistence.EntityNotFoundException
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import rs.russian.portal.config.AppProperties
 import rs.russian.portal.dissolution.api.DissolutionRequestCreateRequest
 import rs.russian.portal.dissolution.api.DissolutionRequestDto
+import rs.russian.portal.dissolution.api.DissolutionRequestMetaDto
 import rs.russian.portal.dissolution.api.DissolutionRequestRejectRequest
 import rs.russian.portal.dissolution.domain.DissolutionRequest
 import rs.russian.portal.dissolution.domain.enums.DissolutionRequestStatus
 import rs.russian.portal.dissolution.repository.DissolutionRequestRepository
 import rs.russian.portal.inbox.service.InboxService
-import rs.russian.portal.program.repository.ProgramCuratorRepository
-import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
@@ -25,14 +27,31 @@ import java.util.UUID
 
 @Service
 class DissolutionRequestService(
+    private val appProperties: AppProperties,
     private val dissolutionRequestRepository: DissolutionRequestRepository,
     private val accountRepository: AccountRepository,
     private val accountService: AccountService,
-    private val programCuratorService: ProgramCuratorService,
-    private val programCuratorRepository: ProgramCuratorRepository,
     private val inboxService: InboxService,
     private val dissolutionQueueService: DissolutionQueueService,
 ) {
+
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    @Transactional(readOnly = true)
+    fun meta(): DissolutionRequestMetaDto {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        return DissolutionRequestMetaDto(
+            approverUsername = approverUsername(),
+            isDissolutionApprover = isDissolutionApprover(login),
+        )
+    }
+
+    fun isDissolutionApprover(username: String?): Boolean {
+        if (username.isNullOrBlank()) return false
+        return username.equals(approverUsername(), ignoreCase = true)
+    }
+
+    fun approverUsername(): String = appProperties.leave.approverUsername.trim()
 
     @Transactional
     fun create(request: DissolutionRequestCreateRequest): DissolutionRequestDto {
@@ -69,19 +88,17 @@ class DissolutionRequestService(
     @Transactional(readOnly = true)
     fun pending(): List<DissolutionRequestDto> {
         val actor = accountService.getCurrentAccount()
-        if (isManager(actor.groups)) {
-            return dissolutionRequestRepository.findAllByStatusOrderByCreatedAtAsc(DissolutionRequestStatus.PENDING)
-                .map(::toDto)
+        if (!isDissolutionApprover(actor.username)) {
+            return emptyList()
         }
-        if (!programCuratorService.isCurator(actor.username)) {
-            throw NotAuthorizedException()
-        }
-        val programCodes = programCuratorService.programCodesOf(actor.username)
-        if (programCodes.isEmpty()) return emptyList()
         return dissolutionRequestRepository.findAllByStatusOrderByCreatedAtAsc(DissolutionRequestStatus.PENDING)
-            .mapNotNull { visibleToCurator(it, programCodes) }
+            .map(::toDto)
     }
 
+    /**
+     * Decided requests: after accept/reject, pending empties — approver still needs history.
+     * Approver sees all; everyone else sees only their own decided requests.
+     */
     @Transactional(readOnly = true)
     fun history(): List<DissolutionRequestDto> {
         val actor = accountService.getCurrentAccount()
@@ -89,22 +106,19 @@ class DissolutionRequestService(
             DissolutionRequestStatus.PENDING,
             PageRequest.of(0, HISTORY_LIMIT),
         )
-        if (isManager(actor.groups)) {
+        if (isDissolutionApprover(actor.username)) {
             return decided.map(::toDto)
         }
-        if (!programCuratorService.isCurator(actor.username)) {
-            throw NotAuthorizedException()
-        }
-        val programCodes = programCuratorService.programCodesOf(actor.username)
-        if (programCodes.isEmpty()) return emptyList()
-        return decided.mapNotNull { visibleToCurator(it, programCodes) }
+        return decided
+            .filter { it.username.equals(actor.username, ignoreCase = true) }
+            .map(::toDto)
     }
 
     @Transactional
     fun accept(id: UUID): DissolutionRequestDto {
         val item = dissolutionRequestRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Dissolution request $id not found") }
-        assertCanDecide(item)
+        assertCanDecide()
         if (item.status != DissolutionRequestStatus.PENDING) {
             throw InvalidRequestException("Dissolution request is not pending")
         }
@@ -125,7 +139,7 @@ class DissolutionRequestService(
     fun reject(id: UUID, request: DissolutionRequestRejectRequest?): DissolutionRequestDto {
         val item = dissolutionRequestRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Dissolution request $id not found") }
-        assertCanDecide(item)
+        assertCanDecide()
         if (item.status != DissolutionRequestStatus.PENDING) {
             throw InvalidRequestException("Dissolution request is not pending")
         }
@@ -156,62 +170,48 @@ class DissolutionRequestService(
         return toDto(item)
     }
 
-    private fun visibleToCurator(item: DissolutionRequest, programCodes: Collection<String>): DissolutionRequestDto? {
-        if (programCuratorService.isCurator(item.username)) return null
-        val account = accountRepository.findByUsername(item.username).orElse(null) ?: return null
-        val programCode = account.info?.program?.code ?: return null
-        if (programCodes.none { it.equals(programCode, ignoreCase = true) }) return null
-        return toDto(item, account.fullName, programCode, account.mupLetterSentAt)
-    }
-
-    private fun assertCanDecide(item: DissolutionRequest) {
+    private fun assertCanDecide() {
         val actor = accountService.getCurrentAccount()
-        if (isManager(actor.groups)) return
-        if (programCuratorService.isCurator(item.username)) {
-            throw NotAuthorizedException()
-        }
-        if (!programCuratorService.isCurator(actor.username)) {
-            throw NotAuthorizedException()
-        }
-        val account = accountRepository.findByUsername(item.username).orElse(null)
-            ?: throw NotAuthorizedException()
-        val programCode = account.info?.program?.code
-            ?: throw NotAuthorizedException()
-        val programs = programCuratorService.programCodesOf(actor.username)
-        if (programs.none { it.equals(programCode, ignoreCase = true) }) {
+        if (!isDissolutionApprover(actor.username)) {
             throw NotAuthorizedException()
         }
     }
 
     private fun notifyNewRequest(item: DissolutionRequest, fullName: String) {
         val actor = currentUserLogin() ?: return
+        val approver = resolveApprover() ?: return
+        if (approver.username.equals(item.username, ignoreCase = true)) {
+            return
+        }
         val reason = item.reason?.let { "\nПричина: $it" } ?: ""
         val subject = "Заявление на расторжение: $fullName"
         val body = "Заявление на расторжение договора от $fullName (${item.username}).\n" +
             "С даты: ${item.fromDate}.$reason\n\n" +
             "Откройте раздел «Расторжение» или «Заявления на расторжение» для решения. Письмо в МУП отправляется вручную."
-        // Curators (and users without a program) → senior admins only.
-        // Regular volunteers → program curators only. Never blast ADMIN_VOLUNTEER / all managers.
-        val candidates = mutableSetOf<String>()
-        if (programCuratorService.isCurator(item.username)) {
-            candidates += seniorManagerUsernames()
-        } else {
-            val programCode = accountRepository.findByUsername(item.username).orElse(null)?.info?.program?.code
-            if (programCode.isNullOrBlank()) {
-                candidates += seniorManagerUsernames()
-            } else {
-                candidates += programCuratorRepository.findAllByProgramCodeIgnoreCase(programCode).map { it.username }
-            }
+        inboxService.notifyDissolutionRequest(
+            recipient = approver.username,
+            subject = subject,
+            body = body,
+            createdBy = actor,
+        )
+    }
+
+    private fun resolveApprover(): Account? {
+        val username = approverUsername()
+        if (username.isBlank()) {
+            log.warn("Dissolution approver username is blank")
+            return null
         }
-        candidates.removeIf { it.equals(item.username, ignoreCase = true) }
-        activeUsernames(candidates).forEach { recipient ->
-            inboxService.notifyDissolutionRequest(
-                recipient = recipient,
-                subject = subject,
-                body = body,
-                createdBy = actor,
-            )
+        val account = accountRepository.findByUsername(username).orElse(null)
+        if (account == null) {
+            log.warn("Dissolution approver '{}' not found", username)
+            return null
         }
+        if (!account.active) {
+            log.warn("Dissolution approver '{}' is inactive", username)
+            return null
+        }
+        return account
     }
 
     private fun notifyDecision(item: DissolutionRequest, accepted: Boolean, rejectReason: String? = null) {
@@ -230,20 +230,6 @@ class DissolutionRequestService(
             body = body,
             createdBy = actor,
         )
-    }
-
-    /** MAIN_VOLUNTEER + ADMIN only — decides dissolution for curators / users without a program. */
-    private fun seniorManagerUsernames(): List<String> =
-        listOf(UserGroup.MAIN_VOLUNTEER, UserGroup.ADMIN)
-            .flatMap { accountRepository.findAllActiveUsernamesByGroup(it.name) }
-            .distinct()
-
-    private fun activeUsernames(logins: Collection<String>): List<String> {
-        if (logins.isEmpty()) return emptyList()
-        return accountRepository.findAllByUsernameIn(logins.toList())
-            .filter { it.active }
-            .map { it.username }
-            .distinct()
     }
 
     private fun isManager(groups: Set<UserGroup>): Boolean {

@@ -1,9 +1,16 @@
 package rs.russian.portal.dissolution.api
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import rs.russian.portal.dissolution.domain.enums.DissolutionRequestStatus
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
+
+data class DissolutionRequestMetaDto(
+    val approverUsername: String,
+    @get:JsonProperty("isDissolutionApprover")
+    val isDissolutionApprover: Boolean,
+)
 
 data class DissolutionRequestDto(
     val id: UUID,

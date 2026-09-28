@@ -10,18 +10,17 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import rs.russian.portal.config.AppProperties
+import rs.russian.portal.config.LeaveProperties
 import rs.russian.portal.dissolution.api.DissolutionRequestCreateRequest
 import rs.russian.portal.dissolution.domain.DissolutionRequest
 import rs.russian.portal.dissolution.domain.enums.DissolutionRequestStatus
 import rs.russian.portal.dissolution.repository.DissolutionRequestRepository
 import rs.russian.portal.inbox.service.InboxService
-import rs.russian.portal.program.domain.Program
-import rs.russian.portal.program.domain.ProgramCurator
-import rs.russian.portal.program.repository.ProgramCuratorRepository
-import rs.russian.portal.program.service.ProgramCuratorService
+import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.Account
-import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
@@ -32,24 +31,33 @@ import java.util.UUID
 
 class DissolutionRequestServiceTest {
 
+    private val appProperties = AppProperties(
+        frontendUri = "http://localhost:3000",
+        leave = LeaveProperties(approverUsername = "legkov777"),
+    )
     private val repository = mockk<DissolutionRequestRepository>()
     private val accountRepository = mockk<AccountRepository>(relaxed = true)
     private val accountService = mockk<AccountService>()
-    private val programCuratorService = mockk<ProgramCuratorService>(relaxed = true)
-    private val programCuratorRepository = mockk<ProgramCuratorRepository>(relaxed = true)
     private val inboxService = mockk<InboxService>(relaxed = true)
     private val dissolutionQueueService = DissolutionQueueService(accountService)
 
     private val service = DissolutionRequestService(
+        appProperties,
         repository,
         accountRepository,
         accountService,
-        programCuratorService,
-        programCuratorRepository,
         inboxService,
         dissolutionQueueService,
     )
 
+    private val approver = Account(
+        id = 1,
+        username = "legkov777",
+        email = "approver@example.com",
+        fullName = "Leonid",
+        active = true,
+        groups = setOf(UserGroup.ADMIN_VOLUNTEER),
+    )
     private val volunteer = Account(
         id = 10,
         username = "volunteer",
@@ -57,14 +65,6 @@ class DissolutionRequestServiceTest {
         fullName = "Volunteer",
         active = true,
         groups = emptySet(),
-    )
-    private val senior = Account(
-        id = 2,
-        username = "main_volunteer",
-        email = "main@example.com",
-        fullName = "Main Volunteer",
-        active = true,
-        groups = setOf(UserGroup.MAIN_VOLUNTEER),
     )
     private val curator = Account(
         id = 3,
@@ -88,14 +88,7 @@ class DissolutionRequestServiceTest {
         volunteer.info = null
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
         every { repository.save(any()) } answers { firstArg() }
-        every { programCuratorService.isCurator(any()) } returns false
-        every { accountRepository.findAllActiveUsernamesByGroup(UserGroup.MAIN_VOLUNTEER.name) } returns listOf(senior.username)
-        every { accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN.name) } returns emptyList()
-        every { accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name) } returns listOf(manager.username)
-        every { accountRepository.findAllByUsernameIn(any()) } answers {
-            val logins = firstArg<List<String>>().map { it.lowercase() }.toSet()
-            listOf(senior, curator, manager).filter { it.username.lowercase() in logins }
-        }
+        every { accountRepository.findByUsername("legkov777") } returns Optional.of(approver)
     }
 
     @AfterEach
@@ -104,7 +97,7 @@ class DissolutionRequestServiceTest {
     }
 
     @Test
-    fun `create without program notifies senior managers only`() {
+    fun `create notifies only the configured leave dissolution approver`() {
         every { currentUserLogin() } returns volunteer.username
         every { accountService.getCurrentAccount() } returns volunteer
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
@@ -121,52 +114,50 @@ class DissolutionRequestServiceTest {
         assertEquals(LocalDate.of(2026, 10, 1), dto.fromDate)
         assertEquals("Личные обстоятельства", dto.reason)
         verify(exactly = 1) {
-            inboxService.notifyDissolutionRequest(senior.username, any(), any(), volunteer.username)
+            inboxService.notifyDissolutionRequest(
+                recipient = "legkov777",
+                subject = any(),
+                body = any(),
+                createdBy = "volunteer",
+            )
         }
         verify(exactly = 0) {
-            inboxService.notifyDissolutionRequest(manager.username, any(), any(), any())
+            inboxService.notifyDissolutionRequest(
+                recipient = "curator_it",
+                subject = any(),
+                body = any(),
+                createdBy = any(),
+            )
         }
         verify(exactly = 0) {
-            accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name)
+            inboxService.notifyDissolutionRequest(
+                recipient = "admin_user",
+                subject = any(),
+                body = any(),
+                createdBy = any(),
+            )
         }
     }
 
     @Test
-    fun `create with program notifies program curators only`() {
-        volunteer.info = UserInfo(id = volunteer.username, account = volunteer).apply {
-            program = Program(code = "IT", nameRu = "IT", nameEn = "IT", nameSr = "IT")
-        }
-        every { currentUserLogin() } returns volunteer.username
-        every { accountService.getCurrentAccount() } returns volunteer
-        every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
-        every { repository.existsByUsernameIgnoreCaseAndStatus("volunteer", DissolutionRequestStatus.PENDING) } returns false
-        every { programCuratorRepository.findAllByProgramCodeIgnoreCase("IT") } returns listOf(
-            ProgramCurator(programCode = "IT", username = curator.username),
-        )
+    fun `create skips notify when requester is the dissolution approver`() {
+        every { currentUserLogin() } returns approver.username
+        every { accountService.getCurrentAccount() } returns approver
+        every { accountRepository.findByUsername("legkov777") } returns Optional.of(approver)
+        every { repository.existsByUsernameIgnoreCaseAndStatus("legkov777", DissolutionRequestStatus.PENDING) } returns false
 
         service.create(
             DissolutionRequestCreateRequest(
                 fromDate = LocalDate.of(2026, 10, 1),
-                reason = "Переезд",
+                reason = "Собственное заявление",
             )
         )
 
-        verify(exactly = 1) {
-            inboxService.notifyDissolutionRequest(curator.username, any(), any(), volunteer.username)
-        }
-        verify(exactly = 0) {
-            inboxService.notifyDissolutionRequest(senior.username, any(), any(), any())
-        }
-        verify(exactly = 0) {
-            inboxService.notifyDissolutionRequest(manager.username, any(), any(), any())
-        }
-        verify(exactly = 0) {
-            accountRepository.findAllActiveUsernamesByGroup(UserGroup.ADMIN_VOLUNTEER.name)
-        }
+        verify(exactly = 0) { inboxService.notifyDissolutionRequest(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `accept marks accepted without sending MUP`() {
+    fun `accept is allowed only for dissolution approver`() {
         val id = UUID.randomUUID()
         val item = DissolutionRequest(
             id = id,
@@ -175,37 +166,38 @@ class DissolutionRequestServiceTest {
             reason = "Request",
             status = DissolutionRequestStatus.PENDING,
         )
-        every { currentUserLogin() } returns manager.username
-        every { accountService.getCurrentAccount() } returns manager
         every { repository.findById(id) } returns Optional.of(item)
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
 
+        every { currentUserLogin() } returns curator.username
+        every { accountService.getCurrentAccount() } returns curator
+        assertThrows<NotAuthorizedException> { service.accept(id) }
+
+        every { currentUserLogin() } returns manager.username
+        every { accountService.getCurrentAccount() } returns manager
+        assertThrows<NotAuthorizedException> { service.accept(id) }
+
+        every { currentUserLogin() } returns approver.username
+        every { accountService.getCurrentAccount() } returns approver
         val dto = service.accept(id)
 
         assertEquals(DissolutionRequestStatus.ACCEPTED, dto.status)
-        assertEquals(manager.username, dto.decidedBy)
-        verify { inboxService.notifyDissolutionDecision("volunteer", any(), any(), manager.username) }
+        assertEquals("legkov777", dto.decidedBy)
+        verify { inboxService.notifyDissolutionDecision("volunteer", any(), any(), "legkov777") }
     }
 
     @Test
     fun `accept puts account on dissolution queue`() {
         val id = UUID.randomUUID()
-        val fromDate = LocalDate.of(2026, 10, 1)
         val item = DissolutionRequest(
             id = id,
             username = "volunteer",
-            fromDate = fromDate,
+            fromDate = LocalDate.of(2026, 10, 1),
             reason = "Личные обстоятельства",
             status = DissolutionRequestStatus.PENDING,
         )
-        every { currentUserLogin() } returns curator.username
-        every { accountService.getCurrentAccount() } returns curator
-        every { programCuratorService.isCurator("volunteer") } returns false
-        every { programCuratorService.isCurator(curator.username) } returns true
-        volunteer.info = UserInfo(id = volunteer.username, account = volunteer).apply {
-            program = Program(code = "IT", nameRu = "IT", nameEn = "IT", nameSr = "IT")
-        }
-        every { programCuratorService.programCodesOf(curator.username) } returns listOf("IT")
+        every { currentUserLogin() } returns approver.username
+        every { accountService.getCurrentAccount() } returns approver
         every { repository.findById(id) } returns Optional.of(item)
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
 
@@ -213,7 +205,7 @@ class DissolutionRequestServiceTest {
 
         assertEquals(DissolutionRequestStatus.ACCEPTED, dto.status)
         assertNotNull(volunteer.dissolutionQueuedAt)
-        assertEquals(curator.username, volunteer.dissolutionQueuedBy)
+        assertEquals(approver.username, volunteer.dissolutionQueuedBy)
         assertEquals("Личные обстоятельства", volunteer.dissolutionQueueReason)
     }
 
@@ -228,15 +220,52 @@ class DissolutionRequestServiceTest {
             reason = "   ",
             status = DissolutionRequestStatus.PENDING,
         )
-        every { currentUserLogin() } returns manager.username
-        every { accountService.getCurrentAccount() } returns manager
+        every { currentUserLogin() } returns approver.username
+        every { accountService.getCurrentAccount() } returns approver
         every { repository.findById(id) } returns Optional.of(item)
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
 
         service.accept(id)
 
         assertEquals("Заявление участника с $fromDate", volunteer.dissolutionQueueReason)
-        assertEquals(manager.username, volunteer.dissolutionQueuedBy)
+        assertEquals(approver.username, volunteer.dissolutionQueuedBy)
         assertNotNull(volunteer.dissolutionQueuedAt)
+    }
+
+    @Test
+    fun `reject is forbidden for curator who is not dissolution approver`() {
+        val id = UUID.randomUUID()
+        val item = DissolutionRequest(
+            id = id,
+            username = "volunteer",
+            fromDate = LocalDate.of(2026, 10, 1),
+            reason = "Request",
+            status = DissolutionRequestStatus.PENDING,
+        )
+        every { repository.findById(id) } returns Optional.of(item)
+        every { currentUserLogin() } returns curator.username
+        every { accountService.getCurrentAccount() } returns curator
+
+        assertThrows<NotAuthorizedException> { service.reject(id, null) }
+        verify(exactly = 0) { inboxService.notifyDissolutionDecision(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `pending returns all for approver and empty for others`() {
+        val item = DissolutionRequest(
+            id = UUID.randomUUID(),
+            username = "volunteer",
+            fromDate = LocalDate.of(2026, 10, 1),
+            reason = "Request",
+            status = DissolutionRequestStatus.PENDING,
+        )
+        every { repository.findAllByStatusOrderByCreatedAtAsc(DissolutionRequestStatus.PENDING) } returns listOf(item)
+        every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
+
+        every { accountService.getCurrentAccount() } returns curator
+        assertEquals(0, service.pending().size)
+
+        every { accountService.getCurrentAccount() } returns approver
+        assertEquals(1, service.pending().size)
     }
 }

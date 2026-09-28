@@ -41,6 +41,16 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
             OR LOWER(t.recipient) = LOWER(:username)
             OR LOWER(t.createdBy) = LOWER(:username)
           )
+          AND (
+            t.kind <> 'DISSOLUTION_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
         """
     )
     fun countUnread(
@@ -66,6 +76,16 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
           )
           AND (
             t.kind <> 'LEAVE_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_DECISION'
             OR LOWER(t.recipient) = LOWER(:username)
             OR LOWER(t.createdBy) = LOWER(:username)
           )
