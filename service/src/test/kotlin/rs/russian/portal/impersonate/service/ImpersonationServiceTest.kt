@@ -84,10 +84,14 @@ class ImpersonationServiceTest {
         every { currentUserRoles() } returns setOf(UserGroup.ADMIN_VOLUNTEER)
         val session = mockk<HttpSession>(relaxed = true)
         val request = mockk<HttpServletRequest>()
+        var stored: String? = null
         every { request.getSession(true) } returns session
         every { request.getSession(false) } returns session
         every { request.getHeader(ImpersonationKeys.HEADER_USERNAME) } returns null
-        every { session.getAttribute(ImpersonationKeys.SESSION_USERNAME) } returnsMany listOf(null, "volunteer")
+        every { session.setAttribute(ImpersonationKeys.SESSION_USERNAME, any()) } answers {
+            stored = secondArg()
+        }
+        every { session.getAttribute(ImpersonationKeys.SESSION_USERNAME) } answers { stored }
 
         val status = service.start(ImpersonationStartRequest("volunteer"), request)
 
@@ -104,10 +108,14 @@ class ImpersonationServiceTest {
         every { currentUserRoles() } returns setOf(UserGroup.ADMIN_SSO)
         val session = mockk<HttpSession>(relaxed = true)
         val request = mockk<HttpServletRequest>()
+        var stored: String? = null
         every { request.getSession(true) } returns session
         every { request.getSession(false) } returns session
         every { request.getHeader(ImpersonationKeys.HEADER_USERNAME) } returns null
-        every { session.getAttribute(ImpersonationKeys.SESSION_USERNAME) } returnsMany listOf(null, "volunteer")
+        every { session.setAttribute(ImpersonationKeys.SESSION_USERNAME, any()) } answers {
+            stored = secondArg()
+        }
+        every { session.getAttribute(ImpersonationKeys.SESSION_USERNAME) } answers { stored }
 
         val status = service.start(ImpersonationStartRequest("volunteer"), request)
         assertTrue(status.canImpersonate)
