@@ -87,11 +87,15 @@ class AccountStatusServiceTest {
         every { currentUserRoles() } returns setOf(UserGroup.ADMIN_VOLUNTEER)
         every { eventRepository.save(any()) } answers { firstArg() }
         every { requestRepository.save(any()) } answers { firstArg() }
-        every { accountRepository.findByUsername("legkov777") } returns Optional.of(approver)
-        every { accountRepository.findByUsername("admin_user") } returns Optional.of(admin)
+        every { accountRepository.findByUsername(any()) } answers {
+            when (firstArg<String>()) {
+                "legkov777" -> Optional.of(approver)
+                "admin_user" -> Optional.of(admin)
+                else -> Optional.empty()
+            }
+        }
         every { accountRepository.findByEmail(any()) } answers {
-            val email = firstArg<String>()
-            when (email) {
+            when (firstArg<String>()) {
                 "leonid@example.com" -> Optional.of(approver)
                 else -> Optional.empty()
             }
