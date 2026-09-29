@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param
 import rs.russian.portal.talent.domain.TalentPost
 import rs.russian.portal.talent.domain.enums.TalentPostStatus
 import rs.russian.portal.talent.domain.enums.TalentPostType
+import java.time.OffsetDateTime
 import java.util.Optional
 import java.util.UUID
 
@@ -22,6 +23,17 @@ interface TalentPostRepository : JpaRepository<TalentPost, UUID>, JpaSpecificati
         """
     )
     fun findByIdWithProgram(@Param("id") id: UUID): Optional<TalentPost>
+
+    fun countByStatusAndAuthorUsernameNotIgnoreCase(
+        status: TalentPostStatus,
+        authorUsername: String,
+    ): Long
+
+    fun countByStatusAndAuthorUsernameNotIgnoreCaseAndCreatedAtAfter(
+        status: TalentPostStatus,
+        authorUsername: String,
+        createdAt: OffsetDateTime,
+    ): Long
 }
 
 object TalentPostSpecs {

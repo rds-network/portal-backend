@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.portal.talent.domain.enums.TalentPostType
 import rs.russian.portal.talent.service.TalentService
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @RestController
@@ -19,6 +20,12 @@ import java.util.UUID
 class TalentController(
     private val talentService: TalentService,
 ) {
+
+    @GetMapping("/unread-count")
+    fun unreadCount(
+        @RequestParam(required = false) since: OffsetDateTime?,
+    ): ResponseEntity<TalentUnreadDto> =
+        ResponseEntity.ok(TalentUnreadDto(talentService.unreadCount(since)))
 
     @GetMapping("/posts")
     fun listPosts(

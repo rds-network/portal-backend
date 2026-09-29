@@ -32,6 +32,7 @@ import rs.russian.portal.talent.repository.UserSkillRepository
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
+import java.time.OffsetDateTime
 import java.util.Optional
 import java.util.UUID
 
@@ -232,5 +233,34 @@ class TalentServiceTest {
         assertEquals(1, page.totalElements)
         assertEquals(listOf("java", "spring"), page.content[0].skills)
         assertTrue(page.content[0].alreadyResponded)
+    }
+
+    @Test
+    fun `unreadCount without since counts open posts by others`() {
+        every { currentUserLogin() } returns responder.username
+        every { accountService.getCurrentAccount() } returns responder
+        every {
+            talentPostRepository.countByStatusAndAuthorUsernameNotIgnoreCase(TalentPostStatus.OPEN, "helper")
+        } returns 3
+
+        assertEquals(3, service.unreadCount(null))
+        verify(exactly = 0) { talentResponseRepository.countNewForPostOwner(any(), any()) }
+    }
+
+    @Test
+    fun `unreadCount with since includes new posts and responses`() {
+        every { currentUserLogin() } returns author.username
+        every { accountService.getCurrentAccount() } returns author
+        val since = OffsetDateTime.parse("2026-09-01T00:00:00Z")
+        every {
+            talentPostRepository.countByStatusAndAuthorUsernameNotIgnoreCaseAndCreatedAtAfter(
+                TalentPostStatus.OPEN,
+                "author",
+                since,
+            )
+        } returns 2
+        every { talentResponseRepository.countNewForPostOwner("author", since) } returns 4
+
+        assertEquals(6, service.unreadCount(since))
     }
 }

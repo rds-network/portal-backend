@@ -217,6 +217,34 @@ class TalentService(
         }
     }
 
+    /**
+     * Nav badge: open posts by others (all, or only after [since]) plus new responses on my posts after [since].
+     * Frontend stores last visit and passes it as [since]; badge clears after opening /ideas.
+     */
+    @Transactional(readOnly = true)
+    fun unreadCount(since: OffsetDateTime?): Long {
+        val account = requireActiveAccount()
+        val me = account.username
+        val newPosts = if (since != null) {
+            talentPostRepository.countByStatusAndAuthorUsernameNotIgnoreCaseAndCreatedAtAfter(
+                TalentPostStatus.OPEN,
+                me,
+                since,
+            )
+        } else {
+            talentPostRepository.countByStatusAndAuthorUsernameNotIgnoreCase(
+                TalentPostStatus.OPEN,
+                me,
+            )
+        }
+        val newResponses = if (since != null) {
+            talentResponseRepository.countNewForPostOwner(me, since)
+        } else {
+            0L
+        }
+        return newPosts + newResponses
+    }
+
     @Transactional(readOnly = true)
     fun getMySkills(): TalentSkillsDto {
         val account = requireActiveAccount()
