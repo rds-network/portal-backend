@@ -135,6 +135,36 @@ class TalentService(
         return toPostDto(post, account, authorName, responders)
     }
 
+    @Transactional(readOnly = true)
+    fun listMyPosts(
+        status: TalentPostStatus?,
+        pageable: Pageable,
+    ): Page<TalentPostDto> {
+        val account = requireActiveAccount()
+        val sorted = PageRequest.of(
+            pageable.pageNumber,
+            pageable.pageSize,
+            Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"),
+        )
+        val page = talentPostRepository.findAll(
+            TalentPostSpecs.mine(account.username, status),
+            sorted,
+        )
+        val responders = page.content.associate { post ->
+            post.id!! to talentResponseRepository.findTop5ByPost_IdOrderByCreatedAtDesc(post.id!!)
+                .map { it.authorUsername }
+                .reversed()
+        }
+        return page.map { post ->
+            toPostDto(
+                post = post,
+                actor = account,
+                authorFullName = account.fullName,
+                responderUsernames = responders[post.id] ?: emptyList(),
+            )
+        }
+    }
+
     @Transactional
     fun closePost(id: UUID): TalentPostDto {
         val account = requireActiveAccount()
@@ -144,6 +174,19 @@ class TalentService(
             return toPostDto(post, account, accountRepository.findByUsername(post.authorUsername).orElse(null)?.fullName)
         }
         post.status = TalentPostStatus.CLOSED
+        post.updatedAt = OffsetDateTime.now()
+        return toPostDto(post, account, accountRepository.findByUsername(post.authorUsername).orElse(null)?.fullName)
+    }
+
+    @Transactional
+    fun reopenPost(id: UUID): TalentPostDto {
+        val account = requireActiveAccount()
+        val post = loadPost(id)
+        if (!canClose(post, account)) throw NotAuthorizedException()
+        if (post.status == TalentPostStatus.OPEN) {
+            return toPostDto(post, account, accountRepository.findByUsername(post.authorUsername).orElse(null)?.fullName)
+        }
+        post.status = TalentPostStatus.OPEN
         post.updatedAt = OffsetDateTime.now()
         return toPostDto(post, account, accountRepository.findByUsername(post.authorUsername).orElse(null)?.fullName)
     }
