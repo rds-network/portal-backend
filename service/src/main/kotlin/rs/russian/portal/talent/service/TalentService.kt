@@ -24,6 +24,7 @@ import rs.russian.portal.talent.domain.UserSkill
 import rs.russian.portal.talent.domain.enums.TalentPostStatus
 import rs.russian.portal.talent.domain.enums.TalentPostType
 import rs.russian.portal.talent.repository.TalentPostRepository
+import rs.russian.portal.talent.repository.TalentPostSpecs
 import rs.russian.portal.talent.repository.TalentResponseRepository
 import rs.russian.portal.talent.repository.UserSkillRepository
 import rs.russian.portal.user.domain.Account
@@ -65,13 +66,15 @@ class TalentService(
             pageable.pageSize,
             Sort.by(Sort.Direction.DESC, "createdAt"),
         )
-        val page = talentPostRepository.search(
-            type = type,
-            status = TalentPostStatus.OPEN,
-            q = query,
-            city = cityFilter,
-            programCode = programFilter,
-            pageable = sorted,
+        val page = talentPostRepository.findAll(
+            TalentPostSpecs.search(
+                type = type,
+                status = TalentPostStatus.OPEN,
+                q = query,
+                city = cityFilter,
+                programCode = programFilter,
+            ),
+            sorted,
         )
         val names = loadFullNames(page.content.map { it.authorUsername })
         val responders = page.content.associate { post ->

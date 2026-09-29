@@ -221,14 +221,7 @@ class TalentServiceTest {
             responseCount = 2,
         )
         every {
-            talentPostRepository.search(
-                type = TalentPostType.NEED_PEOPLE,
-                status = TalentPostStatus.OPEN,
-                q = null,
-                city = null,
-                programCode = null,
-                pageable = any(),
-            )
+            talentPostRepository.findAll(any<org.springframework.data.jpa.domain.Specification<TalentPost>>(), any<PageRequest>())
         } returns PageImpl(listOf(post), PageRequest.of(0, 20), 1)
         every { talentResponseRepository.findTop5ByPost_IdOrderByCreatedAtDesc(post.id!!) } returns listOf(
             TalentResponse(post = post, authorUsername = "helper", message = "hi"),
