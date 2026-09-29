@@ -54,3 +54,11 @@ data class TalentSkillsDto(
 data class TalentSkillsUpdateRequest(
     val skills: List<String>,
 )
+
+data class TalentPostsPageDto(
+    val content: List<TalentPostDto>,
+    val totalElements: Long,
+    val totalPages: Int,
+    val number: Int,
+    val size: Int,
+)
