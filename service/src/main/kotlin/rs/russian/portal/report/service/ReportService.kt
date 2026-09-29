@@ -204,6 +204,39 @@ class ReportService(
         report.status = status
         report.moderator = moderator
         workAssignmentService.markFromReport(report)
+        if (status == ReportStatus.ACCEPTED || status == ReportStatus.REJECTED) {
+            notifyReportDecision(report, status, noteText, moderator.username)
+        }
+    }
+
+    private fun notifyReportDecision(
+        report: Report,
+        status: ReportStatus,
+        noteText: String?,
+        createdBy: String,
+    ) {
+        val reportId = report.id?.toString() ?: return
+        val date = report.createTime.toLocalDate()
+        val remark = noteText?.trim()?.takeIf { it.isNotEmpty() }
+        val subject = when (status) {
+            ReportStatus.ACCEPTED -> "Отчёт принят ($date)"
+            ReportStatus.REJECTED -> "Отчёт отклонён ($date)"
+            else -> return
+        }
+        val head = when (status) {
+            ReportStatus.ACCEPTED -> "Ваш отчёт от $date принят."
+            ReportStatus.REJECTED -> "Ваш отчёт от $date отклонён."
+            else -> return
+        }
+        val remarkLine = remark?.let { "\n\nЗамечание модератора: $it" } ?: ""
+        val body = "$head$remarkLine\n\n/report/$reportId"
+        inboxService.notifyReportDecision(
+            username = report.account.username,
+            subject = subject,
+            body = body,
+            createdBy = createdBy,
+            needsAck = status == ReportStatus.REJECTED || remark != null,
+        )
     }
 
     /**

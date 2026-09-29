@@ -23,12 +23,18 @@ class ReportEventListener(
     fun handleReportRejectedEvent(event: ReportUpdatedEvent) {
         val report = reportService.getReport(event.id)
         if (report.status == ReportStatus.REJECTED) {
+            val remark = report.notes
+                .maxByOrNull { it.createTime }
+                ?.text
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
             val message = templateEngine.process("report_rejected",
                 Context().also {
                     it.setVariables(
                         mapOf(
                             "id" to report.id,
-                            "date" to report.createTime.toLocalDate().format(DateTimeFormatter.ISO_DATE)
+                            "date" to report.createTime.toLocalDate().format(DateTimeFormatter.ISO_DATE),
+                            "remark" to remark,
                         )
                     )
                 })
