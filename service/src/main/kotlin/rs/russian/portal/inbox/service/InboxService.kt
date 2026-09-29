@@ -365,6 +365,19 @@ class InboxService(
         )
     }
 
+    @Transactional
+    fun notifyTalentResponse(recipient: String, subject: String, body: String, createdBy: String) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_TALENT_RESPONSE,
+            createdBy = createdBy,
+            recipient = recipient,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+        )
+    }
+
     private fun openThread(
         subject: String,
         body: String,
