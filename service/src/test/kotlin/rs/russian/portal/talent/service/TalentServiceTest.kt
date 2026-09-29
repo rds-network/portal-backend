@@ -263,4 +263,49 @@ class TalentServiceTest {
 
         assertEquals(6, service.unreadCount(since))
     }
+
+    @Test
+    fun `listMyPosts returns author history including closed`() {
+        every { currentUserLogin() } returns author.username
+        every { accountService.getCurrentAccount() } returns author
+        val closed = TalentPost(
+            id = UUID.randomUUID(),
+            type = TalentPostType.NEED_PEOPLE,
+            status = TalentPostStatus.CLOSED,
+            title = "Old post",
+            body = "body",
+            authorUsername = author.username,
+        )
+        every {
+            talentPostRepository.findAll(any<org.springframework.data.jpa.domain.Specification<TalentPost>>(), any<PageRequest>())
+        } returns PageImpl(listOf(closed), PageRequest.of(0, 40), 1)
+        every { talentResponseRepository.findTop5ByPost_IdOrderByCreatedAtDesc(closed.id!!) } returns emptyList()
+        every { talentResponseRepository.existsByPost_IdAndAuthorUsernameIgnoreCase(closed.id!!, "author") } returns false
+
+        val page = service.listMyPosts(null, PageRequest.of(0, 40))
+        assertEquals(1, page.totalElements)
+        assertEquals(TalentPostStatus.CLOSED, page.content[0].status)
+        assertTrue(page.content[0].mine)
+    }
+
+    @Test
+    fun `reopenPost sets status back to OPEN`() {
+        every { currentUserLogin() } returns author.username
+        every { accountService.getCurrentAccount() } returns author
+        val postId = UUID.randomUUID()
+        val post = TalentPost(
+            id = postId,
+            type = TalentPostType.CAN_HELP,
+            status = TalentPostStatus.CLOSED,
+            title = "Help",
+            body = "body",
+            authorUsername = author.username,
+        )
+        every { talentPostRepository.findByIdWithProgram(postId) } returns Optional.of(post)
+        every { talentResponseRepository.existsByPost_IdAndAuthorUsernameIgnoreCase(postId, "author") } returns false
+
+        val dto = service.reopenPost(postId)
+        assertEquals(TalentPostStatus.OPEN, dto.status)
+        assertEquals(TalentPostStatus.OPEN, post.status)
+    }
 }

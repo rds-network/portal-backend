@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import rs.russian.portal.talent.domain.enums.TalentPostStatus
 import rs.russian.portal.talent.domain.enums.TalentPostType
 import rs.russian.portal.talent.service.TalentService
 import java.time.OffsetDateTime
@@ -38,15 +39,17 @@ class TalentController(
     ): ResponseEntity<TalentPostsPageDto> {
         val pageable = PageRequest.of(page.coerceAtLeast(0), size.coerceIn(1, 50))
         val result = talentService.listPosts(type, q, city, programCode, pageable)
-        return ResponseEntity.ok(
-            TalentPostsPageDto(
-                content = result.content,
-                totalElements = result.totalElements,
-                totalPages = result.totalPages,
-                number = result.number,
-                size = result.size,
-            )
-        )
+        return ResponseEntity.ok(toPageDto(result))
+    }
+
+    @GetMapping("/me/posts")
+    fun listMyPosts(
+        @RequestParam(required = false) status: TalentPostStatus?,
+        @RequestParam(required = false, defaultValue = "0") page: Int,
+        @RequestParam(required = false, defaultValue = "40") size: Int,
+    ): ResponseEntity<TalentPostsPageDto> {
+        val pageable = PageRequest.of(page.coerceAtLeast(0), size.coerceIn(1, 50))
+        return ResponseEntity.ok(toPageDto(talentService.listMyPosts(status, pageable)))
     }
 
     @PostMapping("/posts")
@@ -60,6 +63,10 @@ class TalentController(
     @PostMapping("/posts/{id}/close")
     fun closePost(@PathVariable id: UUID): ResponseEntity<TalentPostDto> =
         ResponseEntity.ok(talentService.closePost(id))
+
+    @PostMapping("/posts/{id}/reopen")
+    fun reopenPost(@PathVariable id: UUID): ResponseEntity<TalentPostDto> =
+        ResponseEntity.ok(talentService.reopenPost(id))
 
     @PostMapping("/posts/{id}/responses")
     fun createResponse(
@@ -79,4 +86,13 @@ class TalentController(
     @PutMapping("/me/skills")
     fun putMySkills(@RequestBody request: TalentSkillsUpdateRequest): ResponseEntity<TalentSkillsDto> =
         ResponseEntity.ok(talentService.putMySkills(request))
+
+    private fun toPageDto(result: org.springframework.data.domain.Page<TalentPostDto>) =
+        TalentPostsPageDto(
+            content = result.content,
+            totalElements = result.totalElements,
+            totalPages = result.totalPages,
+            number = result.number,
+            size = result.size,
+        )
 }

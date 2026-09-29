@@ -73,4 +73,17 @@ object TalentPostSpecs {
             }
             cb.and(*preds.toTypedArray())
         }
+
+    fun mine(
+        authorUsername: String,
+        status: TalentPostStatus?,
+    ): Specification<TalentPost> =
+        Specification { root, _, cb ->
+            val preds = mutableListOf<jakarta.persistence.criteria.Predicate>()
+            preds += cb.equal(cb.lower(root.get("authorUsername")), authorUsername.trim().lowercase())
+            if (status != null) {
+                preds += cb.equal(root.get<TalentPostStatus>("status"), status)
+            }
+            cb.and(*preds.toTypedArray())
+        }
 }
