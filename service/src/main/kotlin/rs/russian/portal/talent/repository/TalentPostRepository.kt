@@ -1,8 +1,9 @@
 package rs.russian.portal.talent.repository
 
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
+import jakarta.persistence.criteria.JoinType
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import rs.russian.portal.talent.domain.TalentPost
@@ -11,7 +12,7 @@ import rs.russian.portal.talent.domain.enums.TalentPostType
 import java.util.Optional
 import java.util.UUID
 
-interface TalentPostRepository : JpaRepository<TalentPost, UUID> {
+interface TalentPostRepository : JpaRepository<TalentPost, UUID>, JpaSpecificationExecutor<TalentPost> {
 
     @Query(
         """
@@ -21,49 +22,43 @@ interface TalentPostRepository : JpaRepository<TalentPost, UUID> {
         """
     )
     fun findByIdWithProgram(@Param("id") id: UUID): Optional<TalentPost>
+}
 
-    @Query(
-        value = """
-        SELECT p FROM TalentPost p
-        LEFT JOIN p.program prog
-        WHERE (:type IS NULL OR p.type = :type)
-          AND (:status IS NULL OR p.status = :status)
-          AND (
-            :city IS NULL OR
-            LOWER(COALESCE(p.city, '')) LIKE LOWER(CONCAT('%', :city, '%'))
-          )
-          AND (:programCode IS NULL OR LOWER(prog.code) = LOWER(:programCode))
-          AND (
-            :q IS NULL OR
-            LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%')) OR
-            LOWER(p.body) LIKE LOWER(CONCAT('%', :q, '%')) OR
-            LOWER(COALESCE(p.skills, '')) LIKE LOWER(CONCAT('%', :q, '%'))
-          )
-        """,
-        countQuery = """
-        SELECT COUNT(p) FROM TalentPost p
-        LEFT JOIN p.program prog
-        WHERE (:type IS NULL OR p.type = :type)
-          AND (:status IS NULL OR p.status = :status)
-          AND (
-            :city IS NULL OR
-            LOWER(COALESCE(p.city, '')) LIKE LOWER(CONCAT('%', :city, '%'))
-          )
-          AND (:programCode IS NULL OR LOWER(prog.code) = LOWER(:programCode))
-          AND (
-            :q IS NULL OR
-            LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%')) OR
-            LOWER(p.body) LIKE LOWER(CONCAT('%', :q, '%')) OR
-            LOWER(COALESCE(p.skills, '')) LIKE LOWER(CONCAT('%', :q, '%'))
-          )
-        """,
-    )
+object TalentPostSpecs {
     fun search(
-        @Param("type") type: TalentPostType?,
-        @Param("status") status: TalentPostStatus?,
-        @Param("q") q: String?,
-        @Param("city") city: String?,
-        @Param("programCode") programCode: String?,
-        pageable: Pageable,
-    ): Page<TalentPost>
+        type: TalentPostType?,
+        status: TalentPostStatus?,
+        q: String?,
+        city: String?,
+        programCode: String?,
+    ): Specification<TalentPost> =
+        Specification { root, query, cb ->
+            // Avoid duplicate rows when joining program for filters/sort
+            if (query?.resultType != Long::class.java && query?.resultType != java.lang.Long.TYPE) {
+                query?.distinct(true)
+            }
+            val preds = mutableListOf<jakarta.persistence.criteria.Predicate>()
+            if (status != null) {
+                preds += cb.equal(root.get<TalentPostStatus>("status"), status)
+            }
+            if (type != null) {
+                preds += cb.equal(root.get<TalentPostType>("type"), type)
+            }
+            if (!city.isNullOrBlank()) {
+                preds += cb.like(cb.lower(cb.coalesce(root.get("city"), "")), "%${city.trim().lowercase()}%")
+            }
+            if (!programCode.isNullOrBlank()) {
+                val programJoin = root.join<Any, Any>("program", JoinType.LEFT)
+                preds += cb.equal(cb.lower(programJoin.get("code")), programCode.trim().lowercase())
+            }
+            if (!q.isNullOrBlank()) {
+                val needle = "%${q.trim().lowercase()}%"
+                preds += cb.or(
+                    cb.like(cb.lower(root.get("title")), needle),
+                    cb.like(cb.lower(root.get("body")), needle),
+                    cb.like(cb.lower(cb.coalesce(root.get("skills"), "")), needle),
+                )
+            }
+            cb.and(*preds.toTypedArray())
+        }
 }
