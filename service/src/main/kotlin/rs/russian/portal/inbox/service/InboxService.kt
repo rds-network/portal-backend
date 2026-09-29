@@ -196,6 +196,26 @@ class InboxService(
         )
     }
 
+    @Transactional
+    fun notifyReportDecision(
+        username: String,
+        subject: String,
+        body: String,
+        createdBy: String,
+        needsAck: Boolean,
+    ) {
+        openThread(
+            subject = subject,
+            body = body,
+            kind = InboxThread.KIND_REPORT_DECISION,
+            createdBy = createdBy,
+            recipient = username,
+            extraParticipants = listOf(createdBy),
+            recipientUnread = true,
+            recipientNeedsAck = needsAck,
+        )
+    }
+
     /**
      * Overdue notice to the volunteer only. Admins use the overdue page — do not blast ADMIN_VOLUNTEER.
      * Optional [actorUsername] (manual issueWarning) is added as a silent participant when different from the volunteer.
@@ -354,9 +374,11 @@ class InboxService(
         extraParticipants: List<String>,
         recipientUnread: Boolean,
         extraUnread: Boolean = false,
+        recipientNeedsAck: Boolean? = null,
     ): InboxThread {
         val thread = InboxThread(subject = subject, kind = kind, createdBy = createdBy, recipient = recipient)
         val people = (extraParticipants + recipient).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        val ackForRecipient = recipientNeedsAck ?: requiresAck(kind)
         people.forEach { login ->
             val isRecipient = login.equals(recipient, ignoreCase = true)
             thread.participants.add(
@@ -364,7 +386,7 @@ class InboxService(
                     thread = thread,
                     username = login,
                     unread = if (isRecipient) recipientUnread else extraUnread,
-                    ackRequired = isRecipient && requiresAck(kind),
+                    ackRequired = isRecipient && ackForRecipient,
                 )
             )
         }
@@ -535,7 +557,11 @@ class InboxService(
     }
 
     private fun reportId(thread: InboxThread): String? {
-        if (thread.kind != InboxThread.KIND_REPORT_CUSTOMER) return null
+        if (thread.kind != InboxThread.KIND_REPORT_CUSTOMER &&
+            thread.kind != InboxThread.KIND_REPORT_DECISION
+        ) {
+            return null
+        }
         val body = thread.messages.lastOrNull()?.body.orEmpty()
         return REPORT_PATH.find(body)?.groupValues?.get(1)
     }
