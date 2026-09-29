@@ -62,3 +62,7 @@ data class TalentPostsPageDto(
     val number: Int,
     val size: Int,
 )
+
+data class TalentUnreadDto(
+    val count: Long,
+)
