@@ -23,12 +23,15 @@ interface TalentPostRepository : JpaRepository<TalentPost, UUID> {
     fun findByIdWithProgram(@Param("id") id: UUID): Optional<TalentPost>
 
     @Query(
-        """
+        value = """
         SELECT p FROM TalentPost p
         LEFT JOIN p.program prog
         WHERE (:type IS NULL OR p.type = :type)
           AND (:status IS NULL OR p.status = :status)
-          AND (:city IS NULL OR LOWER(p.city) = LOWER(:city))
+          AND (
+            :city IS NULL OR
+            LOWER(COALESCE(p.city, '')) LIKE LOWER(CONCAT('%', :city, '%'))
+          )
           AND (:programCode IS NULL OR LOWER(prog.code) = LOWER(:programCode))
           AND (
             :q IS NULL OR
@@ -36,7 +39,24 @@ interface TalentPostRepository : JpaRepository<TalentPost, UUID> {
             LOWER(p.body) LIKE LOWER(CONCAT('%', :q, '%')) OR
             LOWER(COALESCE(p.skills, '')) LIKE LOWER(CONCAT('%', :q, '%'))
           )
-        """
+        """,
+        countQuery = """
+        SELECT COUNT(p) FROM TalentPost p
+        LEFT JOIN p.program prog
+        WHERE (:type IS NULL OR p.type = :type)
+          AND (:status IS NULL OR p.status = :status)
+          AND (
+            :city IS NULL OR
+            LOWER(COALESCE(p.city, '')) LIKE LOWER(CONCAT('%', :city, '%'))
+          )
+          AND (:programCode IS NULL OR LOWER(prog.code) = LOWER(:programCode))
+          AND (
+            :q IS NULL OR
+            LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%')) OR
+            LOWER(p.body) LIKE LOWER(CONCAT('%', :q, '%')) OR
+            LOWER(COALESCE(p.skills, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+          )
+        """,
     )
     fun search(
         @Param("type") type: TalentPostType?,

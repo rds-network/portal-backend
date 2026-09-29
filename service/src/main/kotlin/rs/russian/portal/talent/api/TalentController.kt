@@ -1,6 +1,5 @@
 package rs.russian.portal.talent.api
 
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,9 +28,18 @@ class TalentController(
         @RequestParam(required = false) programCode: String?,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "20") size: Int,
-    ): ResponseEntity<Page<TalentPostDto>> {
+    ): ResponseEntity<TalentPostsPageDto> {
         val pageable = PageRequest.of(page.coerceAtLeast(0), size.coerceIn(1, 50))
-        return ResponseEntity.ok(talentService.listPosts(type, q, city, programCode, pageable))
+        val result = talentService.listPosts(type, q, city, programCode, pageable)
+        return ResponseEntity.ok(
+            TalentPostsPageDto(
+                content = result.content,
+                totalElements = result.totalElements,
+                totalPages = result.totalPages,
+                number = result.number,
+                size = result.size,
+            )
+        )
     }
 
     @PostMapping("/posts")
