@@ -48,6 +48,20 @@ class WorkAssignmentService(
         return items.filter { it.status != WorkAssignmentStatus.ARCHIVED }.map(::toDto)
     }
 
+    @Transactional(readOnly = true)
+    fun myOpenCount(): Long {
+        val account = accountService.getCurrentAccount()
+        return workAssignmentRepository.countOpenForAssignee(
+            account.username,
+            listOf(
+                WorkAssignmentStatus.TODO,
+                WorkAssignmentStatus.DOING,
+                WorkAssignmentStatus.REVIEW,
+                WorkAssignmentStatus.REDO,
+            ),
+        )
+    }
+
     @Transactional
     fun create(request: WorkAssignmentCreateRequest): WorkAssignmentDto {
         if (!canManage()) throw NotAuthorizedException()

@@ -54,5 +54,6 @@ class InboxThread(
         const val KIND_ACCOUNT_STATUS_DECISION = "ACCOUNT_STATUS_DECISION"
         const val KIND_ACCOUNT_STATUS_CHANGED = "ACCOUNT_STATUS_CHANGED"
         const val KIND_TALENT_RESPONSE = "TALENT_RESPONSE"
+        const val KIND_TALENT_POST = "TALENT_POST"
     }
 }

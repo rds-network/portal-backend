@@ -378,6 +378,42 @@ class InboxService(
         )
     }
 
+    /**
+     * One thread for a new Ideas & Talents post — all [recipients] get unread (author stays read).
+     */
+    @Transactional
+    fun notifyTalentNewPost(
+        subject: String,
+        body: String,
+        createdBy: String,
+        recipients: Collection<String>,
+    ) {
+        val people = (recipients + createdBy)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+        if (people.isEmpty()) return
+        val thread = InboxThread(
+            subject = subject,
+            kind = InboxThread.KIND_TALENT_POST,
+            createdBy = createdBy,
+            recipient = null,
+        )
+        people.forEach { login ->
+            val isAuthor = login.equals(createdBy, ignoreCase = true)
+            thread.participants.add(
+                InboxParticipant(
+                    thread = thread,
+                    username = login,
+                    unread = !isAuthor,
+                    ackRequired = false,
+                )
+            )
+        }
+        thread.messages.add(InboxMessage(thread = thread, author = createdBy, body = body))
+        inboxThreadRepository.save(thread)
+    }
+
     private fun openThread(
         subject: String,
         body: String,

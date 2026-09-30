@@ -108,6 +108,8 @@ class TalentServiceTest {
         every { currentUserLogin() } returns author.username
         every { accountService.getCurrentAccount() } returns author
         every { talentResponseRepository.existsByPost_IdAndAuthorUsernameIgnoreCase(any(), any()) } returns false
+        every { accountRepository.findAllActiveUsernames() } returns listOf("author", "helper")
+        every { inboxService.notifyTalentNewPost(any(), any(), any(), any()) } returns Unit
 
         val dto = service.createPost(
             TalentPostCreateRequest(
@@ -125,6 +127,14 @@ class TalentServiceTest {
         assertEquals("author", dto.authorUsername)
         assertTrue(dto.mine)
         verify(exactly = 1) { talentPostRepository.save(any()) }
+        verify(exactly = 1) {
+            inboxService.notifyTalentNewPost(
+                subject = match { it.contains("Need designer") },
+                body = match { it.contains("/ideas?post=") },
+                createdBy = "author",
+                recipients = listOf("author", "helper"),
+            )
+        }
     }
 
     @Test

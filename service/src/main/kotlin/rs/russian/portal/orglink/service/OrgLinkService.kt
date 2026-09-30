@@ -15,6 +15,7 @@ import rs.russian.portal.shared.security.currentUserRoles
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @Service
@@ -25,6 +26,14 @@ class OrgLinkService(
 
     @Transactional(readOnly = true)
     fun list(): List<OrgLinkDto> = orgLinkRepository.findAllByOrderBySortOrderAscTitleAsc().map(::toDto)
+
+    @Transactional(readOnly = true)
+    fun newCount(since: OffsetDateTime?): Long =
+        if (since != null) {
+            orgLinkRepository.countByCreateTimeAfter(since)
+        } else {
+            orgLinkRepository.countAll()
+        }
 
     @Transactional
     fun create(request: OrgLinkWriteRequest): OrgLinkDto {
