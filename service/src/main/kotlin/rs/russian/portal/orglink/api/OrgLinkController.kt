@@ -8,8 +8,10 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.portal.orglink.service.OrgLinkService
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @RestController
@@ -21,6 +23,12 @@ class OrgLinkController(
     @GetMapping
     fun list(): ResponseEntity<List<OrgLinkDto>> =
         ResponseEntity.ok(orgLinkService.list())
+
+    @GetMapping("/new-count")
+    fun newCount(
+        @RequestParam(required = false) since: OffsetDateTime?,
+    ): ResponseEntity<Map<String, Long>> =
+        ResponseEntity.ok(mapOf("count" to orgLinkService.newCount(since)))
 
     @PostMapping
     fun create(@RequestBody request: OrgLinkWriteRequest): ResponseEntity<OrgLinkDto> =

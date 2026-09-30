@@ -32,6 +32,10 @@ class DissolutionRequestController(
     fun pending(): ResponseEntity<List<DissolutionRequestDto>> =
         ResponseEntity.ok(dissolutionRequestService.pending())
 
+    @GetMapping("/pending-count")
+    fun pendingCount(): ResponseEntity<Map<String, Long>> =
+        ResponseEntity.ok(mapOf("count" to dissolutionRequestService.pending().size.toLong()))
+
     @GetMapping("/history")
     fun history(): ResponseEntity<List<DissolutionRequestDto>> =
         ResponseEntity.ok(dissolutionRequestService.history())

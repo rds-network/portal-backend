@@ -165,6 +165,9 @@ interface AccountRepository : JpaRepository<Account, Int> {
     @Query("SELECT a.username FROM account a WHERE a.active = true AND a.groups @> jsonb_build_array(:group)", nativeQuery = true)
     fun findAllActiveUsernamesByGroup(@Param("group") group: String): List<String>
 
+    @Query("SELECT a.username FROM account a WHERE a.active = true", nativeQuery = true)
+    fun findAllActiveUsernames(): List<String>
+
     /**
      * IDs of inactive accounts in the given depersonalization [status] whose latest contract ended on or
      * before [thresholdDate]. The inner join skips accounts without contracts. Returns IDs only — callers

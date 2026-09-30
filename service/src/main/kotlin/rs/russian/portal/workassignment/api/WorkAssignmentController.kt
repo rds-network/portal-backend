@@ -22,6 +22,10 @@ class WorkAssignmentController(
     fun list(): ResponseEntity<List<WorkAssignmentDto>> =
         ResponseEntity.ok(workAssignmentService.list())
 
+    @GetMapping("/my-open-count")
+    fun myOpenCount(): ResponseEntity<Map<String, Long>> =
+        ResponseEntity.ok(mapOf("count" to workAssignmentService.myOpenCount()))
+
     @PostMapping
     fun create(@RequestBody request: WorkAssignmentCreateRequest): ResponseEntity<WorkAssignmentDto> =
         ResponseEntity.ok(workAssignmentService.create(request))

@@ -34,6 +34,10 @@ class LeaveRequestController(
     fun pending(): ResponseEntity<List<LeaveRequestDto>> =
         ResponseEntity.ok(leaveRequestService.pending())
 
+    @GetMapping("/pending-count")
+    fun pendingCount(): ResponseEntity<Map<String, Long>> =
+        ResponseEntity.ok(mapOf("count" to leaveRequestService.pending().size.toLong()))
+
     @GetMapping("/history")
     fun history(): ResponseEntity<List<LeaveRequestDto>> =
         ResponseEntity.ok(leaveRequestService.history())

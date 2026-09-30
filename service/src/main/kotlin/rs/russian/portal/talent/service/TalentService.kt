@@ -121,6 +121,18 @@ class TalentService(
                 responseCount = 0,
             )
         )
+        val typeLabel = when (post.type) {
+            TalentPostType.NEED_PEOPLE -> "ищут людей"
+            TalentPostType.CAN_HELP -> "могут помочь"
+            TalentPostType.PROJECT_IDEA -> "идея проекта"
+        }
+        val recipients = accountRepository.findAllActiveUsernames()
+        inboxService.notifyTalentNewPost(
+            subject = "Идеи и таланты: $title",
+            body = "${account.fullName ?: account.username} разместил(а) объявление ($typeLabel):\n«$title»\n\n/ideas?post=${post.id}",
+            createdBy = account.username,
+            recipients = recipients,
+        )
         return toPostDto(post, account, account.fullName, emptyList())
     }
 
