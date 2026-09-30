@@ -161,7 +161,9 @@ class TalentService(
         val recipients = accountRepository.findAllActiveUsernames()
         var sent = 0
         open.forEach { post ->
-            if (inboxService.hasTalentPostNotice(post.id!!)) return@forEach
+            val postId = post.id!!
+            inboxService.purgeIncompleteTalentPostNotices(postId)
+            if (inboxService.hasTalentPostNotice(postId)) return@forEach
             val typeLabel = when (post.type) {
                 TalentPostType.NEED_PEOPLE -> "ищут людей"
                 TalentPostType.CAN_HELP -> "могут помочь"
@@ -169,13 +171,27 @@ class TalentService(
             }
             val authorName = accountRepository.findByUsername(post.authorUsername).orElse(null)?.fullName
                 ?: post.authorUsername
-            inboxService.notifyTalentNewPost(
-                subject = "Идеи и таланты: ${post.title}",
-                body = "$authorName разместил(а) объявление ($typeLabel):\n«${post.title}»\n\n/ideas?post=${post.id}",
-                createdBy = post.authorUsername,
-                recipients = recipients,
-            )
-            sent += 1
+            try {
+                inboxService.notifyTalentNewPost(
+                    subject = "Идеи и таланты: ${post.title}",
+                    body = "$authorName разместил(а) объявление ($typeLabel):\n«${post.title}»\n\n/ideas?post=$postId",
+                    createdBy = post.authorUsername,
+                    recipients = recipients,
+                )
+                if (inboxService.hasTalentPostNotice(postId)) {
+                    sent += 1
+                } else {
+                    org.slf4j.LoggerFactory.getLogger(TalentService::class.java)
+                        .warn(
+                            "Talent inbox backfill for {} produced no broadcast (recipients={})",
+                            postId,
+                            recipients.size,
+                        )
+                }
+            } catch (ex: Exception) {
+                org.slf4j.LoggerFactory.getLogger(TalentService::class.java)
+                    .warn("Talent inbox backfill failed for {}", postId, ex)
+            }
         }
         return sent
     }

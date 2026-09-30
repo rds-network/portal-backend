@@ -151,6 +151,7 @@ class TalentServiceTest {
             talentPostRepository.findAll(any<org.springframework.data.jpa.domain.Specification<TalentPost>>())
         } returns listOf(post)
         every { accountRepository.findAllActiveUsernames() } returns listOf("author", "helper")
+        every { inboxService.purgeIncompleteTalentPostNotices(post.id!!) } returns Unit
         every { inboxService.hasTalentPostNotice(post.id!!) } returns true
 
         assertEquals(0, service.backfillInboxForOpenPosts())
