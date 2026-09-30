@@ -10,9 +10,14 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import rs.russian.portal.shared.security.Authorized
 import rs.russian.portal.talent.domain.enums.TalentPostStatus
 import rs.russian.portal.talent.domain.enums.TalentPostType
 import rs.russian.portal.talent.service.TalentService
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
+import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -86,6 +91,11 @@ class TalentController(
     @PutMapping("/me/skills")
     fun putMySkills(@RequestBody request: TalentSkillsUpdateRequest): ResponseEntity<TalentSkillsDto> =
         ResponseEntity.ok(talentService.putMySkills(request))
+
+    @PostMapping("/backfill-inbox")
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, ADMIN_SSO, MAIN_VOLUNTEER])
+    fun backfillInbox(): ResponseEntity<Map<String, Int>> =
+        ResponseEntity.ok(mapOf("sent" to talentService.backfillInboxForOpenPosts()))
 
     private fun toPageDto(result: org.springframework.data.domain.Page<TalentPostDto>) =
         TalentPostsPageDto(

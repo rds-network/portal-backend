@@ -20,13 +20,13 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
 
     @Query(
         """
-        SELECT COUNT(t) FROM InboxThread t
+        SELECT DISTINCT t FROM InboxThread t
         JOIN t.messages m
         WHERE t.kind = 'TALENT_POST'
           AND m.body LIKE CONCAT('%', :needle, '%')
         """
     )
-    fun countTalentPostNotices(@Param("needle") needle: String): Long
+    fun findTalentPostNotices(@Param("needle") needle: String): List<InboxThread>
 
     @Query(
         """

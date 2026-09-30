@@ -395,7 +395,10 @@ class InboxService(
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinctBy { it.lowercase() }
-        if (people.isEmpty()) return
+        if (people.size < 2) {
+            // Do not persist author-only stubs — they block later backfill.
+            return
+        }
         val thread = InboxThread(
             subject = subject,
             kind = InboxThread.KIND_TALENT_POST,
@@ -414,12 +417,25 @@ class InboxService(
             )
         }
         thread.messages.add(InboxMessage(thread = thread, author = author, body = body))
-        inboxThreadRepository.save(thread)
+        inboxThreadRepository.saveAndFlush(thread)
     }
 
+    /** True only when a real broadcast exists (more than the author alone). */
     @Transactional(readOnly = true)
     fun hasTalentPostNotice(postId: UUID): Boolean =
-        inboxThreadRepository.countTalentPostNotices("/ideas?post=$postId") > 0
+        inboxThreadRepository.findTalentPostNotices("/ideas?post=$postId")
+            .any { thread -> thread.participants.size > 1 }
+
+    /** Drop author-only stubs left by a failed first broadcast. */
+    @Transactional
+    fun purgeIncompleteTalentPostNotices(postId: UUID) {
+        val stubs = inboxThreadRepository.findTalentPostNotices("/ideas?post=$postId")
+            .filter { it.participants.size <= 1 }
+        if (stubs.isNotEmpty()) {
+            inboxThreadRepository.deleteAll(stubs)
+            inboxThreadRepository.flush()
+        }
+    }
 
     private fun openThread(
         subject: String,

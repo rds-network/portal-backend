@@ -165,7 +165,7 @@ interface AccountRepository : JpaRepository<Account, Int> {
     @Query("SELECT a.username FROM account a WHERE a.active = true AND a.groups @> jsonb_build_array(:group)", nativeQuery = true)
     fun findAllActiveUsernamesByGroup(@Param("group") group: String): List<String>
 
-    @Query("SELECT a.username FROM account a WHERE a.active = true", nativeQuery = true)
+    @Query("SELECT a.username FROM Account a WHERE a.active = true")
     fun findAllActiveUsernames(): List<String>
 
     /**
