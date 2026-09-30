@@ -126,14 +126,58 @@ class TalentService(
             TalentPostType.CAN_HELP -> "могут помочь"
             TalentPostType.PROJECT_IDEA -> "идея проекта"
         }
-        val recipients = accountRepository.findAllActiveUsernames()
-        inboxService.notifyTalentNewPost(
-            subject = "Идеи и таланты: $title",
-            body = "${account.fullName ?: account.username} разместил(а) объявление ($typeLabel):\n«$title»\n\n/ideas?post=${post.id}",
-            createdBy = account.username,
-            recipients = recipients,
-        )
+        try {
+            val recipients = accountRepository.findAllActiveUsernames()
+            inboxService.notifyTalentNewPost(
+                subject = "Идеи и таланты: $title",
+                body = "${account.fullName ?: account.username} разместил(а) объявление ($typeLabel):\n«$title»\n\n/ideas?post=${post.id}",
+                createdBy = account.username,
+                recipients = recipients,
+            )
+        } catch (ex: Exception) {
+            // Post must stay published even if inbox blast fails.
+            org.slf4j.LoggerFactory.getLogger(TalentService::class.java)
+                .warn("Could not broadcast talent post {} to inbox", post.id, ex)
+        }
         return toPostDto(post, account, account.fullName, emptyList())
+    }
+
+    /**
+     * One-shot for posts created before inbox broadcast existed.
+     * Safe to call repeatedly — skips posts that already have a TALENT_POST notice.
+     */
+    @Transactional
+    fun backfillInboxForOpenPosts(): Int {
+        val open = talentPostRepository.findAll(
+            TalentPostSpecs.search(
+                type = null,
+                status = TalentPostStatus.OPEN,
+                q = null,
+                city = null,
+                programCode = null,
+            ),
+        )
+        if (open.isEmpty()) return 0
+        val recipients = accountRepository.findAllActiveUsernames()
+        var sent = 0
+        open.forEach { post ->
+            if (inboxService.hasTalentPostNotice(post.id!!)) return@forEach
+            val typeLabel = when (post.type) {
+                TalentPostType.NEED_PEOPLE -> "ищут людей"
+                TalentPostType.CAN_HELP -> "могут помочь"
+                TalentPostType.PROJECT_IDEA -> "идея проекта"
+            }
+            val authorName = accountRepository.findByUsername(post.authorUsername).orElse(null)?.fullName
+                ?: post.authorUsername
+            inboxService.notifyTalentNewPost(
+                subject = "Идеи и таланты: ${post.title}",
+                body = "$authorName разместил(а) объявление ($typeLabel):\n«${post.title}»\n\n/ideas?post=${post.id}",
+                createdBy = post.authorUsername,
+                recipients = recipients,
+            )
+            sent += 1
+        }
+        return sent
     }
 
     @Transactional(readOnly = true)

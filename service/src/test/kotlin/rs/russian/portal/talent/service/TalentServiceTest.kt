@@ -138,6 +138,26 @@ class TalentServiceTest {
     }
 
     @Test
+    fun `backfillInboxForOpenPosts skips posts that already have a notice`() {
+        val post = TalentPost(
+            id = UUID.randomUUID(),
+            type = TalentPostType.NEED_PEOPLE,
+            status = TalentPostStatus.OPEN,
+            title = "Need help",
+            body = "body",
+            authorUsername = author.username,
+        )
+        every {
+            talentPostRepository.findAll(any<org.springframework.data.jpa.domain.Specification<TalentPost>>())
+        } returns listOf(post)
+        every { accountRepository.findAllActiveUsernames() } returns listOf("author", "helper")
+        every { inboxService.hasTalentPostNotice(post.id!!) } returns true
+
+        assertEquals(0, service.backfillInboxForOpenPosts())
+        verify(exactly = 0) { inboxService.notifyTalentNewPost(any(), any(), any(), any()) }
+    }
+
+    @Test
     fun `createResponse notifies post author via inbox`() {
         every { currentUserLogin() } returns responder.username
         every { accountService.getCurrentAccount() } returns responder
