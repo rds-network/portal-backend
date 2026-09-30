@@ -379,7 +379,8 @@ class InboxService(
     }
 
     /**
-     * One thread for a new Ideas & Talents post — all [recipients] get unread (author stays read).
+     * One shared thread for a new Ideas & Talents post — all active users participate,
+     * everyone except the author gets unread=true.
      */
     @Transactional
     fun notifyTalentNewPost(
@@ -388,7 +389,9 @@ class InboxService(
         createdBy: String,
         recipients: Collection<String>,
     ) {
-        val people = (recipients + createdBy)
+        val author = createdBy.trim()
+        if (author.isEmpty()) return
+        val people = (recipients + author)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinctBy { it.lowercase() }
@@ -396,11 +399,11 @@ class InboxService(
         val thread = InboxThread(
             subject = subject,
             kind = InboxThread.KIND_TALENT_POST,
-            createdBy = createdBy,
+            createdBy = author,
             recipient = null,
         )
         people.forEach { login ->
-            val isAuthor = login.equals(createdBy, ignoreCase = true)
+            val isAuthor = login.equals(author, ignoreCase = true)
             thread.participants.add(
                 InboxParticipant(
                     thread = thread,
@@ -410,9 +413,13 @@ class InboxService(
                 )
             )
         }
-        thread.messages.add(InboxMessage(thread = thread, author = createdBy, body = body))
+        thread.messages.add(InboxMessage(thread = thread, author = author, body = body))
         inboxThreadRepository.save(thread)
     }
+
+    @Transactional(readOnly = true)
+    fun hasTalentPostNotice(postId: UUID): Boolean =
+        inboxThreadRepository.countTalentPostNotices("/ideas?post=$postId") > 0
 
     private fun openThread(
         subject: String,

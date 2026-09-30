@@ -12,11 +12,21 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
         """
         SELECT DISTINCT t FROM InboxThread t
         JOIN t.participants p
-        WHERE p.username = :username
+        WHERE LOWER(p.username) = LOWER(:username)
         ORDER BY t.createTime DESC
         """
     )
     fun findAllForUser(@Param("username") username: String): List<InboxThread>
+
+    @Query(
+        """
+        SELECT COUNT(t) FROM InboxThread t
+        JOIN t.messages m
+        WHERE t.kind = 'TALENT_POST'
+          AND m.body LIKE CONCAT('%', :needle, '%')
+        """
+    )
+    fun countTalentPostNotices(@Param("needle") needle: String): Long
 
     @Query(
         """
@@ -30,7 +40,7 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
         """
         SELECT COUNT(p) FROM InboxParticipant p
         JOIN p.thread t
-        WHERE p.username = :username AND p.unread = true
+        WHERE LOWER(p.username) = LOWER(:username) AND p.unread = true
           AND (
             t.kind <> 'LEAVE_REQUEST'
             OR LOWER(:username) = LOWER(:leaveApprover)
