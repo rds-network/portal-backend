@@ -43,3 +43,6 @@ out/
 volumes/
 
 .tasks
+
+service/hs_err_pid*.log
+
