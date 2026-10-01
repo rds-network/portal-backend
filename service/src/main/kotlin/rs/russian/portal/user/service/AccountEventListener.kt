@@ -1,32 +1,31 @@
 package rs.russian.portal.user.service
 
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Profile
+import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.event.TransactionalEventListener
-import org.thymeleaf.TemplateEngine
-import org.thymeleaf.context.Context
-import rs.russian.portal.mail.service.EmailService
 import rs.russian.portal.user.event.UserCreatedEvent
-import rs.russian.portal.user.service.authentik.AuthentikService
 
+/**
+ * Legacy hook for [UserCreatedEvent].
+ *
+ * Welcome email for application completion is sent explicitly from
+ * [rs.russian.portal.application.service.ApplicationEventListener] (nested AFTER_COMMIT
+ * listeners were dropping invites). Admin-created users are invited from
+ * [AccountService.create].
+ *
+ * Kept so existing Spring wiring / tests that expect the bean still resolve; no-op by design.
+ */
 @Component
 @Profile("!local")
-class AccountEventListener(
-    private val emailService: EmailService,
-    private val accountService: AccountService,
-    private val templateEngine: TemplateEngine,
-    private val authentikService: AuthentikService
-) {
+class AccountEventListener {
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    @TransactionalEventListener(fallbackExecution = true)
+    @EventListener
     fun handleUserCreation(event: UserCreatedEvent) {
-        val account = accountService.getAccount(event.id)
-        val recoveryLink = authentikService.createRecoveryLink(account)
-        val message = templateEngine.process("account_created",
-            Context().also { it.setVariables(mapOf("link" to recoveryLink)) })
-        emailService.sendCommonEmail(account, "Учетная запись", message)
+        log.debug("UserCreatedEvent id={} (welcome email handled by caller)", event.id)
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(AccountEventListener::class.java)
     }
 }

@@ -47,6 +47,7 @@ class AccountServiceDepersonalizationResetTest {
             accountRepository,
             mockk(relaxed = true),
             authentikUserService,
+            mockk(relaxed = true), // accountInviteService
             mockk(relaxed = true),
             mockk(relaxed = true),
         )

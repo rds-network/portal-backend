@@ -5,6 +5,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import rs.russian.generated.model.ContractTypeEnum
 import rs.russian.portal.accountstatus.domain.enums.AccountStatusEventSource
 import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.application.domain.Application
@@ -15,13 +16,16 @@ import rs.russian.portal.application.mapper.ApplicationMapper
 import rs.russian.portal.mail.service.EmailService
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.mapper.ContractMapper
+import rs.russian.portal.user.service.AccountInviteService
 import rs.russian.portal.user.service.AccountService
+import java.time.LocalDate
 import java.util.UUID
 
 class ApplicationEventListenerTest {
 
     private lateinit var emailService: EmailService
     private lateinit var accountService: AccountService
+    private lateinit var accountInviteService: AccountInviteService
     private lateinit var accountStatusService: AccountStatusService
     private lateinit var contractMapper: ContractMapper
     private lateinit var applicationMapper: ApplicationMapper
@@ -32,6 +36,7 @@ class ApplicationEventListenerTest {
     fun setUp() {
         emailService = mockk(relaxed = true)
         accountService = mockk(relaxed = true)
+        accountInviteService = mockk(relaxed = true)
         accountStatusService = mockk(relaxed = true)
         contractMapper = mockk(relaxed = true)
         applicationMapper = mockk(relaxed = true)
@@ -39,6 +44,7 @@ class ApplicationEventListenerTest {
         listener = ApplicationEventListener(
             emailService,
             accountService,
+            accountInviteService,
             accountStatusService,
             contractMapper,
             mockk(relaxed = true),
@@ -78,9 +84,9 @@ class ApplicationEventListenerTest {
             name = "Ivan",
             status = ApplicationStatus.DONE,
             type = ApplicationType.PROLONGATION,
-            contractFrom = java.time.LocalDate.now(),
-            contractUntil = java.time.LocalDate.now().plusYears(1),
-            contractType = rs.russian.generated.model.ContractTypeEnum.REGULAR,
+            contractFrom = LocalDate.now(),
+            contractUntil = LocalDate.now().plusYears(1),
+            contractType = ContractTypeEnum.REGULAR,
         )
         val account = Account(
             id = 42,
@@ -105,5 +111,66 @@ class ApplicationEventListenerTest {
             )
         }
         verify { accountService.updateContracts(42, any()) }
+    }
+
+    @Test
+    fun `NEW application creates account when missing`() {
+        val id = UUID.randomUUID()
+        val application = Application(
+            id = id,
+            email = "natakassandra@gmail.com",
+            name = "Natalya",
+            status = ApplicationStatus.DONE,
+            type = ApplicationType.NEW,
+            contractFrom = LocalDate.now(),
+            contractUntil = LocalDate.now().plusYears(1),
+            contractType = ContractTypeEnum.ASSOCIATED,
+        )
+        val account = Account(
+            id = 7,
+            username = "natakassandra",
+            email = "natakassandra@gmail.com",
+            fullName = "Natalya",
+        )
+        every { applicationService.get(id) } returns application
+        every { accountService.findAccountByEmail("natakassandra@gmail.com") } returns null
+        every { accountService.create("natakassandra@gmail.com", "Natalya") } returns account
+        every { applicationMapper.mapToInfo(application, account) } returns mockk(relaxed = true)
+
+        listener.handleApplicationStatusChange(ApplicationUpdateEvent(id))
+
+        verify { accountService.create("natakassandra@gmail.com", "Natalya") }
+        verify { accountService.updateContracts(7, any()) }
+        verify { accountInviteService.sendWelcomeEmail(account) }
+    }
+
+    @Test
+    fun `NEW application with existing account re-sends welcome email`() {
+        val id = UUID.randomUUID()
+        val application = Application(
+            id = id,
+            email = "natakassandra@gmail.com",
+            name = "Natalya",
+            status = ApplicationStatus.DONE,
+            type = ApplicationType.NEW,
+            contractFrom = LocalDate.now(),
+            contractUntil = LocalDate.now().plusYears(1),
+            contractType = ContractTypeEnum.ASSOCIATED,
+        )
+        val account = Account(
+            id = 7,
+            username = "natakassandra",
+            email = "natakassandra@gmail.com",
+            fullName = "Natalya",
+        )
+        every { applicationService.get(id) } returns application
+        every { accountService.findAccountByEmail("natakassandra@gmail.com") } returns account
+        every { applicationMapper.mapToInfo(application, account) } returns mockk(relaxed = true)
+
+        listener.handleApplicationStatusChange(ApplicationUpdateEvent(id))
+
+        verify(exactly = 0) { accountService.create(any(), any()) }
+        verify { accountService.updateContracts(7, any()) }
+        verify { accountInviteService.sendWelcomeEmail(account) }
     }
 }

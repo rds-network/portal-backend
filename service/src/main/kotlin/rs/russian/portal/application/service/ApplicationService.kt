@@ -117,6 +117,12 @@ class ApplicationService(
         if (application.status == DONE && application.contractFrom == null) {
             throw InvalidRequestException("Contract dates not specified")
         }
+        if (application.status == DONE && application.contractUntil == null) {
+            throw InvalidRequestException("Contract end date not specified")
+        }
+        if (application.status == DONE && application.contractType == null) {
+            throw InvalidRequestException("Contract type not specified")
+        }
         if (application.status == DONE && (application.program == null || application.project == null)) {
             throw InvalidRequestException("Program and project must be specified before completing the application")
         }

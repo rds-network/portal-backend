@@ -48,6 +48,7 @@ class AccountService(
     private val accountRepository: AccountRepository,
     private val secondaryProgramRepository: UserSecondaryProgramRepository,
     private val authentikUserService: AuthentikService,
+    private val accountInviteService: AccountInviteService,
     private val entityManager: EntityManager,
     private val sessionService: SessionService,
 ) {
@@ -88,6 +89,11 @@ class AccountService(
         account.info = UserInfo.default(account)
         account.contracts = mutableSetOf(userMapper.map(request.contract, account))
         account = accountRepository.saveAndFlush(account)
+        try {
+            accountInviteService.sendWelcomeEmail(account)
+        } catch (ex: Exception) {
+            log.error("Welcome email failed for admin-created account {}", account.email, ex)
+        }
         return account
     }
 
