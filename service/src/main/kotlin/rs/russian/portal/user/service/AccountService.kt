@@ -71,8 +71,16 @@ class AccountService(
         return accountRepository.findByEmail(email).orElse(null)
     }
 
-    @Transactional(readOnly = true)
-    fun getCurrentAccount(): Account = getAccountByLogin(currentUserLogin() ?: throw NotAuthorizedException())
+    /**
+     * Loads the signed-in account and refreshes [Account.fullName] from Authentik when it drifted
+     * (e.g. user changed Name in id.russian.rs without waiting for the nightly sync / re-login).
+     */
+    @Transactional
+    fun getCurrentAccount(): Account {
+        val account = getAccountByLogin(currentUserLogin() ?: throw NotAuthorizedException())
+        refreshFullNameFromAuthentik(account)
+        return account
+    }
 
     @Transactional
     fun save(account: Account): Account {
@@ -109,15 +117,17 @@ class AccountService(
             throw OAuth2AuthenticationException(OAuth2Error("access_denied"))
         }
         val id = ssoUser.pk
+        // Prefer Authentik API payload over OIDC claims: Name edited in the SSO UI is reflected
+        // in the API immediately, while an already-issued ID token may still carry the old name.
         accountRepository.findById(id).ifPresentOrElse({
             if (!it.active || isDepersonalized(it)) {
                 throw OAuth2AuthenticationException(OAuth2Error("access_denied"))
             }
-            userMapper.update(oidcUser.userInfo, it)
+            userMapper.update(ssoUser, it)
             it.info = it.info ?: UserInfo.default(it)
             accountRepository.saveAndFlush(it)
         }, {
-            val account = userMapper.map(oidcUser.userInfo)
+            val account = userMapper.map(ssoUser)
             account.id = id
             account.info = UserInfo.default(account)
             accountRepository.saveAndFlush(account)
@@ -151,6 +161,29 @@ class AccountService(
             return true
         }
         return false
+    }
+
+    /** Pull display name from Authentik when the portal copy is behind the SSO UI. */
+    private fun refreshFullNameFromAuthentik(account: Account) {
+        if (isDepersonalized(account)) return
+        try {
+            val ssoUser = account.id?.let { authentikUserService.getUser(it) }
+                ?: account.email.takeIf { it.isNotBlank() }?.let { authentikUserService.getUser(it) }
+                ?: return
+            val newName = ssoUser.name?.trim().orEmpty()
+            if (newName.isNotBlank() && newName != account.fullName) {
+                log.info(
+                    "Refreshing fullName for {} from Authentik: '{}' -> '{}'",
+                    account.username,
+                    account.fullName,
+                    newName,
+                )
+                account.fullName = newName
+                accountRepository.saveAndFlush(account)
+            }
+        } catch (ex: Exception) {
+            log.warn("Could not refresh fullName from Authentik for {}", account.username, ex)
+        }
     }
 
     @Transactional(readOnly = true)
