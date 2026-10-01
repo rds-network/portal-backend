@@ -43,6 +43,7 @@ class ReportServiceDecisionNotifyTest {
         programCuratorService = mockk(relaxed = true),
         programRepository = mockk(relaxed = true),
         projectRepository = mockk(relaxed = true),
+        achievementsService = mockk(relaxed = true),
     )
 
     private val volunteer = Account(
