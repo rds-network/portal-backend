@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.52.0-volunteer-point-event
+      author: portal
+      changes:
+        - createTable:
+            tableName: volunteer_point_event
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_volunteer_point_event
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_volunteer_point_event_username
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: code
+                  type: VARCHAR(64)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: points
+                  type: INT
+              - column:
+                  name: ref_id
+                  type: VARCHAR(128)
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+        - createIndex:
+            tableName: volunteer_point_event
+            indexName: idx_vpe_username_created
+            columns:
+              - column:
+                  name: username
+              - column:
+                  name: created_at
+        - addUniqueConstraint:
+            tableName: volunteer_point_event
+            columnNames: username, code, ref_id
+            constraintName: uq_vpe_username_code_ref

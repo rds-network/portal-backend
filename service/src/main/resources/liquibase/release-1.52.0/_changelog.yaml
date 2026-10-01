@@ -1,0 +1,3 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.52.0/volunteer-point-event.yaml

@@ -105,4 +105,26 @@ interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
         @Param("username") username: String,
         @Param("leaveApprover") leaveApprover: String,
     ): Long
+
+    /** Threads I created (as author) — for delivery accounting. */
+    @Query(
+        """
+        SELECT COUNT(t) FROM InboxThread t
+        WHERE LOWER(t.createdBy) = LOWER(:username)
+          AND t.kind = 'MANUAL'
+        """
+    )
+    fun countManualSentBy(@Param("username") username: String): Long
+
+    @Query(
+        """
+        SELECT COUNT(t) FROM InboxThread t
+        JOIN t.participants p
+        WHERE LOWER(t.createdBy) = LOWER(:username)
+          AND t.kind = 'MANUAL'
+          AND LOWER(p.username) = LOWER(t.recipient)
+          AND p.receivedAt IS NOT NULL
+        """
+    )
+    fun countManualDeliveredBy(@Param("username") username: String): Long
 }
