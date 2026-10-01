@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional
 import rs.russian.generated.model.NoteDto
 import rs.russian.generated.model.ReportDto
 import rs.russian.generated.model.ReportFilter
+import rs.russian.portal.achievements.service.AchievementsService
 import rs.russian.portal.file.service.FileService
 import rs.russian.portal.note.domain.Note
 import rs.russian.portal.note.domain.enums.EntityType
@@ -49,6 +50,7 @@ class ReportService(
     private val programCuratorService: ProgramCuratorService,
     private val programRepository: ProgramRepository,
     private val projectRepository: ProjectRepository,
+    private val achievementsService: AchievementsService,
 ) {
 
     @Transactional(readOnly = true)
@@ -206,6 +208,9 @@ class ReportService(
         workAssignmentService.markFromReport(report)
         if (status == ReportStatus.ACCEPTED || status == ReportStatus.REJECTED) {
             notifyReportDecision(report, status, noteText, moderator.username)
+        }
+        if (status == ReportStatus.ACCEPTED && noteText.isNullOrBlank()) {
+            report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
         }
     }
 

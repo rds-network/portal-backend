@@ -104,4 +104,6 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         @Param("controller") controller: String,
         @Param("status") status: ReportStatus?,
     ): Long
+
+    fun countByAccountUsernameIgnoreCaseAndStatus(username: String, status: ReportStatus): Long
 }
