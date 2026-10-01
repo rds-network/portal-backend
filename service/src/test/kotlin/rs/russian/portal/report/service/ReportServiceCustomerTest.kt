@@ -40,6 +40,7 @@ class ReportServiceCustomerTest {
         programCuratorService = programCuratorService,
         programRepository = mockk(relaxed = true),
         projectRepository = mockk(relaxed = true),
+        achievementsService = mockk(relaxed = true),
     )
 
     @Test
