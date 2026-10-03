@@ -171,6 +171,10 @@ class AchievementsService(
     @Transactional(readOnly = true)
     fun balanceOf(username: String): Long = pointEvents.sumPoints(username)
 
+    @Transactional(readOnly = true)
+    fun listMissionClaimEvents(): List<VolunteerPointEvent> =
+        pointEvents.findTop200ByCodeOrderByCreatedAtDesc(CODE_MISSION_CLAIM)
+
     @Transactional
     fun claimMission(
         username: String,
