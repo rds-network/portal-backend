@@ -64,7 +64,9 @@ class ReportController(
         reportService.changeStatus(
             id,
             ReportStatus.valueOf(changeReportStatusRequest.status),
-            changeReportStatusRequest.note
+            changeReportStatusRequest.note,
+            changeReportStatusRequest.gratitude == true,
+            changeReportStatusRequest.managerGratitude == true,
         )
         return ResponseEntity.ok().build()
     }

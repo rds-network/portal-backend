@@ -186,7 +186,13 @@ class ReportService(
     }
 
     @Transactional
-    fun changeStatus(reportId: UUID, status: ReportStatus, noteText: String? = null) {
+    fun changeStatus(
+        reportId: UUID,
+        status: ReportStatus,
+        noteText: String? = null,
+        curatorGratitude: Boolean = false,
+        managerGratitude: Boolean = false,
+    ) {
         val report = getReport(reportId)
         val moderator = accountService.getAccountByLogin(currentUserLogin() ?: throw NotAuthorizedException())
         if (!canModerate(report, moderator.username, moderator.groups)) {
@@ -212,7 +218,16 @@ class ReportService(
         if (status == ReportStatus.ACCEPTED && noteText.isNullOrBlank()) {
             report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
         }
+        if (status == ReportStatus.ACCEPTED && curatorGratitude) {
+            report.id?.let { achievementsService.onCuratorGratitude(report.account.username, it, moderator.username) }
+        }
+        if (status == ReportStatus.ACCEPTED && managerGratitude && canAwardManagerGratitude(moderator.groups)) {
+            report.id?.let { achievementsService.onManagerGratitude(report.account.username, it, moderator.username) }
+        }
     }
+
+    private fun canAwardManagerGratitude(groups: Set<UserGroup>): Boolean =
+        groups.any { it == UserGroup.ADMIN || it == UserGroup.ADMIN_SSO || it == UserGroup.ADMIN_VOLUNTEER || it == UserGroup.MAIN_VOLUNTEER }
 
     private fun notifyReportDecision(
         report: Report,

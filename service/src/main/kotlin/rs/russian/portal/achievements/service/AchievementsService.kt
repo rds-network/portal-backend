@@ -48,6 +48,8 @@ class AchievementsService(
         }
         val weeklyLogins = pointEvents.countByUsernameAndCode(login, CODE_WEEKLY_LOGIN)
         val cleanReports = pointEvents.countByUsernameAndCode(login, CODE_REPORT_CLEAN)
+        val curatorThanks = pointEvents.countByUsernameAndCode(login, CODE_CURATOR_GRATITUDE)
+        val managerThanks = pointEvents.countByUsernameAndCode(login, CODE_MANAGER_GRATITUDE)
         val account = accountRepository.findByUsername(login).orElse(null)
         val hasAvatar = account?.info?.avatar != null
         val acceptedCount =
@@ -56,6 +58,8 @@ class AchievementsService(
             val progress = when (def.kind) {
                 AchievementCatalog.Kind.WEEKLY_LOGINS -> weeklyLogins.toInt()
                 AchievementCatalog.Kind.CLEAN_REPORTS -> cleanReports.toInt()
+                AchievementCatalog.Kind.CURATOR_GRATITUDE -> curatorThanks.toInt()
+                AchievementCatalog.Kind.MANAGER_GRATITUDE -> managerThanks.toInt()
                 AchievementCatalog.Kind.HAS_AVATAR -> if (hasAvatar) 1 else 0
                 AchievementCatalog.Kind.ANY_ACCEPTED_REPORT -> acceptedCount.toInt().coerceAtMost(1)
                 AchievementCatalog.Kind.POSITIVE_BALANCE -> if (balance > 0) 1 else 0
@@ -133,6 +137,28 @@ class AchievementsService(
             points = 5,
             refId = reportId.toString(),
             title = "Отчёт принят без замечаний",
+        )
+    }
+
+    @Transactional
+    fun onCuratorGratitude(username: String, reportId: UUID, awardedBy: String) {
+        award(
+            username = username,
+            code = CODE_CURATOR_GRATITUDE,
+            points = 15,
+            refId = reportId.toString(),
+            title = "Благодарность куратора ($awardedBy)",
+        )
+    }
+
+    @Transactional
+    fun onManagerGratitude(username: String, reportId: UUID, awardedBy: String) {
+        award(
+            username = username,
+            code = CODE_MANAGER_GRATITUDE,
+            points = 40,
+            refId = reportId.toString(),
+            title = "Благодарность руководителя ($awardedBy)",
         )
     }
 
@@ -215,6 +241,8 @@ class AchievementsService(
         const val CODE_WEEKLY_LOGIN = "WEEKLY_LOGIN"
         const val CODE_WEEKLY_MISS = "WEEKLY_MISS"
         const val CODE_REPORT_CLEAN = "REPORT_CLEAN"
+        const val CODE_CURATOR_GRATITUDE = "CURATOR_GRATITUDE"
+        const val CODE_MANAGER_GRATITUDE = "MANAGER_GRATITUDE"
 
         private val weekFields = WeekFields.of(Locale("ru", "RU"))
 
