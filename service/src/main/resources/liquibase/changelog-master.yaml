@@ -107,3 +107,5 @@ databaseChangeLog:
       file: liquibase/release-1.51.0/_changelog.yaml
   - include:
       file: liquibase/release-1.52.0/_changelog.yaml
+  - include:
+      file: liquibase/release-1.53.0/_changelog.yaml

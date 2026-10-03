@@ -162,6 +162,35 @@ class AchievementsService(
         )
     }
 
+    data class MissionClaimResult(val balance: Long, val alreadyClaimed: Boolean)
+
+    @Transactional(readOnly = true)
+    fun hasMissionClaim(username: String, missionId: UUID): Boolean =
+        pointEvents.existsByUsernameAndCodeAndRefId(username, CODE_MISSION_CLAIM, missionId.toString())
+
+    @Transactional
+    fun claimMission(
+        username: String,
+        missionId: UUID,
+        points: Int,
+        title: String,
+        oneTime: Boolean,
+    ): MissionClaimResult {
+        val ref = missionId.toString()
+        if (oneTime && pointEvents.existsByUsernameAndCodeAndRefId(username, CODE_MISSION_CLAIM, ref)) {
+            return MissionClaimResult(balance = pointEvents.sumPoints(username), alreadyClaimed = true)
+        }
+        val refKey = if (oneTime) ref else "${ref}-${System.currentTimeMillis()}"
+        award(
+            username = username,
+            code = CODE_MISSION_CLAIM,
+            points = points,
+            refId = refKey,
+            title = "Миссия: $title",
+        )
+        return MissionClaimResult(balance = pointEvents.sumPoints(username), alreadyClaimed = false)
+    }
+
     @Transactional
     fun settlePreviousWeekForAllActive() {
         val prev = previousIsoWeek(currentIsoWeek())
@@ -243,6 +272,7 @@ class AchievementsService(
         const val CODE_REPORT_CLEAN = "REPORT_CLEAN"
         const val CODE_CURATOR_GRATITUDE = "CURATOR_GRATITUDE"
         const val CODE_MANAGER_GRATITUDE = "MANAGER_GRATITUDE"
+        const val CODE_MISSION_CLAIM = "MISSION_CLAIM"
 
         private val weekFields = WeekFields.of(Locale("ru", "RU"))
 

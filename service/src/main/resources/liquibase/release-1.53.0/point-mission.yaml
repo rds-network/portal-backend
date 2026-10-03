@@ -1,0 +1,122 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.53.0-point-mission
+      author: portal
+      changes:
+        - createTable:
+            tableName: point_mission
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_point_mission
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: title
+                  type: VARCHAR(200)
+              - column:
+                  name: description
+                  type: VARCHAR(1000)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: points
+                  type: INT
+              - column:
+                  name: link
+                  type: VARCHAR(1000)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  constraints:
+                    nullable: false
+                  name: one_time
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  constraints:
+                    nullable: false
+                  name: sort_order
+                  type: INT
+                  defaultValueNumeric: 0
+              - column:
+                  name: created_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+        - createIndex:
+            tableName: point_mission
+            indexName: idx_point_mission_active_sort
+            columns:
+              - column:
+                  name: active
+              - column:
+                  name: sort_order
+        - insert:
+            tableName: point_mission
+            columns:
+              - column:
+                  name: id
+                  value: "a1000000-0000-4000-8000-000000000001"
+              - column:
+                  name: title
+                  value: "Подписка на Instagram"
+              - column:
+                  name: description
+                  value: "Подпишитесь на официальный Instagram и нажмите «Получить баллы». Ссылку можно поменять в админке миссий."
+              - column:
+                  name: points
+                  valueNumeric: 20
+              - column:
+                  name: link
+                  value: "https://www.instagram.com/"
+              - column:
+                  name: active
+                  valueBoolean: true
+              - column:
+                  name: one_time
+                  valueBoolean: true
+              - column:
+                  name: sort_order
+                  valueNumeric: 10
+              - column:
+                  name: created_at
+                  valueComputed: CURRENT_TIMESTAMP
+        - insert:
+            tableName: point_mission
+            columns:
+              - column:
+                  name: id
+                  value: "a1000000-0000-4000-8000-000000000002"
+              - column:
+                  name: title
+                  value: "Пройти опрос"
+              - column:
+                  name: description
+                  value: "Пройдите опрос по ссылке (добавьте URL в админке миссий) и отметьте выполнение."
+              - column:
+                  name: points
+                  valueNumeric: 25
+              - column:
+                  name: active
+                  valueBoolean: false
+              - column:
+                  name: one_time
+                  valueBoolean: true
+              - column:
+                  name: sort_order
+                  valueNumeric: 20
+              - column:
+                  name: created_at
+                  valueComputed: CURRENT_TIMESTAMP
