@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.54.0-point-mission-visual
+      author: portal
+      changes:
+        - addColumn:
+            tableName: point_mission
+            columns:
+              - column:
+                  name: visual_type
+                  type: VARCHAR(20)
+                  defaultValue: PICTOGRAM
+                  constraints:
+                    nullable: false
+              - column:
+                  name: visual_key
+                  type: VARCHAR(40)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: image_url
+                  type: VARCHAR(1024)
+                  constraints:
+                    nullable: true

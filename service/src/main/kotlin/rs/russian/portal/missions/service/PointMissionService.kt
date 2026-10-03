@@ -37,6 +37,7 @@ class PointMissionService(
     fun create(request: PointMissionWriteRequest): PointMissionDto {
         assertCanManage()
         val login = currentUserLogin() ?: throw NotAuthorizedException()
+        val visual = normalizeVisual(request.visualType, request.visualKey, request.imageUrl)
         val entity = PointMission(
             title = request.title.trim(),
             description = request.description?.trim()?.takeIf { it.isNotEmpty() },
@@ -45,6 +46,9 @@ class PointMissionService(
             active = request.active,
             oneTime = request.oneTime,
             sortOrder = request.sortOrder,
+            visualType = visual.type,
+            visualKey = visual.key,
+            imageUrl = visual.imageUrl,
             createdBy = login,
         )
         return toDto(missions.save(entity), null)
@@ -54,6 +58,7 @@ class PointMissionService(
     fun update(id: UUID, request: PointMissionWriteRequest): PointMissionDto {
         assertCanManage()
         val entity = missions.findById(id).orElseThrow { InvalidRequestException("Mission not found") }
+        val visual = normalizeVisual(request.visualType, request.visualKey, request.imageUrl)
         entity.title = request.title.trim()
         entity.description = request.description?.trim()?.takeIf { it.isNotEmpty() }
         entity.points = validatePoints(request.points)
@@ -61,6 +66,9 @@ class PointMissionService(
         entity.active = request.active
         entity.oneTime = request.oneTime
         entity.sortOrder = request.sortOrder
+        entity.visualType = visual.type
+        entity.visualKey = visual.key
+        entity.imageUrl = visual.imageUrl
         return toDto(missions.save(entity), null)
     }
 
@@ -104,8 +112,43 @@ class PointMissionService(
             active = mission.active,
             oneTime = mission.oneTime,
             sortOrder = mission.sortOrder,
+            visualType = mission.visualType,
+            visualKey = mission.visualKey,
+            imageUrl = mission.imageUrl,
             claimed = claimed,
         )
+    }
+
+    private data class Visual(val type: String, val key: String?, val imageUrl: String?)
+
+    private fun normalizeVisual(typeRaw: String?, keyRaw: String?, imageRaw: String?): Visual {
+        val type = (typeRaw ?: "PICTOGRAM").trim().uppercase()
+        if (type !in ALLOWED_TYPES) {
+            throw InvalidRequestException("visualType must be PICTOGRAM, LOGO or COVER")
+        }
+        return when (type) {
+            "PICTOGRAM" -> {
+                val key = keyRaw?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: "star"
+                if (key !in ALLOWED_PICTOGRAMS) {
+                    throw InvalidRequestException("Unknown pictogram: $key")
+                }
+                Visual(type = type, key = key, imageUrl = null)
+            }
+            else -> {
+                val url = normalizeImageUrl(imageRaw)
+                    ?: throw InvalidRequestException("imageUrl is required for $type")
+                Visual(type = type, key = null, imageUrl = url)
+            }
+        }
+    }
+
+    private fun normalizeImageUrl(url: String?): String? {
+        val raw = url?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (!raw.startsWith("http://", ignoreCase = true) && !raw.startsWith("https://", ignoreCase = true)) {
+            throw InvalidRequestException("imageUrl must start with http:// or https://")
+        }
+        if (raw.length > 1024) throw InvalidRequestException("imageUrl is too long")
+        return raw
     }
 
     private fun validatePoints(points: Int): Int {
@@ -130,5 +173,23 @@ class PointMissionService(
             UserGroup.MAIN_VOLUNTEER,
         )
         if (roles.none { it in allowed }) throw NotAuthorizedException()
+    }
+
+    companion object {
+        private val ALLOWED_TYPES = setOf("PICTOGRAM", "LOGO", "COVER")
+        private val ALLOWED_PICTOGRAMS = setOf(
+            "instagram",
+            "survey",
+            "event",
+            "star",
+            "heart",
+            "users",
+            "book",
+            "leaf",
+            "handshake",
+            "gift",
+            "camera",
+            "link",
+        )
     }
 }
