@@ -2200,6 +2200,12 @@ components:
           nullable: false
         note:
           type: string
+        gratitude:
+          type: boolean
+          description: Award curator gratitude (+points) to the volunteer when accepting the report
+        managerGratitude:
+          type: boolean
+          description: Award manager gratitude (+points) — admins / main volunteers only
     UserSearchFilter:
       type: object
       nullable: false
