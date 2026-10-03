@@ -12,8 +12,14 @@ data class PointMissionDto(
     val visualType: String = "PICTOGRAM",
     val visualKey: String? = null,
     val imageUrl: String? = null,
-    /** For volunteer list: whether current user already claimed. */
+    val requiresReview: Boolean = true,
+    val proofLabel: String? = null,
+    /** For volunteer list: points already awarded. */
     val claimed: Boolean = false,
+    /** NONE | PENDING | APPROVED | REJECTED — latest submission for review missions. */
+    val submissionStatus: String? = null,
+    val proofText: String? = null,
+    val rejectReason: String? = null,
 )
 
 data class PointMissionWriteRequest(
@@ -27,6 +33,8 @@ data class PointMissionWriteRequest(
     val visualType: String? = "PICTOGRAM",
     val visualKey: String? = null,
     val imageUrl: String? = null,
+    val requiresReview: Boolean = true,
+    val proofLabel: String? = null,
 )
 
 data class PointMissionClaimResult(
@@ -34,4 +42,27 @@ data class PointMissionClaimResult(
     val points: Int,
     val balance: Long,
     val alreadyClaimed: Boolean,
+    val submissionStatus: String? = null,
+)
+
+data class PointMissionSubmitRequest(
+    val proofText: String,
+)
+
+data class PointMissionSubmissionDto(
+    val id: String,
+    val missionId: String,
+    val missionTitle: String,
+    val points: Int,
+    val username: String,
+    val proofText: String,
+    val status: String,
+    val rejectReason: String?,
+    val reviewedBy: String?,
+    val reviewedAt: String?,
+    val createdAt: String,
+)
+
+data class PointMissionRejectRequest(
+    val reason: String? = null,
 )

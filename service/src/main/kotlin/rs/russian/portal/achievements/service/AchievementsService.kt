@@ -168,6 +168,9 @@ class AchievementsService(
     fun hasMissionClaim(username: String, missionId: UUID): Boolean =
         pointEvents.existsByUsernameAndCodeAndRefId(username, CODE_MISSION_CLAIM, missionId.toString())
 
+    @Transactional(readOnly = true)
+    fun balanceOf(username: String): Long = pointEvents.sumPoints(username)
+
     @Transactional
     fun claimMission(
         username: String,

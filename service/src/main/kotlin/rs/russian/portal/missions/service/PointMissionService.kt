@@ -5,19 +5,27 @@ import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.achievements.service.AchievementsService
 import rs.russian.portal.missions.api.PointMissionClaimResult
 import rs.russian.portal.missions.api.PointMissionDto
+import rs.russian.portal.missions.api.PointMissionRejectRequest
+import rs.russian.portal.missions.api.PointMissionSubmissionDto
+import rs.russian.portal.missions.api.PointMissionSubmitRequest
 import rs.russian.portal.missions.api.PointMissionWriteRequest
 import rs.russian.portal.missions.domain.PointMission
+import rs.russian.portal.missions.domain.PointMissionSubmission
 import rs.russian.portal.missions.repository.PointMissionRepository
+import rs.russian.portal.missions.repository.PointMissionSubmissionRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.shared.security.currentUserRoles
 import rs.russian.portal.user.domain.enums.UserGroup
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
 class PointMissionService(
     private val missions: PointMissionRepository,
+    private val submissions: PointMissionSubmissionRepository,
     private val achievementsService: AchievementsService,
 ) {
 
@@ -31,6 +39,12 @@ class PointMissionService(
     fun listAdmin(): List<PointMissionDto> {
         assertCanManage()
         return missions.findAllByOrderBySortOrderAscCreatedAtAsc().map { toDto(it, null) }
+    }
+
+    @Transactional(readOnly = true)
+    fun listPendingSubmissions(): List<PointMissionSubmissionDto> {
+        assertCanManage()
+        return submissions.findByStatusOrderByCreatedAtAsc(STATUS_PENDING).mapNotNull { toSubmissionDto(it) }
     }
 
     @Transactional
@@ -49,6 +63,8 @@ class PointMissionService(
             visualType = visual.type,
             visualKey = visual.key,
             imageUrl = visual.imageUrl,
+            requiresReview = request.requiresReview,
+            proofLabel = request.proofLabel?.trim()?.takeIf { it.isNotEmpty() }?.take(200),
             createdBy = login,
         )
         return toDto(missions.save(entity), null)
@@ -69,6 +85,8 @@ class PointMissionService(
         entity.visualType = visual.type
         entity.visualKey = visual.key
         entity.imageUrl = visual.imageUrl
+        entity.requiresReview = request.requiresReview
+        entity.proofLabel = request.proofLabel?.trim()?.takeIf { it.isNotEmpty() }?.take(200)
         return toDto(missions.save(entity), null)
     }
 
@@ -79,11 +97,15 @@ class PointMissionService(
         missions.deleteById(id)
     }
 
+    /** Instant claim — only when mission does not require review. */
     @Transactional
     fun claim(id: UUID): PointMissionClaimResult {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         val mission = missions.findById(id).orElseThrow { InvalidRequestException("Mission not found") }
         if (!mission.active) throw InvalidRequestException("Mission is inactive")
+        if (mission.requiresReview) {
+            throw InvalidRequestException("This mission requires proof submission and moderator approval")
+        }
         val result = achievementsService.claimMission(
             username = login,
             missionId = mission.id,
@@ -96,13 +118,120 @@ class PointMissionService(
             points = mission.points,
             balance = result.balance,
             alreadyClaimed = result.alreadyClaimed,
+            submissionStatus = if (result.alreadyClaimed) STATUS_APPROVED else STATUS_APPROVED,
         )
     }
 
+    @Transactional
+    fun submit(id: UUID, request: PointMissionSubmitRequest): PointMissionClaimResult {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        val mission = missions.findById(id).orElseThrow { InvalidRequestException("Mission not found") }
+        if (!mission.active) throw InvalidRequestException("Mission is inactive")
+        if (!mission.requiresReview) {
+            throw InvalidRequestException("This mission does not require review — use claim")
+        }
+        val proof = request.proofText.trim()
+        if (proof.length < 2) throw InvalidRequestException("Proof text is required")
+        if (proof.length > 500) throw InvalidRequestException("Proof text is too long")
+
+        if (achievementsService.hasMissionClaim(login, mission.id)) {
+            return PointMissionClaimResult(
+                missionId = mission.id.toString(),
+                points = mission.points,
+                balance = achievementsService.balanceOf(login),
+                alreadyClaimed = true,
+                submissionStatus = STATUS_APPROVED,
+            )
+        }
+        if (submissions.existsByUsernameAndMissionIdAndStatus(login, mission.id, STATUS_PENDING)) {
+            throw InvalidRequestException("Submission already pending review")
+        }
+
+        submissions.save(
+            PointMissionSubmission(
+                missionId = mission.id,
+                username = login,
+                proofText = proof,
+                status = STATUS_PENDING,
+            )
+        )
+        return PointMissionClaimResult(
+            missionId = mission.id.toString(),
+            points = 0,
+            balance = achievementsService.balanceOf(login),
+            alreadyClaimed = false,
+            submissionStatus = STATUS_PENDING,
+        )
+    }
+
+    @Transactional
+    fun approveSubmission(submissionId: UUID): PointMissionSubmissionDto {
+        assertCanManage()
+        val reviewer = currentUserLogin() ?: throw NotAuthorizedException()
+        val submission = submissions.findById(submissionId)
+            .orElseThrow { InvalidRequestException("Submission not found") }
+        if (submission.status != STATUS_PENDING) {
+            throw InvalidRequestException("Submission is not pending")
+        }
+        val mission = missions.findById(submission.missionId)
+            .orElseThrow { InvalidRequestException("Mission not found") }
+
+        submission.status = STATUS_APPROVED
+        submission.reviewedBy = reviewer
+        submission.reviewedAt = LocalDateTime.now()
+        submission.rejectReason = null
+        submissions.save(submission)
+
+        achievementsService.claimMission(
+            username = submission.username,
+            missionId = mission.id,
+            points = mission.points,
+            title = mission.title,
+            oneTime = mission.oneTime,
+        )
+        return toSubmissionDto(submission)
+            ?: throw InvalidRequestException("Mission not found")
+    }
+
+    @Transactional
+    fun rejectSubmission(submissionId: UUID, request: PointMissionRejectRequest): PointMissionSubmissionDto {
+        assertCanManage()
+        val reviewer = currentUserLogin() ?: throw NotAuthorizedException()
+        val submission = submissions.findById(submissionId)
+            .orElseThrow { InvalidRequestException("Submission not found") }
+        if (submission.status != STATUS_PENDING) {
+            throw InvalidRequestException("Submission is not pending")
+        }
+        submission.status = STATUS_REJECTED
+        submission.reviewedBy = reviewer
+        submission.reviewedAt = LocalDateTime.now()
+        submission.rejectReason = request.reason?.trim()?.takeIf { it.isNotEmpty() }?.take(500)
+        submissions.save(submission)
+        return toSubmissionDto(submission)
+            ?: throw InvalidRequestException("Mission not found")
+    }
+
     private fun toDto(mission: PointMission, username: String?): PointMissionDto {
-        val claimed = username?.let {
-            achievementsService.hasMissionClaim(it, mission.id)
-        } ?: false
+        val claimed = username?.let { achievementsService.hasMissionClaim(it, mission.id) } ?: false
+        var submissionStatus: String? = null
+        var proofText: String? = null
+        var rejectReason: String? = null
+        if (username != null && mission.requiresReview) {
+            val latest = submissions.findFirstByUsernameAndMissionIdAndStatusInOrderByCreatedAtDesc(
+                username,
+                mission.id,
+                listOf(STATUS_PENDING, STATUS_APPROVED, STATUS_REJECTED),
+            )
+            if (latest != null) {
+                submissionStatus = latest.status
+                proofText = latest.proofText
+                rejectReason = latest.rejectReason
+            } else if (claimed) {
+                submissionStatus = STATUS_APPROVED
+            }
+        } else if (claimed) {
+            submissionStatus = STATUS_APPROVED
+        }
         return PointMissionDto(
             id = mission.id.toString(),
             title = mission.title,
@@ -115,7 +244,29 @@ class PointMissionService(
             visualType = mission.visualType,
             visualKey = mission.visualKey,
             imageUrl = mission.imageUrl,
+            requiresReview = mission.requiresReview,
+            proofLabel = mission.proofLabel,
             claimed = claimed,
+            submissionStatus = submissionStatus,
+            proofText = proofText,
+            rejectReason = rejectReason,
+        )
+    }
+
+    private fun toSubmissionDto(submission: PointMissionSubmission): PointMissionSubmissionDto? {
+        val mission = missions.findById(submission.missionId).orElse(null) ?: return null
+        return PointMissionSubmissionDto(
+            id = submission.id.toString(),
+            missionId = mission.id.toString(),
+            missionTitle = mission.title,
+            points = mission.points,
+            username = submission.username,
+            proofText = submission.proofText,
+            status = submission.status,
+            rejectReason = submission.rejectReason,
+            reviewedBy = submission.reviewedBy,
+            reviewedAt = submission.reviewedAt?.format(ISO),
+            createdAt = submission.createdAt.format(ISO),
         )
     }
 
@@ -176,6 +327,10 @@ class PointMissionService(
     }
 
     companion object {
+        private val ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+        private const val STATUS_PENDING = "PENDING"
+        private const val STATUS_APPROVED = "APPROVED"
+        private const val STATUS_REJECTED = "REJECTED"
         private val ALLOWED_TYPES = setOf("PICTOGRAM", "LOGO", "COVER")
         private val ALLOWED_PICTOGRAMS = setOf(
             "instagram",

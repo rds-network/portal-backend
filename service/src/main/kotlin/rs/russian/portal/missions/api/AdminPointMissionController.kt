@@ -27,6 +27,24 @@ class AdminPointMissionController(
     fun list(): ResponseEntity<List<PointMissionDto>> =
         ResponseEntity.ok(pointMissionService.listAdmin())
 
+    @GetMapping("/submissions/pending")
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    fun pendingSubmissions(): ResponseEntity<List<PointMissionSubmissionDto>> =
+        ResponseEntity.ok(pointMissionService.listPendingSubmissions())
+
+    @PostMapping("/submissions/{id}/approve")
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    fun approve(@PathVariable id: UUID): ResponseEntity<PointMissionSubmissionDto> =
+        ResponseEntity.ok(pointMissionService.approveSubmission(id))
+
+    @PostMapping("/submissions/{id}/reject")
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    fun reject(
+        @PathVariable id: UUID,
+        @RequestBody(required = false) request: PointMissionRejectRequest?,
+    ): ResponseEntity<PointMissionSubmissionDto> =
+        ResponseEntity.ok(pointMissionService.rejectSubmission(id, request ?: PointMissionRejectRequest()))
+
     @PostMapping
     @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     fun create(@RequestBody request: PointMissionWriteRequest): ResponseEntity<PointMissionDto> =
