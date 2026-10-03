@@ -13,7 +13,6 @@ interface AnnouncementRepository : JpaRepository<Announcement, UUID> {
     @Query("""
         SELECT * FROM announcement
         WHERE active = true
-          AND COALESCE(banner, false) = false
           AND (
             audience = 'ALL'
             OR (audience = 'PROGRAM' AND program_code = :programCode)
@@ -31,7 +30,6 @@ interface AnnouncementRepository : JpaRepository<Announcement, UUID> {
         LEFT JOIN announcement_read ar
             ON ar.announcement_id = a.id AND ar.account_id = :accountId
         WHERE a.active = true
-          AND COALESCE(a.banner, false) = false
           AND (
             a.audience = 'ALL'
             OR (a.audience = 'PROGRAM' AND a.program_code = :programCode)
