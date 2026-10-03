@@ -20,4 +20,6 @@ interface VolunteerPointEventRepository : JpaRepository<VolunteerPointEvent, UUI
     fun sumPoints(@Param("username") username: String): Long
 
     fun countByUsernameAndCode(username: String, code: String): Long
+
+    fun findTop200ByCodeOrderByCreatedAtDesc(code: String): List<VolunteerPointEvent>
 }

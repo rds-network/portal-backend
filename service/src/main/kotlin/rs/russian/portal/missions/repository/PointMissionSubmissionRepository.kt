@@ -18,5 +18,13 @@ interface PointMissionSubmissionRepository : JpaRepository<PointMissionSubmissio
 
     fun findByStatusOrderByCreatedAtAsc(status: String): List<PointMissionSubmission>
 
+    fun findByStatusOrderByReviewedAtDescCreatedAtDesc(status: String): List<PointMissionSubmission>
+
+    fun findFirstByUsernameAndMissionIdAndStatusOrderByReviewedAtDescCreatedAtDesc(
+        username: String,
+        missionId: UUID,
+        status: String,
+    ): PointMissionSubmission?
+
     fun existsByUsernameAndMissionIdAndStatus(username: String, missionId: UUID, status: String): Boolean
 }

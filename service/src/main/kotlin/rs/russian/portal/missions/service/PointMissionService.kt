@@ -3,6 +3,7 @@ package rs.russian.portal.missions.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.achievements.service.AchievementsService
+import rs.russian.portal.missions.api.PointMissionAwardDto
 import rs.russian.portal.missions.api.PointMissionClaimResult
 import rs.russian.portal.missions.api.PointMissionDto
 import rs.russian.portal.missions.api.PointMissionRejectRequest
@@ -45,6 +46,48 @@ class PointMissionService(
     fun listPendingSubmissions(): List<PointMissionSubmissionDto> {
         assertCanManage()
         return submissions.findByStatusOrderByCreatedAtAsc(STATUS_PENDING).mapNotNull { toSubmissionDto(it) }
+    }
+
+    @Transactional(readOnly = true)
+    fun listAwardHistory(): List<PointMissionAwardDto> {
+        assertCanManage()
+        return achievementsService.listMissionClaimEvents().map { event ->
+            val missionId = parseMissionId(event.refId)
+            val mission = missionId?.let { missions.findById(it).orElse(null) }
+            val submission = if (missionId != null) {
+                submissions.findFirstByUsernameAndMissionIdAndStatusOrderByReviewedAtDescCreatedAtDesc(
+                    event.username,
+                    missionId,
+                    STATUS_APPROVED,
+                )
+            } else {
+                null
+            }
+            PointMissionAwardDto(
+                id = event.id.toString(),
+                username = event.username,
+                missionId = missionId?.toString(),
+                missionTitle = mission?.title
+                    ?: event.title?.removePrefix("Миссия: ")?.trim()
+                    ?: event.code,
+                points = event.points,
+                proofText = submission?.proofText,
+                reviewedBy = submission?.reviewedBy,
+                awardedAt = event.createdAt.format(ISO),
+                source = if (submission != null) SOURCE_REVIEW else SOURCE_INSTANT,
+            )
+        }
+    }
+
+    private fun parseMissionId(refId: String?): UUID? {
+        if (refId.isNullOrBlank()) return null
+        // one-time: "<uuid>"; repeatable: "<uuid>-<timestamp>"
+        val candidate = if (refId.length > 36 && refId[36] == '-') refId.take(36) else refId
+        return try {
+            UUID.fromString(candidate)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     @Transactional
@@ -331,6 +374,8 @@ class PointMissionService(
         private const val STATUS_PENDING = "PENDING"
         private const val STATUS_APPROVED = "APPROVED"
         private const val STATUS_REJECTED = "REJECTED"
+        private const val SOURCE_REVIEW = "REVIEW"
+        private const val SOURCE_INSTANT = "INSTANT"
         private val ALLOWED_TYPES = setOf("PICTOGRAM", "LOGO", "COVER")
         private val ALLOWED_PICTOGRAMS = setOf(
             "instagram",

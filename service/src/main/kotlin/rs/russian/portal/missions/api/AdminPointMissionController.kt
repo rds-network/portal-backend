@@ -32,6 +32,11 @@ class AdminPointMissionController(
     fun pendingSubmissions(): ResponseEntity<List<PointMissionSubmissionDto>> =
         ResponseEntity.ok(pointMissionService.listPendingSubmissions())
 
+    @GetMapping("/awards")
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    fun awardHistory(): ResponseEntity<List<PointMissionAwardDto>> =
+        ResponseEntity.ok(pointMissionService.listAwardHistory())
+
     @PostMapping("/submissions/{id}/approve")
     @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     fun approve(@PathVariable id: UUID): ResponseEntity<PointMissionSubmissionDto> =

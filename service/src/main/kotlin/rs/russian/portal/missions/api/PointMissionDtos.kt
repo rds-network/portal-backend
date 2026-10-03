@@ -66,3 +66,17 @@ data class PointMissionSubmissionDto(
 data class PointMissionRejectRequest(
     val reason: String? = null,
 )
+
+/** Who received mission points (admin history). */
+data class PointMissionAwardDto(
+    val id: String,
+    val username: String,
+    val missionId: String?,
+    val missionTitle: String,
+    val points: Int,
+    val proofText: String?,
+    val reviewedBy: String?,
+    val awardedAt: String,
+    /** REVIEW = after moderator approval, INSTANT = claim without review */
+    val source: String,
+)
