@@ -46,6 +46,14 @@ class PointMission(
     @Column(name = "image_url", length = 1024)
     var imageUrl: String? = null,
 
+    /** If true, volunteer submits proof and moderator awards points. */
+    @Column(name = "requires_review", nullable = false)
+    var requiresReview: Boolean = true,
+
+    /** Hint for the proof field, e.g. "Ваш Instagram @ник". */
+    @Column(name = "proof_label", length = 200)
+    var proofLabel: String? = null,
+
     @Column(name = "created_by")
     var createdBy: String? = null,
 
