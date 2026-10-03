@@ -9,6 +9,9 @@ data class PointMissionDto(
     val active: Boolean,
     val oneTime: Boolean,
     val sortOrder: Int,
+    val visualType: String = "PICTOGRAM",
+    val visualKey: String? = null,
+    val imageUrl: String? = null,
     /** For volunteer list: whether current user already claimed. */
     val claimed: Boolean = false,
 )
@@ -21,6 +24,9 @@ data class PointMissionWriteRequest(
     val active: Boolean = true,
     val oneTime: Boolean = true,
     val sortOrder: Int = 0,
+    val visualType: String? = "PICTOGRAM",
+    val visualKey: String? = null,
+    val imageUrl: String? = null,
 )
 
 data class PointMissionClaimResult(

@@ -34,6 +34,18 @@ class PointMission(
     @Column(name = "sort_order", nullable = false)
     var sortOrder: Int = 0,
 
+    /** PICTOGRAM | LOGO | COVER */
+    @Column(name = "visual_type", nullable = false, length = 20)
+    var visualType: String = "PICTOGRAM",
+
+    /** Pictogram id from the shared set, when visualType = PICTOGRAM. */
+    @Column(name = "visual_key", length = 40)
+    var visualKey: String? = null,
+
+    /** Image URL for LOGO (circle) or COVER (rectangle). */
+    @Column(name = "image_url", length = 1024)
+    var imageUrl: String? = null,
+
     @Column(name = "created_by")
     var createdBy: String? = null,
 
