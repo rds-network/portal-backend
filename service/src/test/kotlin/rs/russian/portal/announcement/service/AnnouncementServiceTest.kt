@@ -8,6 +8,7 @@ import io.mockk.verify
 import jakarta.persistence.EntityNotFoundException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -23,9 +24,12 @@ import rs.russian.portal.announcement.repository.AnnouncementReadRepository
 import rs.russian.portal.announcement.repository.AnnouncementRepository
 import rs.russian.portal.program.domain.Program
 import rs.russian.portal.program.repository.ProgramRepository
+import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.service.AccountService
@@ -39,6 +43,7 @@ class AnnouncementServiceTest {
     private lateinit var announcementMapper: AnnouncementMapper
     private lateinit var accountService: AccountService
     private lateinit var programRepository: ProgramRepository
+    private lateinit var programCuratorService: ProgramCuratorService
     private lateinit var announcementService: AnnouncementService
 
     @BeforeEach
@@ -48,12 +53,14 @@ class AnnouncementServiceTest {
         announcementMapper = mockk()
         accountService = mockk()
         programRepository = mockk()
+        programCuratorService = mockk()
         announcementService = AnnouncementService(
             announcementRepository,
             announcementReadRepository,
             announcementMapper,
             accountService,
             programRepository,
+            programCuratorService,
         )
     }
 
@@ -71,7 +78,7 @@ class AnnouncementServiceTest {
         val result = announcementService.getForCurrentUser()
 
         assertTrue(result.isEmpty())
-        verify(exactly = 0) { announcementRepository.findForUser(any()) }
+        verify(exactly = 0) { announcementRepository.findForUser(any(), any()) }
     }
 
     @Test
@@ -82,13 +89,13 @@ class AnnouncementServiceTest {
 
         every { accountService.getCurrentAccount() } returns account
         every { announcementReadRepository.findAnnouncementIdsByAccountId(ACCOUNT_ID) } returns emptyList()
-        every { announcementRepository.findForUser(null) } returns listOf(announcement)
+        every { announcementRepository.findForUser(null, "user") } returns listOf(announcement)
         every { announcementMapper.map(announcement, false) } returns dto
 
         val result = announcementService.getForCurrentUser()
 
         assertEquals(listOf(dto), result)
-        verify(exactly = 1) { announcementRepository.findForUser(null) }
+        verify(exactly = 1) { announcementRepository.findForUser(null, "user") }
     }
 
     @Test
@@ -99,7 +106,7 @@ class AnnouncementServiceTest {
 
         every { accountService.getCurrentAccount() } returns account
         every { announcementReadRepository.findAnnouncementIdsByAccountId(ACCOUNT_ID) } returns listOf(announcement.id!!)
-        every { announcementRepository.findForUser(null) } returns listOf(announcement)
+        every { announcementRepository.findForUser(null, "user") } returns listOf(announcement)
         every { announcementMapper.map(announcement, true) } returns dto
 
         val result = announcementService.getForCurrentUser()
@@ -117,13 +124,13 @@ class AnnouncementServiceTest {
 
         every { accountService.getCurrentAccount() } returns account
         every { announcementReadRepository.findAnnouncementIdsByAccountId(ACCOUNT_ID) } returns emptyList()
-        every { announcementRepository.findForUser("IT") } returns listOf(announcement)
+        every { announcementRepository.findForUser("IT", "user") } returns listOf(announcement)
         every { announcementMapper.map(announcement, false) } returns dto
 
         val result = announcementService.getForCurrentUser()
 
         assertEquals(listOf(dto), result)
-        verify(exactly = 1) { announcementRepository.findForUser("IT") }
+        verify(exactly = 1) { announcementRepository.findForUser("IT", "user") }
     }
 
 
@@ -135,19 +142,19 @@ class AnnouncementServiceTest {
         val result = announcementService.getUnreadCount()
 
         assertEquals(UnreadAnnouncementsCountDto(0), result)
-        verify(exactly = 0) { announcementRepository.countUnreadForUser(any(), any()) }
+        verify(exactly = 0) { announcementRepository.countUnreadForUser(any(), any(), any()) }
     }
 
     @Test
     fun `getUnreadCount should return count from repository for active account without program`() {
         val account = account()
         every { accountService.getCurrentAccount() } returns account
-        every { announcementRepository.countUnreadForUser(null, ACCOUNT_ID) } returns 3L
+        every { announcementRepository.countUnreadForUser(null, "user", ACCOUNT_ID) } returns 3L
 
         val result = announcementService.getUnreadCount()
 
         assertEquals(UnreadAnnouncementsCountDto(3), result)
-        verify(exactly = 1) { announcementRepository.countUnreadForUser(null, ACCOUNT_ID) }
+        verify(exactly = 1) { announcementRepository.countUnreadForUser(null, "user", ACCOUNT_ID) }
     }
 
     @Test
@@ -155,12 +162,12 @@ class AnnouncementServiceTest {
         val program = program("IT")
         val account = accountWithProgram(program)
         every { accountService.getCurrentAccount() } returns account
-        every { announcementRepository.countUnreadForUser("IT", ACCOUNT_ID) } returns 5L
+        every { announcementRepository.countUnreadForUser("IT", "user", ACCOUNT_ID) } returns 5L
 
         val result = announcementService.getUnreadCount()
 
         assertEquals(UnreadAnnouncementsCountDto(5), result)
-        verify(exactly = 1) { announcementRepository.countUnreadForUser("IT", ACCOUNT_ID) }
+        verify(exactly = 1) { announcementRepository.countUnreadForUser("IT", "user", ACCOUNT_ID) }
     }
 
 
@@ -252,6 +259,8 @@ class AnnouncementServiceTest {
 
     @Test
     fun `create should throw InvalidRequestException when program code is not found`() {
+        mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { programRepository.findByCode("UNKNOWN") } returns null
 
         val request = AnnouncementCreateRequest(
@@ -268,6 +277,7 @@ class AnnouncementServiceTest {
     @Test
     fun `create should throw NotAuthorizedException when no authenticated user`() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { currentUserLogin() } returns null
 
         val request = AnnouncementCreateRequest(
@@ -283,6 +293,7 @@ class AnnouncementServiceTest {
     @Test
     fun `create should save announcement with ALL audience and trim whitespace`() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { currentUserLogin() } returns "admin"
 
         val saved = announcement(audience = AnnouncementAudience.ALL)
@@ -312,6 +323,7 @@ class AnnouncementServiceTest {
     @Test
     fun `create should save announcement with PROGRAM audience and resolved program`() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN)
         every { currentUserLogin() } returns "admin"
 
         val program = program("IT")
@@ -336,6 +348,48 @@ class AnnouncementServiceTest {
                 it.audience == AnnouncementAudience.PROGRAM && it.program?.code == "IT"
             })
         }
+    }
+
+
+    @Test
+    fun `listManage should map announcements to manage dto`() {
+        val program = program("IT")
+        val announcement = announcement(audience = AnnouncementAudience.PROGRAM, program = program)
+        announcement.banner = true
+        every { announcementRepository.findAllForManage() } returns listOf(announcement)
+
+        val result = announcementService.listManage()
+
+        assertEquals(1, result.size)
+        val dto = result.first()
+        assertEquals(announcement.id, dto.id)
+        assertEquals("Title", dto.title)
+        assertEquals("admin", dto.createdBy)
+        assertEquals("PROGRAM", dto.audience)
+        assertEquals("IT", dto.programCode)
+        assertTrue(dto.banner)
+    }
+
+    @Test
+    fun `softDelete should throw EntityNotFoundException when announcement not found`() {
+        val id = UUID.randomUUID()
+        every { announcementRepository.findById(id) } returns Optional.empty()
+
+        assertThrows<EntityNotFoundException> { announcementService.softDelete(id) }
+        verify(exactly = 0) { announcementRepository.save(any()) }
+    }
+
+    @Test
+    fun `softDelete should deactivate announcement`() {
+        val id = UUID.randomUUID()
+        val announcement = announcement(id = id)
+        every { announcementRepository.findById(id) } returns Optional.of(announcement)
+        every { announcementRepository.save(announcement) } returns announcement
+
+        announcementService.softDelete(id)
+
+        assertFalse(announcement.active)
+        verify(exactly = 1) { announcementRepository.save(match { !it.active }) }
     }
 
 

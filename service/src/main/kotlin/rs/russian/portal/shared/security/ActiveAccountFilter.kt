@@ -29,7 +29,8 @@ class ActiveAccountFilter(
                     filterChain.doFilter(request, response)
                     return
                 }
-                currentUserLogin()
+                // Always check the real principal — never the impersonation target.
+                realUserLogin()
             }
             else -> {
                 filterChain.doFilter(request, response)

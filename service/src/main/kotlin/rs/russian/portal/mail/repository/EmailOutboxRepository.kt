@@ -10,4 +10,6 @@ import java.util.*
 interface EmailOutboxRepository : JpaRepository<EmailOutbox, UUID> {
 
     fun findAllByStatusIn(statuses: List<EmailOutboxStatus>): List<EmailOutbox>
+
+    fun findAllByOrderByCreateTimeDesc(): List<EmailOutbox>
 }

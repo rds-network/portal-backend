@@ -5,6 +5,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import rs.russian.portal.accountstatus.domain.enums.AccountStatusEventSource
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.application.domain.Application
 import rs.russian.portal.application.domain.ApplicationStatus
 import rs.russian.portal.application.domain.ApplicationType
@@ -20,6 +22,7 @@ class ApplicationEventListenerTest {
 
     private lateinit var emailService: EmailService
     private lateinit var accountService: AccountService
+    private lateinit var accountStatusService: AccountStatusService
     private lateinit var contractMapper: ContractMapper
     private lateinit var applicationMapper: ApplicationMapper
     private lateinit var applicationService: ApplicationService
@@ -29,12 +32,14 @@ class ApplicationEventListenerTest {
     fun setUp() {
         emailService = mockk(relaxed = true)
         accountService = mockk(relaxed = true)
+        accountStatusService = mockk(relaxed = true)
         contractMapper = mockk(relaxed = true)
         applicationMapper = mockk(relaxed = true)
         applicationService = mockk(relaxed = true)
         listener = ApplicationEventListener(
             emailService,
             accountService,
+            accountStatusService,
             contractMapper,
             mockk(relaxed = true),
             applicationMapper,
@@ -58,7 +63,9 @@ class ApplicationEventListenerTest {
         // Must not throw (previously an NPE on findAccountByEmail(...)!!).
         listener.handleApplicationStatusChange(ApplicationUpdateEvent(id))
 
-        verify(exactly = 0) { accountService.switchActiveState(any(), any()) }
+        verify(exactly = 0) {
+            accountStatusService.applyImmediate(any(), any(), any(), any(), any(), any(), any())
+        }
         verify(exactly = 0) { accountService.updateContracts(any(), any()) }
     }
 
@@ -87,7 +94,16 @@ class ApplicationEventListenerTest {
 
         listener.handleApplicationStatusChange(ApplicationUpdateEvent(id))
 
-        verify { accountService.switchActiveState(42, true) }
+        verify {
+            accountStatusService.applyImmediate(
+                accountId = 42,
+                activeTo = true,
+                source = AccountStatusEventSource.DIRECT,
+                actorUsername = null,
+                reason = "application prolongation",
+                notifyApprover = true,
+            )
+        }
         verify { accountService.updateContracts(42, any()) }
     }
 }

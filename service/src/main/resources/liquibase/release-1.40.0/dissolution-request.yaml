@@ -1,0 +1,78 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.40.0-dissolution-request-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: dissolution_request
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_dissolution_request
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_dissolution_request_username
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: from_date
+                  type: DATE
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(32)
+              - column:
+                  name: reason
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  name: decided_at
+                  type: DATETIME
+              - column:
+                  name: decided_by
+                  type: VARCHAR(255)
+              - column:
+                  name: decision_reason
+                  type: TEXT
+        - addForeignKeyConstraint:
+            baseTableName: dissolution_request
+            baseColumnNames: decided_by
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_dissolution_request_decided_by
+        - createIndex:
+            tableName: dissolution_request
+            indexName: idx_dissolution_request_username
+            columns:
+              - column:
+                  name: username
+        - createIndex:
+            tableName: dissolution_request
+            indexName: idx_dissolution_request_status
+            columns:
+              - column:
+                  name: status
+        - sql:
+            sql: >
+              CREATE UNIQUE INDEX idx_dissolution_request_pending_unique
+              ON dissolution_request (username)
+              WHERE status = 'PENDING';

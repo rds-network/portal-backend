@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.31.0-report-overdue-notice-cancelled
+      author: portal
+      changes:
+        - addColumn:
+            tableName: report_overdue_notice
+            columns:
+              - column:
+                  name: cancelled_at
+                  type: DATETIME
+              - column:
+                  name: cancelled_by
+                  type: VARCHAR(255)
+              - column:
+                  name: cancel_reason
+                  type: TEXT

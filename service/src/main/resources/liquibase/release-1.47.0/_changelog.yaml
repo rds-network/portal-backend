@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.47.0/chat-room.yaml
+  - include:
+      file: liquibase/release-1.47.0/chat-message.yaml

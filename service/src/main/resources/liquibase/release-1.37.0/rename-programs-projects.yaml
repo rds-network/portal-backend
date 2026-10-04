@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.37.0-rename-information-and-media-projects
+      author: portal
+      comment: Clarify MEDIA projects and rename INFORMATION to Information / guides; move GUIDEBOOK under INFORMATION
+      changes:
+        - sql:
+            splitStatements: true
+            sql: |
+              UPDATE program
+              SET name_ru = 'Информация / гайды',
+                  name_en = 'Information / guides',
+                  name_sr = 'Informacije / vodiči'
+              WHERE code = 'INFORMATION';
+
+              UPDATE project
+              SET name_ru = 'SMM / Telegram',
+                  name_en = 'SMM / Telegram',
+                  name_sr = 'SMM / Telegram'
+              WHERE code = 'SMM';
+
+              UPDATE project
+              SET name_ru = 'Instagram',
+                  name_en = 'Instagram',
+                  name_sr = 'Instagram'
+              WHERE code = 'SOCIAL_MEDIA_DESIGN';
+
+              UPDATE project
+              SET name_ru = 'Углавном',
+                  name_en = 'Uglavnom',
+                  name_sr = 'Uglavnom'
+              WHERE code = 'ARTICLES';
+
+              UPDATE project
+              SET name_ru = 'Гайды (new.russian.rs)',
+                  name_en = 'Guides (new.russian.rs)',
+                  name_sr = 'Vodiči (new.russian.rs)',
+                  program_code = 'INFORMATION'
+              WHERE code = 'GUIDEBOOK';
+
+              UPDATE user_info
+              SET program_code = 'INFORMATION'
+              WHERE project_code = 'GUIDEBOOK'
+                AND (program_code IS DISTINCT FROM 'INFORMATION' OR program_code IS NULL);

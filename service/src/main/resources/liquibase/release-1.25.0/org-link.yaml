@@ -1,0 +1,143 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.25.0-org-link-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: org_link
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_org_link
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_org_link_created_by
+                  name: created_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: title
+                  type: VARCHAR(200)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: url
+                  type: VARCHAR(1000)
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: sort_order
+                  type: INT
+        - createIndex:
+            tableName: org_link
+            indexName: idx_org_link_sort
+            columns:
+              - column:
+                  name: sort_order
+  - changeSet:
+      id: 1.25.0-org-link-seed
+      author: portal
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000001', NOW(), NOW(), a.username,
+                     'Фотобанк', 'https://files.russian.rs/s/jeerDt6osNwPBCt',
+                     'Общий фотобанк Диаспоры.', 10
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000002', NOW(), NOW(), a.username,
+                     'Видеобанк', 'https://files.russian.rs/s/YABSBroxqd2EfC7',
+                     'Общий видеобанк Диаспоры.', 20
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000003', NOW(), NOW(), a.username,
+                     'Нью Рашин', 'https://russian.rs',
+                     'Сайт Русской Диаспоры в Сербии.', 30
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000004', NOW(), NOW(), a.username,
+                     'Бэкофис Нью Рашин', 'https://russian.rs/office',
+                     'Вход в офис сайта russian.rs.', 40
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000005', NOW(), NOW(), a.username,
+                     'Углавном', 'https://uglavnom.rs',
+                     'Сайт Углавном.', 50
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000006', NOW(), NOW(), a.username,
+                     'Бэкофис Углавном', 'https://uglavnom.rs/office',
+                     'Вход в офис Углавном.', 60
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000007', NOW(), NOW(), a.username,
+                     'Экомапа', 'https://ekomapa.rs',
+                     'Карта уборок и точек программы «Чистый город».', 70
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000008', NOW(), NOW(), a.username,
+                     'Вход в Экомапу', 'https://ekomapa.rs/login',
+                     'Авторизация волонтёра в Экомапе.', 80
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;
+
+              INSERT INTO org_link (id, version, create_time, created_by, title, url, description, sort_order)
+              SELECT 'a1b2c3d4-0001-4000-8000-000000000009', NOW(), NOW(), a.username,
+                     'Курсы Диаспоры', 'https://edu.russian.rs/',
+                     'Обучающая платформа: языки, психология, профкурсы.', 90
+              FROM account a
+              WHERE a.active = true
+              ORDER BY a.username
+              LIMIT 1;

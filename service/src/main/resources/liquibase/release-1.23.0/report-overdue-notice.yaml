@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.23.0-report-overdue-notice
+      author: portal
+      changes:
+        - createTable:
+            tableName: report_overdue_notice
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_report_overdue_notice
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_report_overdue_notice_user
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: level
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: period_key
+                  type: VARCHAR(32)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: sent_at
+                  type: DATETIME
+        - addUniqueConstraint:
+            tableName: report_overdue_notice
+            columnNames: username, level, period_key
+            constraintName: uk_report_overdue_notice

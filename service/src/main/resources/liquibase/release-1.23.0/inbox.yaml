@@ -1,0 +1,126 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.23.0-inbox-create-tables
+      author: portal
+      changes:
+        - createTable:
+            tableName: inbox_thread
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_inbox_thread
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: subject
+                  type: VARCHAR(300)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: kind
+                  type: VARCHAR(32)
+              - column:
+                  name: created_by
+                  type: VARCHAR(255)
+        - createTable:
+            tableName: inbox_participant
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_inbox_participant
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: inbox_thread
+                    referencedColumnNames: id
+                    foreignKeyName: fk_inbox_participant_thread
+                  name: thread_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_inbox_participant_user
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: unread
+                  type: BOOLEAN
+        - addUniqueConstraint:
+            tableName: inbox_participant
+            columnNames: thread_id, username
+            constraintName: uk_inbox_participant_thread_user
+        - createTable:
+            tableName: inbox_message
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_inbox_message
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: inbox_thread
+                    referencedColumnNames: id
+                    foreignKeyName: fk_inbox_message_thread
+                  name: thread_id
+                  type: UUID
+              - column:
+                  name: author
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: body
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+        - createIndex:
+            tableName: inbox_participant
+            indexName: idx_inbox_participant_username
+            columns:
+              - column:
+                  name: username
+        - createIndex:
+            tableName: inbox_message
+            indexName: idx_inbox_message_thread
+            columns:
+              - column:
+                  name: thread_id

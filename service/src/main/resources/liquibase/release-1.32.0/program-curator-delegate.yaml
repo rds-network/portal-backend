@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.32.0-program-curator-delegate
+      author: portal
+      changes:
+        - createTable:
+            tableName: program_curator_delegate
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_program_curator_delegate
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: program_code
+                  type: VARCHAR(64)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: curator_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: delegate_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  name: created_by
+                  type: VARCHAR(255)
+        - addUniqueConstraint:
+            tableName: program_curator_delegate
+            columnNames: program_code, curator_username, delegate_username
+            constraintName: uq_program_curator_delegate
+        - createIndex:
+            tableName: program_curator_delegate
+            indexName: idx_pcd_delegate
+            columns:
+              - column:
+                  name: delegate_username
+        - createIndex:
+            tableName: program_curator_delegate
+            indexName: idx_pcd_curator
+            columns:
+              - column:
+                  name: curator_username

@@ -1,0 +1,53 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.45.0-portal-maintenance-settings
+      author: portal
+      changes:
+        - createTable:
+            tableName: portal_maintenance_settings
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: headline
+                  type: varchar(500)
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: body
+                  type: text
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: launch_at
+                  type: timestamptz
+                  constraints:
+                    nullable: true
+              - column:
+                  name: bypass_token
+                  type: varchar(128)
+                  constraints:
+                    nullable: true
+        - insert:
+            tableName: portal_maintenance_settings
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: enabled
+                  valueBoolean: false
+      rollback:
+        - dropTable:
+            tableName: portal_maintenance_settings

@@ -1,0 +1,57 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.26.0-activity-event
+      author: portal
+      changes:
+        - createTable:
+            tableName: activity_event
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_activity_event
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+              - column:
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  name: ip
+                  type: VARCHAR(64)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: method
+                  type: VARCHAR(16)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: path
+                  type: VARCHAR(500)
+              - column:
+                  name: query
+                  type: VARCHAR(500)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: action
+                  type: VARCHAR(255)
+        - createIndex:
+            tableName: activity_event
+            indexName: idx_activity_event_time
+            columns:
+              - column:
+                  name: create_time
+        - createIndex:
+            tableName: activity_event
+            indexName: idx_activity_event_user
+            columns:
+              - column:
+                  name: username

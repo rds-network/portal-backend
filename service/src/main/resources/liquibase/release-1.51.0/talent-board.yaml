@@ -1,0 +1,217 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.51.0-talent-post-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: talent_post
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_talent_post
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: type
+                  type: VARCHAR(32)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(32)
+                  defaultValue: OPEN
+              - column:
+                  constraints:
+                    nullable: false
+                  name: title
+                  type: VARCHAR(200)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: body
+                  type: TEXT
+              - column:
+                  name: city
+                  type: VARCHAR(120)
+              - column:
+                  name: program_code
+                  type: VARCHAR(50)
+              - column:
+                  name: skills
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: author_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: updated_at
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: response_count
+                  type: INTEGER
+                  defaultValueNumeric: 0
+        - addForeignKeyConstraint:
+            baseTableName: talent_post
+            baseColumnNames: program_code
+            referencedTableName: program
+            referencedColumnNames: code
+            constraintName: fk_talent_post_program
+        - addForeignKeyConstraint:
+            baseTableName: talent_post
+            baseColumnNames: author_username
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_talent_post_author
+        - createIndex:
+            tableName: talent_post
+            indexName: idx_talent_post_type_status
+            columns:
+              - column:
+                  name: type
+              - column:
+                  name: status
+        - createIndex:
+            tableName: talent_post
+            indexName: idx_talent_post_city
+            columns:
+              - column:
+                  name: city
+        - createIndex:
+            tableName: talent_post
+            indexName: idx_talent_post_program_code
+            columns:
+              - column:
+                  name: program_code
+        - createIndex:
+            tableName: talent_post
+            indexName: idx_talent_post_created_at
+            columns:
+              - column:
+                  name: created_at
+
+  - changeSet:
+      id: 1.51.0-talent-response-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: talent_response
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_talent_response
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: post_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: author_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: message
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+        - addForeignKeyConstraint:
+            baseTableName: talent_response
+            baseColumnNames: post_id
+            referencedTableName: talent_post
+            referencedColumnNames: id
+            constraintName: fk_talent_response_post
+        - addForeignKeyConstraint:
+            baseTableName: talent_response
+            baseColumnNames: author_username
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_talent_response_author
+        - addUniqueConstraint:
+            tableName: talent_response
+            columnNames: post_id, author_username
+            constraintName: uq_talent_response_post_author
+        - createIndex:
+            tableName: talent_response
+            indexName: idx_talent_response_post_id
+            columns:
+              - column:
+                  name: post_id
+
+  - changeSet:
+      id: 1.51.0-user-skill-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: user_skill
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_user_skill
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: account_id
+                  type: INTEGER
+              - column:
+                  constraints:
+                    nullable: false
+                  name: skill
+                  type: VARCHAR(80)
+        - addForeignKeyConstraint:
+            baseTableName: user_skill
+            baseColumnNames: account_id
+            referencedTableName: account
+            referencedColumnNames: id
+            constraintName: fk_user_skill_account
+        - addUniqueConstraint:
+            tableName: user_skill
+            columnNames: account_id, skill
+            constraintName: uq_user_skill_account_skill
+        - createIndex:
+            tableName: user_skill
+            indexName: idx_user_skill_account_id
+            columns:
+              - column:
+                  name: account_id

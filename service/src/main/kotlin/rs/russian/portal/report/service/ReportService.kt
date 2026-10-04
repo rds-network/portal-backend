@@ -4,12 +4,14 @@ import jakarta.persistence.EntityManager
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.generated.model.NoteDto
 import rs.russian.generated.model.ReportDto
 import rs.russian.generated.model.ReportFilter
+import rs.russian.portal.achievements.service.AchievementsService
 import rs.russian.portal.file.service.FileService
 import rs.russian.portal.note.domain.Note
 import rs.russian.portal.note.domain.enums.EntityType
@@ -21,9 +23,17 @@ import rs.russian.portal.report.mapper.ReportMapper
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.ai.domain.AiProfileCode.SERBIAN_TRANSLATOR
 import rs.russian.portal.shared.ai.service.TextTranslationService
+import rs.russian.portal.inbox.service.InboxService
+import rs.russian.portal.program.repository.ProgramRepository
+import rs.russian.portal.program.repository.ProjectRepository
+import rs.russian.portal.program.service.ProgramCuratorService
+import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.Account
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.workassignment.service.WorkAssignmentService
 import java.util.*
 
 @Service
@@ -35,6 +45,12 @@ class ReportService(
     private val reportRepository: ReportRepository,
     private val entityManager: EntityManager,
     private val textTranslationService: TextTranslationService,
+    private val workAssignmentService: WorkAssignmentService,
+    private val inboxService: InboxService,
+    private val programCuratorService: ProgramCuratorService,
+    private val programRepository: ProgramRepository,
+    private val projectRepository: ProjectRepository,
+    private val achievementsService: AchievementsService,
 ) {
 
     @Transactional(readOnly = true)
@@ -45,12 +61,14 @@ class ReportService(
     @Transactional
     fun createReport(reportDto: ReportDto): Report {
         val currentAccount = accountService.getCurrentAccount()
+        requireReportingAllowed(currentAccount)
         val report = Report(
             account = currentAccount,
             status = ReportStatus.CREATED,
             program = currentAccount.info?.program,
             project = currentAccount.info?.project
         )
+        requireCustomers(reportDto, currentAccount)
         val tasks = reportDto.tasks.map { taskDto ->
             reportMapper.map(taskDto, report).also { task ->
                 task.customer = accountService.findAccountByLogin(taskDto.customer)
@@ -63,7 +81,10 @@ class ReportService(
                 }
             }
         }
-        return reportRepository.save(report.also { it.tasks = tasks.toMutableSet() })
+        val saved = reportRepository.save(report.also { it.tasks = tasks.toMutableSet() })
+        workAssignmentService.markFromReport(saved)
+        notifyCustomers(saved)
+        return saved
     }
 
     @Transactional
@@ -74,7 +95,10 @@ class ReportService(
 
     @Transactional
     fun updateReport(reportDto: ReportDto): Report {
+        val editor = accountService.getCurrentAccount()
+        requireReportingAllowed(editor)
         val report = getReport(reportDto.id)
+        requireCustomers(reportDto, report.account)
         val existingTasksById = report.tasks.associateBy { it.id }
         val tasks = reportDto.tasks.map { taskDto ->
             val existingTask = taskDto.id?.let(existingTasksById::get)
@@ -89,14 +113,55 @@ class ReportService(
                 }
             }
         }
+        refreshAssignment(report, reportDto, editor)
         report.status = ReportStatus.CREATED
         report.tasks.clear()
-        return reportRepository.save(report.also { it.tasks.addAll(tasks) })
+        val saved = reportRepository.save(report.also { it.tasks.addAll(tasks) })
+        workAssignmentService.markFromReport(saved)
+        notifyCustomers(saved)
+        return saved
+    }
+
+    /**
+     * Программа и проект в отчёте — снимок назначения на момент сдачи, поэтому смена программы в профиле
+     * старые отчёты не трогает. Статус и приёмку тут не меняем: снимок чинят и у принятого отчёта.
+     */
+    @Transactional
+    fun updateAssignment(reportId: UUID, programCode: String?, projectCode: String?): Report {
+        val report = getReport(reportId)
+        val editor = accountService.getCurrentAccount()
+        if (!canEditAssignment(report, editor)) {
+            throw NotAuthorizedException()
+        }
+        assignProgramAndProject(report, programCode, projectCode)
+        return reportRepository.save(report)
     }
 
     @Transactional(readOnly = true)
     fun getReports(reportFilter: ReportFilter, pageable: Pageable): Page<Report> {
         return findAllFull(from(reportFilter), pageable)
+    }
+
+    @Transactional(readOnly = true)
+    fun getReportsForCustomer(status: ReportStatus?, pageable: Pageable): Page<Report> {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        val logins = customerLoginsFor(login)
+        val ids = reportRepository.findIdsByCustomers(logins, login.lowercase(), status, pageable)
+        if (ids.content.isEmpty()) {
+            return PageImpl(emptyList(), ids.pageable, ids.totalElements)
+        }
+        val reports = reportRepository.findAllByIdIn(ids.content, Sort.by(Sort.Direction.DESC, "createTime"))
+        return PageImpl(reports, ids.pageable, ids.totalElements)
+    }
+
+    @Transactional(readOnly = true)
+    fun pendingCountForCustomer(): Long {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        return reportRepository.countByCustomers(
+            customerLoginsFor(login),
+            login.lowercase(),
+            ReportStatus.CREATED,
+        )
     }
 
     @Transactional
@@ -121,9 +186,18 @@ class ReportService(
     }
 
     @Transactional
-    fun changeStatus(reportId: UUID, status: ReportStatus, noteText: String? = null) {
+    fun changeStatus(
+        reportId: UUID,
+        status: ReportStatus,
+        noteText: String? = null,
+        curatorGratitude: Boolean = false,
+        managerGratitude: Boolean = false,
+    ) {
         val report = getReport(reportId)
         val moderator = accountService.getAccountByLogin(currentUserLogin() ?: throw NotAuthorizedException())
+        if (!canModerate(report, moderator.username, moderator.groups)) {
+            throw NotAuthorizedException()
+        }
         if (!noteText.isNullOrEmpty()) {
             val note = noteService.save(
                 Note(
@@ -137,6 +211,181 @@ class ReportService(
         }
         report.status = status
         report.moderator = moderator
+        workAssignmentService.markFromReport(report)
+        if (status == ReportStatus.ACCEPTED || status == ReportStatus.REJECTED) {
+            notifyReportDecision(report, status, noteText, moderator.username)
+        }
+        if (status == ReportStatus.ACCEPTED && noteText.isNullOrBlank()) {
+            report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
+        }
+        if (status == ReportStatus.ACCEPTED && curatorGratitude) {
+            report.id?.let { achievementsService.onCuratorGratitude(report.account.username, it, moderator.username) }
+        }
+        if (status == ReportStatus.ACCEPTED && managerGratitude && canAwardManagerGratitude(moderator.groups)) {
+            report.id?.let { achievementsService.onManagerGratitude(report.account.username, it, moderator.username) }
+        }
+    }
+
+    private fun canAwardManagerGratitude(groups: Set<UserGroup>): Boolean =
+        groups.any { it == UserGroup.ADMIN || it == UserGroup.ADMIN_SSO || it == UserGroup.ADMIN_VOLUNTEER || it == UserGroup.MAIN_VOLUNTEER }
+
+    private fun notifyReportDecision(
+        report: Report,
+        status: ReportStatus,
+        noteText: String?,
+        createdBy: String,
+    ) {
+        val reportId = report.id?.toString() ?: return
+        val date = report.createTime.toLocalDate()
+        val remark = noteText?.trim()?.takeIf { it.isNotEmpty() }
+        val subject = when (status) {
+            ReportStatus.ACCEPTED -> "Отчёт принят ($date)"
+            ReportStatus.REJECTED -> "Отчёт отклонён ($date)"
+            else -> return
+        }
+        val head = when (status) {
+            ReportStatus.ACCEPTED -> "Ваш отчёт от $date принят."
+            ReportStatus.REJECTED -> "Ваш отчёт от $date отклонён."
+            else -> return
+        }
+        val remarkLine = remark?.let { "\n\nЗамечание модератора: $it" } ?: ""
+        val body = "$head$remarkLine\n\n/report/$reportId"
+        inboxService.notifyReportDecision(
+            username = report.account.username,
+            subject = subject,
+            body = body,
+            createdBy = createdBy,
+            needsAck = status == ReportStatus.REJECTED || remark != null,
+        )
+    }
+
+    /**
+     * Стоп ставит куратор или модератор, когда волонтер выпал из поля зрения: отчёты не принимаются,
+     * пока волонтер не свяжется с тем, кто стоп поставил.
+     */
+    private fun requireReportingAllowed(account: Account) {
+        if (!account.reportBlocked) return
+        val blockedBy = account.reportBlockedBy
+        val contact = blockedBy
+            ?.let { accountService.findAccountByLogin(it)?.fullName ?: it }
+            ?: "куратору"
+        val reason = account.reportBlockedReason?.takeIf { it.isNotBlank() }
+        throw InvalidRequestException(
+            "Сдача отчётов приостановлена. Обратитесь к $contact." + (reason?.let { " Причина: $it" } ?: "")
+        )
+    }
+
+    /**
+     * Правка отчёта снова отправляет его на приёмку, поэтому снимок обновляем: модератор задаёт программу
+     * явно, автору подставляем его текущее назначение — иначе отчёт уходит на приёмку со старой программой.
+     */
+    private fun refreshAssignment(report: Report, reportDto: ReportDto, editor: Account) {
+        if (canEditAssignment(report, editor)) {
+            val programCode = reportDto.program?.takeIf { it.isNotBlank() }
+            val projectCode = reportDto.project?.takeIf { it.isNotBlank() }
+            if (programCode != null || projectCode != null) {
+                assignProgramAndProject(report, programCode, projectCode)
+                return
+            }
+        }
+        if (report.account.username.equals(editor.username, ignoreCase = true)) {
+            report.program = report.account.info?.program
+            report.project = report.account.info?.project
+        }
+    }
+
+    private fun assignProgramAndProject(report: Report, programCode: String?, projectCode: String?) {
+        val program = programCode?.takeIf { it.isNotBlank() }?.let {
+            programRepository.findByCode(it) ?: throw InvalidRequestException("Программа '$it' не найдена")
+        }
+        val project = projectCode?.takeIf { it.isNotBlank() }?.let {
+            projectRepository.findByCode(it) ?: throw InvalidRequestException("Проект '$it' не найден")
+        }
+        // Проект всегда принадлежит программе, поэтому программу берём из проекта, а чужой проект отбрасываем.
+        report.program = program ?: project?.program
+        report.project = project?.takeIf { it.program.code == report.program?.code }
+    }
+
+    /**
+     * Снимок программы — не виза на отчёт, поэтому принудительный контроль тут не действует: иначе модератор
+     * не смог бы починить программу у уже принятого отчёта.
+     */
+    private fun canEditAssignment(report: Report, editor: Account): Boolean =
+        editor.groups.any { it in MODERATORS } || canModerate(report, editor.username, editor.groups)
+
+    private fun requireCustomers(reportDto: ReportDto, author: Account) {
+        if (reportDto.tasks.any { it.customer.isNullOrBlank() }) {
+            throw InvalidRequestException("Укажите заказчика задачи")
+        }
+        val customers = reportDto.tasks.mapNotNull { it.customer }.distinct()
+        // Отчёт принимает кто-то другой, поэтому сам себе заказчика не назначишь — даже под принудительным контролем.
+        if (customers.any { it.equals(author.username, ignoreCase = true) }) {
+            throw InvalidRequestException(
+                "Нельзя указать себя заказчиком: заказчиком может быть только куратор программы " +
+                    "или его делегат по приёмке"
+            )
+        }
+        val controller = author.reportControllerUsername?.takeIf { it.isNotBlank() }
+        if (controller != null) {
+            // Контроль назначен вне программы, поэтому обычная проверка «заказчик — куратор» тут не применима.
+            if (customers.any { !controller.equals(it, ignoreCase = true) }) {
+                val name = accountService.findAccountByLogin(controller)?.fullName ?: controller
+                throw InvalidRequestException(
+                    "Вы на контроле у $name. Укажите $name заказчиком во всех задачах отчёта."
+                )
+            }
+            return
+        }
+        customers.forEach { login ->
+            accountService.findAccountByLogin(login)
+                ?: throw InvalidRequestException("Заказчик '$login' не найден")
+            if (programCuratorService.isAllowedCustomer(login)) return@forEach
+            throw InvalidRequestException(
+                "Заказчиком может быть только куратор программы или его делегат по приёмке"
+            )
+        }
+    }
+
+    private fun notifyCustomers(report: Report) {
+        val id = report.id?.toString() ?: return
+        val volunteer = report.account.fullName
+        val programCode = report.program?.code
+        val recipients = linkedSetOf<String>()
+        report.tasks.mapNotNull { it.customer?.username }.distinct().forEach { customer ->
+            recipients += customer
+            programCuratorService.delegateUsernamesOf(customer, programCode).forEach { recipients += it }
+        }
+        recipients.forEach { login ->
+            if (!login.equals(report.account.username, ignoreCase = true)) {
+                inboxService.notifyReportCustomer(login, volunteer, id)
+            }
+        }
+    }
+
+    /**
+     * Принудительный контроль — строгая виза: пока он стоит, ни модератор, ни куратор программы не могут
+     * принять отчёт вместо контролёра. [SUPER_ADMINS] оставлены как аварийный доступ.
+     */
+    private fun canModerate(report: Report, login: String, groups: Set<UserGroup>): Boolean {
+        val programCode = report.program?.code
+        val controller = report.account.reportControllerUsername?.takeIf { it.isNotBlank() }
+        if (controller != null) {
+            if (groups.any { it in SUPER_ADMINS }) return true
+            return controller.equals(login, ignoreCase = true) ||
+                programCuratorService.canAcceptAsDelegate(login, controller, programCode)
+        }
+        if (groups.any { it in MODERATORS }) return true
+        return report.tasks.any { task ->
+            val customer = task.customer?.username ?: return@any false
+            customer.equals(login, ignoreCase = true) ||
+                programCuratorService.canAcceptAsDelegate(login, customer, programCode)
+        }
+    }
+
+    private fun customerLoginsFor(login: String): List<String> {
+        val logins = linkedSetOf(login.lowercase())
+        programCuratorService.curatorUsernamesDelegatedTo(login).forEach { logins += it.lowercase() }
+        return logins.toList()
     }
 
     /**
@@ -152,5 +401,10 @@ class ReportService(
         reports.forEach { report -> entityManager.detach(report) }
         val reportsFull = reportRepository.findAllByIdIn(reports.mapNotNull { it.id }, pageable.sort)
         return PageImpl(reportsFull, reports.pageable, reports.totalElements)
+    }
+
+    companion object {
+        private val MODERATORS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_VOLUNTEER, UserGroup.MAIN_VOLUNTEER)
+        private val SUPER_ADMINS = setOf(UserGroup.ADMIN, UserGroup.ADMIN_SSO)
     }
 }

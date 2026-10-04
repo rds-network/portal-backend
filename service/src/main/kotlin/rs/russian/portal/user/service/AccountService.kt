@@ -26,12 +26,16 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.ResidencePermit
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.DepersonalizationStatus
+import rs.russian.portal.user.domain.specification.hasHeatMapContractOverlapping
+import rs.russian.portal.user.domain.specification.hasReportWithTaskInRange
 import rs.russian.portal.user.domain.specification.searchSpecification
 import rs.russian.portal.user.mapper.ContractMapper
 import rs.russian.portal.user.mapper.ResidencePermitMapper
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.repository.AccountRepository
+import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import rs.russian.portal.user.service.authentik.AuthentikService
+import java.time.LocalDate
 
 @Service
 class AccountService(
@@ -42,6 +46,7 @@ class AccountService(
     private val fileService: FileService,
     private val contractMapper: ContractMapper,
     private val accountRepository: AccountRepository,
+    private val secondaryProgramRepository: UserSecondaryProgramRepository,
     private val authentikUserService: AuthentikService,
     private val entityManager: EntityManager,
     private val sessionService: SessionService,
@@ -151,6 +156,25 @@ class AccountService(
     @Transactional(readOnly = true)
     fun search(query: String, pageRequest: PageRequest, filter: UserSearchFilter?): Page<Account> {
         val specification = searchSpecification(query, filter)
+        return findAllFull(specification, convert(pageRequest))
+    }
+
+    @Transactional(readOnly = true)
+    fun searchWithActiveRegularContract(
+        query: String,
+        pageRequest: PageRequest,
+        filter: UserSearchFilter?,
+        year: Int = LocalDate.now().year,
+    ): Page<Account> {
+        // Heatmap list: REGULAR/ASSOCIATED overlapping the selected year (not only "today").
+        // Name search also unions people who already have reports in that year.
+        val yearStart = LocalDate.of(year, 1, 1)
+        val yearEnd = LocalDate.of(year, 12, 31)
+        var eligibility = hasHeatMapContractOverlapping(yearStart, yearEnd)
+        if (query.isNotBlank()) {
+            eligibility = eligibility.or(hasReportWithTaskInRange(yearStart, yearEnd))
+        }
+        val specification = searchSpecification(query, filter).and(eligibility)
         return findAllFull(specification, convert(pageRequest))
     }
 
@@ -266,6 +290,36 @@ class AccountService(
                 userInfo.project = null
             }
         }
+
+        // Основная программа не может одновременно числиться дополнительной.
+        secondaryProgramRepository.deleteByAccountIdAndProgramCodeIgnoreCase(id, program.code)
+
+        account.info = userInfo
+        return account
+    }
+
+    /**
+     * Проект всегда принадлежит программе, поэтому сброс программы уносит и проект — иначе у волонтера
+     * остался бы проект без программы.
+     */
+    @Transactional
+    fun clearProgram(id: Int): Account {
+        val account = getAccount(id)
+        val userInfo = account.info ?: UserInfo.default(account)
+
+        userInfo.program = null
+        userInfo.project = null
+
+        account.info = userInfo
+        return account
+    }
+
+    @Transactional
+    fun clearProject(id: Int): Account {
+        val account = getAccount(id)
+        val userInfo = account.info ?: UserInfo.default(account)
+
+        userInfo.project = null
 
         account.info = userInfo
         return account

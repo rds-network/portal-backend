@@ -1,0 +1,73 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.49.0-portal-application-join-settings
+      author: portal
+      changes:
+        - createTable:
+            tableName: portal_application_join_settings
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: varchar(500)
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: body
+                  type: text
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: agree1_label
+                  type: text
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: agree2_label
+                  type: text
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: button_label
+                  type: varchar(200)
+                  defaultValueComputed: "''"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: true
+        - insert:
+            tableName: portal_application_join_settings
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: title
+                  value: "Вступление и участие в деятельности организации"
+              - column:
+                  name: body
+                  value: ""
+              - column:
+                  name: agree1_label
+                  value: "Я ознакомился и согласен с целями и условиями, установленными в <a href='https://russian.rs/about/about-documents/' target='_blank'>уставе и кодексе этики организации</a>"
+              - column:
+                  name: agree2_label
+                  value: "Я согласен на обработку и хранение указанной мною информации в соответствии с <a href='https://russian.rs/privacy-policy' target='_blank'>политикой конфиденциальности</a>"
+              - column:
+                  name: button_label
+                  value: "Заполнить анкету"
+      rollback:
+        - dropTable:
+            tableName: portal_application_join_settings

@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.29.0-announcement-banner
+      author: portal
+      changes:
+        - addColumn:
+            tableName: announcement
+            columns:
+              - column:
+                  name: banner
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: announcement
+            indexName: idx_announcement_banner_active
+            columns:
+              - column:
+                  name: banner
+              - column:
+                  name: active
+              - column:
+                  name: create_time

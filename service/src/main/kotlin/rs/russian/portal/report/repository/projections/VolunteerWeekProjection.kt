@@ -11,4 +11,5 @@ interface VolunteerWeekProjection {
     val weekEnd: LocalDate
     val hoursWorked: BigDecimal
     val hoursRequired: Int
+    val leaveDays: Int
 }

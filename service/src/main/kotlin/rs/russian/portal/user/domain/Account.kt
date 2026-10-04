@@ -13,6 +13,7 @@ import rs.russian.portal.user.domain.enums.DepersonalizationStatus
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.domain.listener.AccountEntityListener
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 @Entity
 @EntityListeners(AccountEntityListener::class)
@@ -75,6 +76,37 @@ class Account(
     var depersonalizedAt: LocalDateTime? = null,
 
     var lastSynced: LocalDateTime? = null,
+
+    var lastSeenAt: LocalDateTime? = null,
+
+    var reportBlocked: Boolean = false,
+
+    var reportBlockedAt: OffsetDateTime? = null,
+
+    var reportBlockedBy: String? = null,
+
+    var reportBlockedReason: String? = null,
+
+    var reportControllerUsername: String? = null,
+
+    var reportControllerReason: String? = null,
+
+    var reportControllerAt: OffsetDateTime? = null,
+
+    /** Когда в МУП ушло письмо о расторжении (ручная отправка). */
+    var mupLetterSentAt: OffsetDateTime? = null,
+
+    /** Причина письма в МУП: NON_COMPLIANCE / VOLUNTEER_REQUEST. */
+    var mupLetterReason: String? = null,
+
+    /** Когда аккаунт поставлен в очередь на расторжение. */
+    var dissolutionQueuedAt: OffsetDateTime? = null,
+
+    /** Кто поставил в очередь на расторжение. */
+    var dissolutionQueuedBy: String? = null,
+
+    /** Опциональная причина постановки в очередь. */
+    var dissolutionQueueReason: String? = null,
 
     ) : JpaEntity<Int>() {
 

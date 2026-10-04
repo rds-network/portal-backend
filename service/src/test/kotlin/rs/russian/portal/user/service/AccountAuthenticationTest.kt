@@ -24,7 +24,7 @@ class AccountAuthenticationTest {
     private val authentik = mockk<AuthentikService>(relaxed = true)
     private val sessions = mockk<SessionService>(relaxed = true)
     private val service = AccountService(mapper, mockk(), mockk(), mockk(), mockk(), mockk(), repository,
-        authentik, mockk(), sessions)
+        mockk(), authentik, mockk(), sessions)
     private val principal = DefaultUserFilter(mockk()).getDefaultOAuth2Token().principal as OidcUser
     private val account = Account(id = 42, username = DefaultUserFilter.USERNAME,
         email = DefaultUserFilter.EMAIL, fullName = "User")

@@ -1,6 +1,7 @@
 package rs.russian.portal.user.mapper
 
 import io.authentik.model.User
+import org.mapstruct.AfterMapping
 import org.mapstruct.Mapper
 import org.mapstruct.Mapping
 import org.mapstruct.MappingTarget
@@ -19,6 +20,8 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.Contract
 import rs.russian.portal.user.domain.UserInfo
 import rs.russian.portal.user.domain.enums.UserGroup
+import rs.russian.portal.user.repository.AccountRepository
+import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import java.time.LocalDateTime
 import java.util.*
 
@@ -34,6 +37,12 @@ abstract class UserMapper {
     @Autowired
     private lateinit var contractMapper: ContractMapper
 
+    @Autowired
+    private lateinit var accountRepository: AccountRepository
+
+    @Autowired
+    private lateinit var secondaryProgramRepository: UserSecondaryProgramRepository
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "info", ignore = true)
     @Mapping(target = "version", ignore = true)
@@ -44,6 +53,19 @@ abstract class UserMapper {
     @Mapping(target = "contracts", expression = "java(new HashSet<>())")
     @Mapping(target = "residencePermits", expression = "java(new HashSet<>())")
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
+    @Mapping(target = "reportBlocked", ignore = true)
+    @Mapping(target = "reportBlockedAt", ignore = true)
+    @Mapping(target = "reportBlockedBy", ignore = true)
+    @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
+    @Mapping(target = "reportControllerReason", ignore = true)
+    @Mapping(target = "reportControllerAt", ignore = true)
+    @Mapping(target = "mupLetterSentAt", ignore = true)
+    @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun map(oidcUserInfo: OidcUserInfo): Account
@@ -57,6 +79,19 @@ abstract class UserMapper {
     @Mapping(target = "residencePermits", expression = "java(new HashSet<>())")
     @Mapping(target = "fullName", source = "ssoUser", qualifiedByName = ["nameSso"])
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
+    @Mapping(target = "reportBlocked", ignore = true)
+    @Mapping(target = "reportBlockedAt", ignore = true)
+    @Mapping(target = "reportBlockedBy", ignore = true)
+    @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
+    @Mapping(target = "reportControllerReason", ignore = true)
+    @Mapping(target = "reportControllerAt", ignore = true)
+    @Mapping(target = "mupLetterSentAt", ignore = true)
+    @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun map(ssoUser: User): Account
 
@@ -70,6 +105,19 @@ abstract class UserMapper {
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "username", source = "nickName")
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
+    @Mapping(target = "reportBlocked", ignore = true)
+    @Mapping(target = "reportBlockedAt", ignore = true)
+    @Mapping(target = "reportBlockedBy", ignore = true)
+    @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
+    @Mapping(target = "reportControllerReason", ignore = true)
+    @Mapping(target = "reportControllerAt", ignore = true)
+    @Mapping(target = "mupLetterSentAt", ignore = true)
+    @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "fullName", source = "oidcUserInfo", qualifiedByName = ["nameOidc"])
     @Mapping(target = "groups", source = "oidcUserInfo", qualifiedByName = ["mapGroups"])
     abstract fun update(oidcUserInfo: OidcUserInfo, @MappingTarget account: Account)
@@ -82,6 +130,19 @@ abstract class UserMapper {
     @Mapping(target = "depersonalizationStatus", ignore = true)
     @Mapping(target = "depersonalizedAt", ignore = true)
     @Mapping(target = "lastSynced", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "lastSeenAt", ignore = true)
+    @Mapping(target = "reportBlocked", ignore = true)
+    @Mapping(target = "reportBlockedAt", ignore = true)
+    @Mapping(target = "reportBlockedBy", ignore = true)
+    @Mapping(target = "reportBlockedReason", ignore = true)
+    @Mapping(target = "reportControllerUsername", ignore = true)
+    @Mapping(target = "reportControllerReason", ignore = true)
+    @Mapping(target = "reportControllerAt", ignore = true)
+    @Mapping(target = "mupLetterSentAt", ignore = true)
+    @Mapping(target = "mupLetterReason", ignore = true)
+    @Mapping(target = "dissolutionQueuedAt", ignore = true)
+    @Mapping(target = "dissolutionQueuedBy", ignore = true)
+    @Mapping(target = "dissolutionQueueReason", ignore = true)
     @Mapping(target = "fullName", source = "ssoUser", qualifiedByName = ["nameSso"])
     @Mapping(target = "groups", source = "groupsObj", qualifiedByName = ["mapGroupsSso"])
     abstract fun update(ssoUser: User, @MappingTarget account: Account)
@@ -94,6 +155,20 @@ abstract class UserMapper {
     @Mapping(target = "active", source = "account.active")
     @Mapping(target = "contracts", source = "account.contracts")
     @Mapping(target = "residencePermits", source = "account.residencePermits")
+    @Mapping(target = "reportBlocked", source = "account.reportBlocked")
+    @Mapping(target = "reportBlockedAt", source = "account.reportBlockedAt")
+    @Mapping(target = "reportBlockedBy", source = "account.reportBlockedBy")
+    @Mapping(target = "reportBlockedReason", source = "account.reportBlockedReason")
+    @Mapping(target = "reportBlockedByFullName", ignore = true)
+    @Mapping(target = "reportControllerUsername", source = "account.reportControllerUsername")
+    @Mapping(target = "reportControllerFullName", ignore = true)
+    @Mapping(target = "reportControllerReason", source = "account.reportControllerReason")
+    @Mapping(target = "reportControllerAt", source = "account.reportControllerAt")
+    @Mapping(target = "mupLetterSentAt", source = "account.mupLetterSentAt")
+    @Mapping(target = "mupLetterReason", source = "account.mupLetterReason")
+    @Mapping(target = "dissolutionQueuedAt", source = "account.dissolutionQueuedAt")
+    @Mapping(target = "dissolutionQueuedBy", source = "account.dissolutionQueuedBy")
+    @Mapping(target = "secondaryProgramCodes", ignore = true)
     abstract fun map(userInfo: UserInfo?): UserInfoDto
 
     @Mapping(target = "account", source = "account")
@@ -114,6 +189,39 @@ abstract class UserMapper {
     @Mapping(target = "telegram", nullValuePropertyMappingStrategy = IGNORE)
     @Mapping(target = "phone", nullValuePropertyMappingStrategy = IGNORE)
     abstract fun updateInfo(@MappingTarget target: UserInfo, source: UserInfoUpdateRequest)
+
+    /**
+     * Стоп на сдачу отчётов хранится логином того, кто его поставил: имя резолвится только здесь,
+     * чтобы волонтер в интерфейсе видел, к кому обращаться.
+     */
+    @AfterMapping
+    fun fillReportBlockedBy(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
+        val login = userInfo?.account?.reportBlockedBy ?: return
+        target.reportBlockedByFullName = accountRepository.findByUsername(login)
+            .map { it.fullName }
+            .orElse(login)
+    }
+
+    /**
+     * Принудительный контроль тоже хранится логином: волонтер должен видеть, кого ставить заказчиком,
+     * а куратор — чья виза нужна на приёмку.
+     */
+    @AfterMapping
+    fun fillReportController(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
+        val login = userInfo?.account?.reportControllerUsername ?: return
+        target.reportControllerFullName = accountRepository.findByUsername(login)
+            .map { it.fullName }
+            .orElse(login)
+    }
+
+    @AfterMapping
+    fun fillSecondaryPrograms(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
+        val accountId = userInfo?.account?.id ?: return
+        target.secondaryProgramCodes = secondaryProgramRepository
+            .findAllByAccountIdOrderByProgramCodeAsc(accountId)
+            .map { it.programCode }
+            .toMutableList()
+    }
 
     @Named("mapGroups")
     fun mapGroups(oidcUserInfo: OidcUserInfo): Set<UserGroup> {

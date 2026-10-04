@@ -1,0 +1,83 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.34.0-leave-request-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: leave_request
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_leave_request
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_leave_request_username
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: start_date
+                  type: DATE
+              - column:
+                  constraints:
+                    nullable: false
+                  name: end_date
+                  type: DATE
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(32)
+              - column:
+                  name: reason
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  name: decided_at
+                  type: DATETIME
+              - column:
+                  name: decided_by
+                  type: VARCHAR(255)
+        - addForeignKeyConstraint:
+            baseTableName: leave_request
+            baseColumnNames: decided_by
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_leave_request_decided_by
+        - createIndex:
+            tableName: leave_request
+            indexName: idx_leave_request_username
+            columns:
+              - column:
+                  name: username
+        - createIndex:
+            tableName: leave_request
+            indexName: idx_leave_request_status
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            tableName: leave_request
+            indexName: idx_leave_request_dates
+            columns:
+              - column:
+                  name: start_date
+              - column:
+                  name: end_date

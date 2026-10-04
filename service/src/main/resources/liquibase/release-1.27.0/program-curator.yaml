@@ -1,0 +1,90 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.27.0-program-management-other
+      author: portal
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO program (code, name_ru, name_en, name_sr)
+              SELECT 'MANAGEMENT', 'Менеджмент', 'Management', 'Menadžment'
+              WHERE NOT EXISTS (SELECT 1 FROM program WHERE code = 'MANAGEMENT');
+
+              INSERT INTO program (code, name_ru, name_en, name_sr)
+              SELECT 'OTHER', 'Другое', 'Other', 'Ostalo'
+              WHERE NOT EXISTS (SELECT 1 FROM program WHERE code = 'OTHER');
+  - changeSet:
+      id: 1.27.0-program-curator-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: program_curator
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_program_curator
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: program
+                    referencedColumnNames: code
+                    foreignKeyName: fk_program_curator_program
+                  name: program_code
+                  type: VARCHAR(50)
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: account
+                    referencedColumnNames: username
+                    foreignKeyName: fk_program_curator_account
+                  name: username
+                  type: VARCHAR(255)
+        - addUniqueConstraint:
+            tableName: program_curator
+            columnNames: program_code, username
+            constraintName: uq_program_curator
+        - createIndex:
+            tableName: program_curator
+            indexName: idx_program_curator_username
+            columns:
+              - column:
+                  name: username
+  - changeSet:
+      id: 1.27.0-program-curator-seed
+      author: portal
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO program_curator (id, version, program_code, username)
+              SELECT gen_random_uuid(), NOW(), m.program_code, a.username
+              FROM (
+                VALUES
+                  ('IT', 'legkov777@gmail.com', 'leonid', 'legkov777'),
+                  ('LAW', 'legkov777@gmail.com', 'leonid', 'legkov777'),
+                  ('MANAGEMENT', 'legkov777@gmail.com', 'leonid', 'legkov777'),
+                  ('OTHER', 'legkov777@gmail.com', 'leonid', 'legkov777'),
+                  ('IT', 'myroutes.rb@gmail.com', 'aleksei lukash', 'lukash'),
+                  ('DESIGN', 'gaikastarlight@gmail.com', 'kseniia yasnova', 'gaikastarlight'),
+                  ('MEDIA', 'nnschetneva@icloud.com', 'natalia shchetneva', 'nnschetneva'),
+                  ('EDUCATION', 'cathyfirst72@gmail.com', 'ekaterina shalaginova', 'cathyfirst'),
+                  ('URBANISM', 'ta977@yandex.ru', 'anton tokranov', 'giktom')
+              ) AS m(program_code, email, full_name, hint)
+              JOIN account a ON (
+                lower(a.email) = lower(m.email)
+                OR lower(a.full_name) = m.full_name
+                OR lower(a.username) = m.hint
+                OR lower(a.email) LIKE '%' || m.hint || '%'
+              )
+              WHERE EXISTS (SELECT 1 FROM program p WHERE p.code = m.program_code)
+                AND NOT EXISTS (
+                  SELECT 1 FROM program_curator c
+                  WHERE c.program_code = m.program_code AND c.username = a.username
+                );

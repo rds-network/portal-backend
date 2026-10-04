@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.30.0-work-assignment-customer-started
+      author: portal
+      changes:
+        - addColumn:
+            tableName: work_assignment
+            columns:
+              - column:
+                  name: customer
+                  type: VARCHAR(255)
+              - column:
+                  name: customer_name
+                  type: VARCHAR(255)
+              - column:
+                  name: started_at
+                  type: DATETIME
+        - addForeignKeyConstraint:
+            baseTableName: work_assignment
+            baseColumnNames: customer
+            referencedTableName: account
+            referencedColumnNames: username
+            constraintName: fk_work_assignment_customer
+        - createIndex:
+            tableName: work_assignment
+            indexName: idx_work_assignment_customer
+            columns:
+              - column:
+                  name: customer
+        - sql:
+            sql: >
+              UPDATE work_assignment
+              SET customer = created_by,
+                  customer_name = (
+                    SELECT a.full_name FROM account a WHERE a.username = work_assignment.created_by
+                  )
+              WHERE customer IS NULL

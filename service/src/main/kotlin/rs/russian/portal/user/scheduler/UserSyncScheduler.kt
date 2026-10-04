@@ -5,6 +5,8 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import rs.russian.portal.accountstatus.domain.enums.AccountStatusEventSource
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.shared.jpa.isNull
 import rs.russian.portal.shared.jpa.less
 import rs.russian.portal.user.domain.Account
@@ -21,6 +23,7 @@ private val log = LoggerFactory.getLogger(UserSyncScheduler::class.java)
 @Component
 class UserSyncScheduler(
     private val accountService: AccountService,
+    private val accountStatusService: AccountStatusService,
     private val accountRepository: AccountRepository,
     private val accountSynchronizers: List<AccountSynchronizer>,
     private val authentikUserService: AuthentikService,
@@ -48,8 +51,17 @@ class UserSyncScheduler(
             .or(isNull(Account_.LAST_SYNCED))
         val inactiveUsers = accountRepository.findAll(inactiveSpec)
         inactiveUsers.forEach { user ->
+            val wasActive = user.active
             accountService.save(user.also { it.active = false })
             accountSynchronizers.forEach { it.delete(user) }
+            if (wasActive) {
+                accountStatusService.recordExternalChange(
+                    account = user,
+                    activeTo = false,
+                    source = AccountStatusEventSource.SYNC,
+                    reason = "user sync: absent from Authentik active users",
+                )
+            }
         }
 
         log.info(

@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 import rs.russian.generated.api.UserApi
 import rs.russian.generated.model.*
+import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.jpa.convert
 import rs.russian.portal.shared.security.Authorized
@@ -11,12 +12,20 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.mapper.UserMapper
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.DissolutionQueueService
+import rs.russian.portal.user.service.ReportBlockService
+import rs.russian.portal.user.service.ReportControllerService
 import rs.russian.portal.user.service.SessionService
 import java.util.*
+import org.springframework.http.HttpStatus
 
 @RestController
 class UserController(
     private val accountService: AccountService,
+    private val accountStatusService: AccountStatusService,
+    private val reportBlockService: ReportBlockService,
+    private val reportControllerService: ReportControllerService,
+    private val dissolutionQueueService: DissolutionQueueService,
     private val sessionService: SessionService,
     private val userMapper: UserMapper,
 ) : UserApi {
@@ -70,8 +79,53 @@ class UserController(
         return ResponseEntity.ok(userMapper.map(accountService.setProgram(id, code).info))
     }
 
+    override fun clearProgram(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(accountService.clearProgram(id).info))
+    }
+
     override fun setProject(id: Int, code: String): ResponseEntity<UserInfoDto> {
         return ResponseEntity.ok(userMapper.map(accountService.setProject(id, code).info))
+    }
+
+    override fun clearProject(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(accountService.clearProject(id).info))
+    }
+
+    override fun setReportBlock(id: Int, reportBlockRequest: ReportBlockRequest?): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(reportBlockService.block(id, reportBlockRequest?.reason).info))
+    }
+
+    override fun clearReportBlock(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(reportBlockService.unblock(id).info))
+    }
+
+    override fun setReportController(
+        id: Int,
+        reportControllerRequest: ReportControllerRequest,
+    ): ResponseEntity<UserInfoDto> {
+        val account = reportControllerService.setController(
+            id,
+            reportControllerRequest.username,
+            reportControllerRequest.reason,
+        )
+        return ResponseEntity.ok(userMapper.map(account.info))
+    }
+
+    override fun clearReportController(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(reportControllerService.clearController(id).info))
+    }
+
+    override fun enqueueDissolution(
+        id: Int,
+        dissolutionQueueRequest: DissolutionQueueRequest?,
+    ): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(
+            userMapper.map(dissolutionQueueService.enqueue(id, dissolutionQueueRequest?.reason).info)
+        )
+    }
+
+    override fun dequeueDissolution(id: Int): ResponseEntity<UserInfoDto> {
+        return ResponseEntity.ok(userMapper.map(dissolutionQueueService.dequeue(id).info))
     }
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
@@ -82,12 +136,18 @@ class UserController(
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
     override fun activateAccount(id: Int): ResponseEntity<UserInfoDto> {
-        return ResponseEntity.ok(userMapper.map(accountService.switchActiveState(id, true).info))
+        val result = accountStatusService.requestOrApply(id, true)
+        val account = accountService.getAccount(id)
+        val status = if (result.pending) HttpStatus.ACCEPTED else HttpStatus.OK
+        return ResponseEntity.status(status).body(userMapper.map(account.info))
     }
 
     @Authorized(allowed = [ADMIN_SSO, ADMIN_VOLUNTEER])
     override fun deactivateAccount(id: Int): ResponseEntity<UserInfoDto> {
-        return ResponseEntity.ok(userMapper.map(accountService.switchActiveState(id, false).info))
+        val result = accountStatusService.requestOrApply(id, false)
+        val account = accountService.getAccount(id)
+        val status = if (result.pending) HttpStatus.ACCEPTED else HttpStatus.OK
+        return ResponseEntity.status(status).body(userMapper.map(account.info))
     }
 
     @Authorized(allowed = [ADMIN_VOLUNTEER])

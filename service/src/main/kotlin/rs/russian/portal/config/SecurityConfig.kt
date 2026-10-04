@@ -3,6 +3,7 @@ package rs.russian.portal.config
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.servlet.http.HttpServletResponse.SC_MOVED_PERMANENTLY
 import jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -23,6 +24,8 @@ import org.springframework.security.web.header.HeaderWriterFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import rs.russian.portal.activity.ActivityLoggingFilter
+import rs.russian.portal.activity.service.ActivityService
 import rs.russian.portal.clanovi.ClanoviApiKeyFilter
 import rs.russian.portal.shared.security.AccountAccessService
 import rs.russian.portal.shared.security.ActiveAccountFilter
@@ -62,6 +65,7 @@ class SecurityConfig(
         httpSecurity: HttpSecurity,
         accountAccessService: AccountAccessService,
         sessionService: SessionService,
+        activityService: ObjectProvider<ActivityService>,
     ): SecurityFilterChain = httpSecurity
         .cors {
             it.configurationSource(corsConfigurationSource())
@@ -128,6 +132,11 @@ class SecurityConfig(
             it.jwt {}
         }
         .addFilterBefore(ActiveAccountFilter(accountAccessService, sessionService), AuthorizationFilter::class.java)
+        .also { security ->
+            activityService.ifAvailable { service ->
+                security.addFilterAfter(ActivityLoggingFilter(service), AuthorizationFilter::class.java)
+            }
+        }
         .addFilterAfter(ServiceAccountLoggingFilter(), HeaderWriterFilter::class.java)
         .addFilterAfter(clanoviApiKeyFilter, HeaderWriterFilter::class.java)
         .headers {
@@ -183,6 +192,9 @@ class SecurityConfig(
             "/csrf",
             "/programs",
             "/projects",
+            "/public/maintenance",
+            "/public/maintenance/unlock",
+            "/public/application-join",
         )
 
         // Endpoints that don't need CSRF (public endpoints protected by captcha or non-sensitive)
@@ -191,6 +203,9 @@ class SecurityConfig(
             "/actuator/health",
             "/turnstile",
             "/clanovi/**",
+            "/public/maintenance",
+            "/public/maintenance/unlock",
+            "/public/application-join",
         )
     }
 

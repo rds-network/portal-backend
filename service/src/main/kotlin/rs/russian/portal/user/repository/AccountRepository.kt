@@ -6,6 +6,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -18,6 +19,7 @@ import rs.russian.portal.user.repository.projections.CityVolunteerCountProjectio
 import rs.russian.portal.user.repository.projections.GenderCountProjection
 import rs.russian.portal.user.repository.projections.UsersStatisticGroupCountProjection
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 
 @Repository
@@ -38,6 +40,33 @@ interface AccountRepository : JpaRepository<Account, Int> {
 
     @EntityGraph(value = GRAPH_FULL)
     fun findAllByUsernameIn(usernames: List<String>): List<Account>
+
+    @EntityGraph(value = GRAPH_FULL)
+    fun findAllByReportControllerUsernameIgnoreCaseAndActiveTrue(reportControllerUsername: String): List<Account>
+
+    @Modifying
+    @Query(
+        """
+        UPDATE Account a
+        SET a.lastSeenAt = :now
+        WHERE a.username = :username
+          AND (a.lastSeenAt IS NULL OR a.lastSeenAt < :threshold)
+        """
+    )
+    fun touchLastSeen(
+        @Param("username") username: String,
+        @Param("now") now: LocalDateTime,
+        @Param("threshold") threshold: LocalDateTime,
+    ): Int
+
+    @Query(
+        """
+        SELECT a.username AS username, a.lastSeenAt AS lastSeen
+        FROM Account a
+        WHERE a.username IN :usernames
+        """
+    )
+    fun findLastSeenByUsernames(@Param("usernames") usernames: Collection<String>): List<LastSeenProjection>
 
     fun findAll(specification: Specification<Account>, pageable: Pageable): Page<Account>
 
@@ -135,6 +164,9 @@ interface AccountRepository : JpaRepository<Account, Int> {
     // Select identifiers first so a later full EntityGraph load does not reuse partially loaded accounts.
     @Query("SELECT a.username FROM account a WHERE a.active = true AND a.groups @> jsonb_build_array(:group)", nativeQuery = true)
     fun findAllActiveUsernamesByGroup(@Param("group") group: String): List<String>
+
+    @Query("SELECT a.username FROM Account a WHERE a.active = true")
+    fun findAllActiveUsernames(): List<String>
 
     /**
      * IDs of inactive accounts in the given depersonalization [status] whose latest contract ended on or
@@ -254,4 +286,33 @@ interface AccountRepository : JpaRepository<Account, Int> {
         @Param("yearStart") yearStart: LocalDate,
         @Param("yearEnd") yearEnd: LocalDate,
     ): List<CityVolunteerCountProjection>
+
+    @Query(
+        """
+        SELECT a
+        FROM Account a
+        WHERE a.active = true
+        ORDER BY a.fullName ASC
+        """
+    )
+    fun findActiveAccounts(pageable: Pageable): List<Account>
+
+    @Query(
+        """
+        SELECT DISTINCT a
+        FROM Account a
+        LEFT JOIN a.info ui
+        WHERE a.active = true
+          AND (
+            LOWER(ui.program.code) = LOWER(:programCode)
+            OR EXISTS (
+              SELECT 1 FROM UserSecondaryProgram usp
+              WHERE usp.accountId = a.id
+                AND LOWER(usp.programCode) = LOWER(:programCode)
+            )
+          )
+        ORDER BY a.fullName ASC
+        """
+    )
+    fun findActiveByProgramCode(@Param("programCode") programCode: String): List<Account>
 }

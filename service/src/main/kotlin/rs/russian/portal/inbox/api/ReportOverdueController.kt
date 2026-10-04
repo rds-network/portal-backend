@@ -1,0 +1,97 @@
+package rs.russian.portal.inbox.api
+
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
+import rs.russian.portal.inbox.service.ReportOverdueService
+import rs.russian.portal.shared.security.Authorized
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
+import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
+
+@RestController
+@RequestMapping("/report-overdue")
+class ReportOverdueController(
+    private val reportOverdueService: ReportOverdueService,
+) {
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping
+    fun list(): ResponseEntity<List<ReportOverdueDto>> =
+        ResponseEntity.ok(reportOverdueService.list())
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/deactivated-active-contract")
+    fun deactivatedActiveContract(): ResponseEntity<List<DeactivatedActiveContractDto>> =
+        ResponseEntity.ok(reportOverdueService.listDeactivatedActiveContract())
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/dissolution-queue")
+    fun dissolutionQueue(): ResponseEntity<List<DissolutionQueueDto>> =
+        ResponseEntity.ok(reportOverdueService.listDissolutionQueue())
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/preview")
+    fun preview(): ResponseEntity<OverduePreviewDto> =
+        ResponseEntity.ok(reportOverdueService.preview())
+
+    /** Bulk «Разослать» отключён — порицания только вручную через issueWarning. */
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @PostMapping("/notify")
+    fun notifyNow(
+        @Suppress("UNUSED_PARAMETER") @RequestBody(required = false) request: OverdueNotifyRequest?,
+    ): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.GONE).body(
+            mapOf(
+                "message" to "Автоматическая и массовая рассылка по несдаче отключена. " +
+                    "Порицания выносятся вручную из профиля (issueWarning).",
+            )
+        )
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/notices")
+    fun notices(): ResponseEntity<List<OverdueNoticePersonDto>> =
+        ResponseEntity.ok(reportOverdueService.noticeLedger())
+
+    @GetMapping("/warnings/{username}")
+    fun warningCount(@PathVariable username: String): ResponseEntity<Map<String, Int>> =
+        ResponseEntity.ok(mapOf("count" to reportOverdueService.warningCount(username)))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @GetMapping("/counts")
+    fun warningCounts(@RequestParam(required = false) usernames: List<String>?): ResponseEntity<Map<String, Int>> =
+        ResponseEntity.ok(reportOverdueService.warningCounts(usernames.orEmpty()))
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @PostMapping("/warnings/{username}/cancel")
+    fun cancelWarning(
+        @PathVariable username: String,
+        @RequestBody(required = false) request: OverdueCancelRequest?,
+    ): ResponseEntity<OverdueNoticePersonDto> =
+        ResponseEntity.ok(
+            reportOverdueService.cancelWarning(
+                username = username,
+                all = request?.all == true,
+                reason = request?.reason,
+            )
+        )
+
+    @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
+    @PostMapping("/warnings/{username}")
+    fun issueWarning(
+        @PathVariable username: String,
+        @RequestBody(required = false) request: OverdueIssueWarningRequest?,
+    ): ResponseEntity<OverdueNoticePersonDto> =
+        ResponseEntity.ok(
+            reportOverdueService.issueWarning(
+                username = username,
+                reason = request?.reason,
+            )
+        )
+}

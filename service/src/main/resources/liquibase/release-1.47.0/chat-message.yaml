@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.47.0-chat-message-create-table
+      author: portal
+      changes:
+        - createTable:
+            tableName: chat_message
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_chat_message
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: chat_room
+                    referencedColumnNames: id
+                    foreignKeyName: fk_chat_message_room
+                  name: room_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: author_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: body
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+        - createIndex:
+            tableName: chat_message
+            indexName: idx_chat_message_room_created
+            columns:
+              - column:
+                  name: room_id
+              - column:
+                  name: created_at

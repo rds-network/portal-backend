@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.40.0
+  version: 1.44.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -44,6 +44,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/program:
+    delete:
+      operationId: clearProgram
+      description: Сбросить программу волонтера вместе с проектом
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
   /user/account/{id}/program/{code}:
     patch:
       operationId: setProgram
@@ -61,6 +81,161 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/project:
+    delete:
+      operationId: clearProject
+      description: Сбросить проект волонтера
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/report-block:
+    post:
+      operationId: setReportBlock
+      description: Поставить стоп на сдачу отчётов волонтеру
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportBlockRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+    delete:
+      operationId: clearReportBlock
+      description: Снять стоп на сдачу отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/dissolution-queue:
+    post:
+      operationId: enqueueDissolution
+      description: Поставить аккаунт в очередь на расторжение
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DissolutionQueueRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+    delete:
+      operationId: dequeueDissolution
+      description: Снять аккаунт с очереди на расторжение
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+  /user/account/{id}/report-controller:
+    put:
+      operationId: setReportController
+      description: Назначить волонтеру принудительный контроль сдачи отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportControllerRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoDto"
+    delete:
+      operationId: clearReportController
+      description: Снять принудительный контроль сдачи отчётов
+      tags:
+        - user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            nullable: false
       responses:
         "200":
           description: Success
@@ -1436,6 +1611,12 @@ components:
           type: string
         program:
           $ref: "#/components/schemas/ProgramDto"
+        secondaryProgramCodes:
+          type: array
+          default: [ ]
+          description: Коды дополнительных программ (без основной)
+          items:
+            type: string
         project:
           $ref: "#/components/schemas/ProjectDto"
         avatar:
@@ -1460,6 +1641,93 @@ components:
           default: [ ]
           items:
             $ref: "#/components/schemas/ResidencePermitDto"
+        reportBlocked:
+          type: boolean
+          default: false
+          description: Сдача отчётов приостановлена
+        reportBlockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reportBlockedBy:
+          type: string
+          nullable: true
+          description: Логин того, кто поставил стоп
+        reportBlockedByFullName:
+          type: string
+          nullable: true
+          description: Имя того, кто поставил стоп
+        reportBlockedReason:
+          type: string
+          nullable: true
+        reportControllerUsername:
+          type: string
+          nullable: true
+          description: Логин принудительного контролёра сдачи отчётов
+        reportControllerFullName:
+          type: string
+          nullable: true
+          description: Имя принудительного контролёра сдачи отчётов
+        reportControllerReason:
+          type: string
+          nullable: true
+          description: Причина назначения принудительного контроля
+        reportControllerAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда назначен принудительный контроль
+        mupLetterSentAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда в МУП ушло письмо о расторжении договора
+        mupLetterReason:
+          type: string
+          nullable: true
+          description: Причина письма в МУП (NON_COMPLIANCE / VOLUNTEER_REQUEST)
+        dissolutionQueuedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда аккаунт поставлен в очередь на расторжение
+        dissolutionQueuedBy:
+          type: string
+          nullable: true
+          description: Кто поставил аккаунт в очередь на расторжение
+    DissolutionQueueRequest:
+      type: object
+      description: Опциональная причина постановки в очередь на расторжение
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 2000
+      additionalProperties: false
+    ReportBlockRequest:
+      type: object
+      description: Причина стопа на сдачу отчётов
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 1000
+      additionalProperties: false
+    ReportControllerRequest:
+      type: object
+      description: Логин того, кто принимает отчёты волонтера вне зависимости от программы
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          nullable: false
+          minLength: 1
+        reason:
+          type: string
+          nullable: true
+          maxLength: 1000
+      additionalProperties: false
     UserInfoUpdateRequest:
       type: object
       description: обновить информацию о пользователе
@@ -1932,6 +2200,12 @@ components:
           nullable: false
         note:
           type: string
+        gratitude:
+          type: boolean
+          description: Award curator gratitude (+points) to the volunteer when accepting the report
+        managerGratitude:
+          type: boolean
+          description: Award manager gratitude (+points) — admins / main volunteers only
     UserSearchFilter:
       type: object
       nullable: false
@@ -1954,6 +2228,10 @@ components:
           nullable: true
           description: Показывать только пользователей по указанному проекту, пустая строка значит показать пользователей без проекта
           example: "DESIGN_3D"
+        reportBlocked:
+          type: boolean
+          nullable: true
+          description: Показывать только пользователей со стопом на сдачу отчётов
     ContractTypeEnum:
       type: string
       enum:
@@ -2102,6 +2380,11 @@ components:
           type: number
           description: Кол-во требуемых часов в указанную неделю
           nullable: false
+        leaveDays:
+          type: integer
+          description: Число дней согласованного отпуска, пересекающих неделю
+          nullable: true
+          example: 7
     ReportsHeatMapFilter:
       type: object
       properties:

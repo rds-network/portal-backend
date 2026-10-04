@@ -80,6 +80,28 @@ class ApplicationService(
         return applicationRepository.findByEmail(email).orElseThrow()
     }
 
+    /**
+     * Latest application for a portal user: prefer DONE, otherwise newest by created.
+     * Resolves account by username, or by email when the key looks like an email.
+     */
+    @Transactional(readOnly = true)
+    fun findLatestForUsername(username: String): Application? {
+        val account = resolveAccount(username) ?: return null
+        val applications = applicationRepository.findAllByEmail(account.email)
+        if (applications.isEmpty()) return null
+        val done = applications.filter { it.status == DONE }
+        return (done.ifEmpty { applications }).maxByOrNull { it.created }
+    }
+
+    private fun resolveAccount(username: String): Account? {
+        if (username.isBlank()) return null
+        accountService.findAccountByLogin(username)?.let { return it }
+        if (username.contains("@")) {
+            return accountService.findAccountByEmail(username)
+        }
+        return null
+    }
+
     @Transactional(readOnly = true)
     fun getAll(searchQuery: String?, pageRequest: PageRequest, filter: ApplicationsFilter?): Page<Application> {
         val specification = searchSpecification(searchQuery, filter)
@@ -97,6 +119,7 @@ class ApplicationService(
         if (application.status == DONE && (application.program == null || application.project == null)) {
             throw InvalidRequestException("Program and project must be specified before completing the application")
         }
+        // Assignee stays with the chosen employee; change it only via assign().
         return applicationRepository.save(application)
     }
 

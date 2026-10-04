@@ -62,10 +62,18 @@ class ApplicationAssignmentTest {
     }
 
     @Test
-    fun `status change preserves existing assignee`() {
+    fun `status change preserves assignee and ignores supplied assignee`() {
         val updated = service.update(ApplicationDto(id = application.id!!, status = IN_PROGRESS.name, assignee = "forged"))
         assertEquals(IN_PROGRESS, updated.status)
         assertEquals("previous", updated.assignee)
+    }
+
+    @Test
+    fun `status change on unassigned application does not auto assign`() {
+        application.assignee = null
+        val updated = service.update(ApplicationDto(id = application.id!!, status = IN_PROGRESS.name))
+        assertEquals(IN_PROGRESS, updated.status)
+        assertNull(updated.assignee)
     }
 
     @Test
@@ -144,7 +152,7 @@ class ApplicationAssignmentTest {
     }
 
     @Test
-    fun `status change without authenticated employee preserves assignee`() {
+    fun `status change without authentication still preserves assignment`() {
         SecurityContextHolder.clearContext()
         val updated = service.update(ApplicationDto(id = application.id!!, status = IN_PROGRESS.name))
         assertEquals(IN_PROGRESS, updated.status)

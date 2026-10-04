@@ -1,0 +1,114 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.55.0-point-mission-review-columns
+      author: portal
+      changes:
+        - addColumn:
+            tableName: point_mission
+            columns:
+              - column:
+                  name: requires_review
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: proof_label
+                  type: VARCHAR(200)
+                  constraints:
+                    nullable: true
+  - changeSet:
+      id: 1.55.0-point-mission-submission
+      author: portal
+      changes:
+        - createTable:
+            tableName: point_mission_submission
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_point_mission_submission
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: mission_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: proof_text
+                  type: VARCHAR(500)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(20)
+              - column:
+                  name: reject_reason
+                  type: VARCHAR(500)
+              - column:
+                  name: reviewed_by
+                  type: VARCHAR(255)
+              - column:
+                  name: reviewed_at
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+        - addForeignKeyConstraint:
+            baseTableName: point_mission_submission
+            baseColumnNames: mission_id
+            referencedTableName: point_mission
+            referencedColumnNames: id
+            constraintName: fk_mission_submission_mission
+            onDelete: CASCADE
+        - createIndex:
+            tableName: point_mission_submission
+            indexName: idx_mission_submission_status_created
+            columns:
+              - column:
+                  name: status
+              - column:
+                  name: created_at
+        - createIndex:
+            tableName: point_mission_submission
+            indexName: idx_mission_submission_user_mission
+            columns:
+              - column:
+                  name: username
+              - column:
+                  name: mission_id
+  - changeSet:
+      id: 1.55.0-point-mission-proof-labels
+      author: portal
+      changes:
+        - update:
+            tableName: point_mission
+            columns:
+              - column:
+                  name: proof_label
+                  value: "Ваш Instagram (@ник или ссылка на профиль)"
+              - column:
+                  name: description
+                  value: "Подпишитесь на официальный Instagram, укажите свой профиль и отправьте на проверку. Баллы начислит модератор."
+            where: id = 'a1000000-0000-4000-8000-000000000001'
+        - update:
+            tableName: point_mission
+            columns:
+              - column:
+                  name: proof_label
+                  value: "Ссылка на ваш ответ / email / код из опроса"
+              - column:
+                  name: description
+                  value: "Пройдите опрос по ссылке, укажите проверяемый результат и отправьте на проверку."
+            where: id = 'a1000000-0000-4000-8000-000000000002'

@@ -1,0 +1,130 @@
+package rs.russian.portal.inbox.repository
+
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import rs.russian.portal.inbox.domain.InboxThread
+import java.util.UUID
+
+interface InboxThreadRepository : JpaRepository<InboxThread, UUID> {
+
+    @Query(
+        """
+        SELECT DISTINCT t FROM InboxThread t
+        JOIN t.participants p
+        WHERE LOWER(p.username) = LOWER(:username)
+        ORDER BY t.createTime DESC
+        """
+    )
+    fun findAllForUser(@Param("username") username: String): List<InboxThread>
+
+    @Query(
+        """
+        SELECT DISTINCT t FROM InboxThread t
+        JOIN t.messages m
+        WHERE t.kind = 'TALENT_POST'
+          AND m.body LIKE CONCAT('%', :needle, '%')
+        """
+    )
+    fun findTalentPostNotices(@Param("needle") needle: String): List<InboxThread>
+
+    @Query(
+        """
+        SELECT DISTINCT t FROM InboxThread t
+        ORDER BY t.createTime DESC
+        """
+    )
+    fun findAllForManagers(): List<InboxThread>
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM InboxParticipant p
+        JOIN p.thread t
+        WHERE LOWER(p.username) = LOWER(:username) AND p.unread = true
+          AND (
+            t.kind <> 'LEAVE_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'LEAVE_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+        """
+    )
+    fun countUnread(
+        @Param("username") username: String,
+        @Param("leaveApprover") leaveApprover: String,
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM InboxParticipant p
+        JOIN p.thread t
+        WHERE LOWER(p.username) = LOWER(:username)
+          AND p.ackRequired = true
+          AND p.receivedAt IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM InboxMessage m
+            WHERE m.thread = p.thread AND LOWER(m.author) = LOWER(p.username)
+          )
+          AND (
+            t.kind <> 'LEAVE_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'LEAVE_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_REQUEST'
+            OR LOWER(:username) = LOWER(:leaveApprover)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+          AND (
+            t.kind <> 'DISSOLUTION_DECISION'
+            OR LOWER(t.recipient) = LOWER(:username)
+            OR LOWER(t.createdBy) = LOWER(:username)
+          )
+        """
+    )
+    fun countPendingAck(
+        @Param("username") username: String,
+        @Param("leaveApprover") leaveApprover: String,
+    ): Long
+
+    /** Threads I created (as author) — for delivery accounting. */
+    @Query(
+        """
+        SELECT COUNT(t) FROM InboxThread t
+        WHERE LOWER(t.createdBy) = LOWER(:username)
+          AND t.kind = 'MANUAL'
+        """
+    )
+    fun countManualSentBy(@Param("username") username: String): Long
+
+    @Query(
+        """
+        SELECT COUNT(t) FROM InboxThread t
+        JOIN t.participants p
+        WHERE LOWER(t.createdBy) = LOWER(:username)
+          AND t.kind = 'MANUAL'
+          AND LOWER(p.username) = LOWER(t.recipient)
+          AND p.receivedAt IS NOT NULL
+        """
+    )
+    fun countManualDeliveredBy(@Param("username") username: String): Long
+}

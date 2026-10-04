@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.23.0/inbox.yaml
+  - include:
+      file: liquibase/release-1.23.0/report-overdue-notice.yaml
