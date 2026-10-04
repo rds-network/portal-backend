@@ -81,4 +81,168 @@
         <packageUrl regex="true">^pkg:maven/io\.opentelemetry/opentelemetry-(api|context)@.*$</packageUrl>
         <cve>CVE-2026-54285</cve>
     </suppress>
+
+    <!-- ══════════════════════════════════════════════════════════════════════════════
+         Spring Framework 6.2.x (EOL June 2026) — no OSS patch available; all of the
+         CVEs below target code paths that are not present in this project.
+         Tracked upgrade to Spring Boot 4.x / Spring Framework 7.x separately.
+         ══════════════════════════════════════════════════════════════════════════════ -->
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47884 is an SSRF/RCE in Spring MVC XsltView. This
+            project uses Thymeleaf for view rendering and does not configure XsltView anywhere.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47884</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47885 is a maxPartSize bypass in WebFlux's
+            PartEventHttpMessageReader. This project uses Spring MVC (spring-boot-starter-web),
+            not Spring WebFlux; the vulnerable reader is never invoked.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47885</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47886 is a DoS triggered when evaluating user-supplied
+            SpEL expressions containing the power operator (^) with BigDecimal/BigInteger. This
+            project does not expose any endpoint or code path that evaluates user-supplied SpEL.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-expression@.*$</packageUrl>
+        <cve>CVE-2026-47886</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47888 is a memory leak via a malformed RSocket SETUP
+            frame in Spring RSocket. This project does not use RSocket; no RSocket handler
+            is configured.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-messaging@.*$</packageUrl>
+        <cve>CVE-2026-47888</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47889 is a sameSite attribute loss in the Jetty 12
+            Core reactive adapter. This project uses Spring Boot's default embedded Tomcat
+            server, not Jetty.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47889</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47890 is a CRLF injection in Spring MVC/WebFlux
+            Server-Sent Events (SSE) fragment rendering. This project is a REST API and does
+            not expose any SSE endpoints.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47890</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47891 is a maxInMemorySize bypass in WebFlux's
+            Jaxb2Decoder (Aalto XML processor). This project uses Spring MVC, not Spring WebFlux;
+            the vulnerable decoder is never on the request path.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47891</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47892 is a header predicate bypass in WebFlux functional
+            endpoints deployed with DispatcherServlet. This project uses Spring MVC with
+            annotation-based controllers, not WebFlux functional endpoints.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47892</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47893 is a request-header exposure in WebFlux WebSocket
+            handshake exception messages (HandshakeWebsocketService). This project uses Spring MVC
+            and does not use Spring WebFlux WebSocket support.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-47893</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-59282 is a DoS via user-supplied property paths in
+            Spring's DataBinder infrastructure. This project binds all request data through Jackson
+            JSON deserialization (@RequestBody) and does not use DataBinder with user-supplied
+            property paths.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-59282</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-59283 is a SpEL safety-guard bypass when
+            SimpleEvaluationContext is used with the SpEL compiler and user-supplied expressions.
+            This project does not evaluate user-supplied SpEL expressions.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-expression@.*$</packageUrl>
+        <cve>CVE-2026-59283</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-59313 is content spoofing in the Spring MVC functional
+            web framework SSE support. This project does not use SSE endpoints and uses only
+            annotation-based Spring MVC controllers (not the functional web DSL).</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring-.*@.*$</packageUrl>
+        <cve>CVE-2026-59313</cve>
+    </suppress>
+
+    <!-- ══════════════════════════════════════════════════════════════════════════════
+         Spring Security 6.5.x (EOL; OSS fix requires 7.x) — CVEs target features
+         this project does not use.
+         ══════════════════════════════════════════════════════════════════════════════ -->
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-59270 affects Spring Security's embedded UnboundID LDAP
+            server (UnboundIdContainer), which exposes its admin bind DN on all interfaces.
+            This project authenticates via OAuth2/OIDC with Authentik and does not configure
+            an embedded LDAP server.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.security/spring-security-.*@.*$</packageUrl>
+        <cve>CVE-2026-59270</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-41707 is a DPoP proof replay attack in
+            DPoPProofJwtDecoderFactory (spring-security-oauth2-resource-server). This project
+            uses standard Bearer token OAuth2 and does not configure DPoP-bound access tokens.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.security/spring-security-.*@.*$</packageUrl>
+        <cve>CVE-2026-41707</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47841 is a WebAuthn authentication bypass where a
+            UserVerificationRequirement restored from a serialized session is silently downgraded.
+            This project does not use WebAuthn; authentication is handled entirely via
+            OAuth2/OIDC.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.security/spring-security-.*@.*$</packageUrl>
+        <cve>CVE-2026-47841</cve>
+    </suppress>
+
+    <!-- ══════════════════════════════════════════════════════════════════════════════
+         Spring AI 1.1.x — CVEs target modules/features not used in this project.
+         ══════════════════════════════════════════════════════════════════════════════ -->
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-59318 is a tool-calling privilege escalation in Spring
+            AI's DefaultToolCallingManager. This project uses ChatClient for simple prompt/response
+            text generation only (system + user prompt) and does not configure or invoke any
+            tools.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.ai/spring-ai-.*@.*$</packageUrl>
+        <cve>CVE-2026-59318</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47851 is an OOM/unbounded recursion in Spring AI's PDF
+            Document Reader. This project uses the OpenAI model starter only and does not include
+            the spring-ai-pdf-document-reader module; the vulnerable class is not on the
+            classpath.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.ai/spring-ai-.*@.*$</packageUrl>
+        <cve>CVE-2026-47851</cve>
+    </suppress>
+
+    <suppress>
+        <notes>Not applicable - CVE-2026-47852 is a predictable ONNX model cache directory
+            vulnerability in Spring AI's ONNX transformer support. This project does not use
+            ONNX-based embedding models; no spring-ai-onnx-transformers module is on the
+            classpath.</notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.ai/spring-ai-.*@.*$</packageUrl>
+        <cve>CVE-2026-47852</cve>
+    </suppress>
 </suppressions>

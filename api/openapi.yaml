@@ -2016,7 +2016,7 @@ components:
           type: string
           nullable: true
           readOnly: true
-          description: Current employee login. Only a real status change or explicit assignment changes it.
+          description: Current employee login. Only an explicit assignment changes it; status changes do not affect this field.
         status:
           type: string
           maxLength: 50
