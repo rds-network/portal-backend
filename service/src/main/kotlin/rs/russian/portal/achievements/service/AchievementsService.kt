@@ -4,9 +4,11 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.achievements.api.AchievementDto
+import rs.russian.portal.achievements.api.AchievementsLeaderboardDto
 import rs.russian.portal.achievements.api.AchievementsMeDto
 import rs.russian.portal.achievements.api.InboxDeliveryStatsDto
 import rs.russian.portal.achievements.api.PointEventDto
+import rs.russian.portal.achievements.api.PointLeaderDto
 import rs.russian.portal.achievements.domain.VolunteerPointEvent
 import rs.russian.portal.achievements.repository.VolunteerPointEventRepository
 import rs.russian.portal.activity.repository.ActivityEventRepository
@@ -172,6 +174,91 @@ class AchievementsService(
     fun balanceOf(username: String): Long = pointEvents.sumPoints(username)
 
     @Transactional(readOnly = true)
+    fun leaderboard(limit: Int = 100): AchievementsLeaderboardDto {
+        val cap = limit.coerceIn(1, 200)
+        val grouped = pointEvents.sumPointsGrouped()
+        val login = currentUserLogin()?.lowercase()
+        val totals = grouped.mapNotNull { row ->
+            val username = (row[0] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val points = when (val raw = row[1]) {
+                is Number -> raw.toLong()
+                else -> 0L
+            }
+            username to points
+        }
+        val usernames = totals.map { it.first }.toMutableSet()
+        if (login != null) usernames.add(login)
+        val accountMap = accountRepository.findAllByUsernameLowerIn(usernames)
+            .associateBy { it.username.lowercase() }
+        val leaders = totals.take(cap).mapIndexed { index, (username, points) ->
+            val account = accountMap[username]
+            PointLeaderDto(
+                rank = index + 1,
+                username = account?.username ?: username,
+                fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: username),
+                points = points,
+                isMe = login != null && username == login,
+            )
+        }
+        val meRank = login?.let { me -> totals.indexOfFirst { it.first == me } }
+        val me = when {
+            meRank != null && meRank >= 0 -> {
+                val (username, points) = totals[meRank]
+                val account = accountMap[username]
+                PointLeaderDto(
+                    rank = meRank + 1,
+                    username = account?.username ?: username,
+                    fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: username),
+                    points = points,
+                    isMe = true,
+                )
+            }
+            login != null -> {
+                val account = accountMap[login]
+                PointLeaderDto(
+                    rank = totals.size + 1,
+                    username = account?.username ?: login,
+                    fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: login),
+                    points = 0,
+                    isMe = true,
+                )
+            }
+            else -> null
+        }
+        return AchievementsLeaderboardDto(
+            leaders = leaders,
+            me = me,
+            totalParticipants = totals.size,
+        )
+    }
+
+    /**
+     * External / service-account award (Ekomapa podium, etc). Idempotent on (user, code, refId).
+     */
+    @Transactional
+    fun awardExternal(username: String, code: String, points: Int, refId: String, title: String): Pair<Long, Boolean> {
+        val login = username.trim()
+        if (login.isEmpty() || points == 0 || code.isBlank() || refId.isBlank()) {
+            return 0L to false
+        }
+        val canonical = accountRepository.findAllByUsernameLowerIn(listOf(login.lowercase()))
+            .firstOrNull()?.username ?: login.lowercase()
+        val already = pointEvents.existsByUsernameAndCodeAndRefId(canonical, code, refId) ||
+            pointEvents.existsByUsernameAndCodeAndRefId(login.lowercase(), code, refId)
+        if (already) {
+            return pointEvents.sumPoints(canonical) to false
+        }
+        award(
+            username = canonical,
+            code = code,
+            points = points,
+            refId = refId,
+            title = title,
+        )
+        return pointEvents.sumPoints(canonical) to true
+    }
+
+    @Transactional(readOnly = true)
     fun listMissionClaimEvents(): List<VolunteerPointEvent> =
         pointEvents.findTop200ByCodeOrderByCreatedAtDesc(CODE_MISSION_CLAIM)
 
@@ -280,6 +367,10 @@ class AchievementsService(
         const val CODE_CURATOR_GRATITUDE = "CURATOR_GRATITUDE"
         const val CODE_MANAGER_GRATITUDE = "MANAGER_GRATITUDE"
         const val CODE_MISSION_CLAIM = "MISSION_CLAIM"
+        const val CODE_EKOMAPA_PODIUM = "EKOMAPA_MONTHLY_PODIUM"
+
+        /** Portal points for Ekomapa monthly cleanup podium: 1st / 2nd / 3rd. */
+        val EKOMAPA_PODIUM_POINTS: Map<Int, Int> = mapOf(1 to 30, 2 to 20, 3 to 10)
 
         private val weekFields = WeekFields.of(Locale("ru", "RU"))
 

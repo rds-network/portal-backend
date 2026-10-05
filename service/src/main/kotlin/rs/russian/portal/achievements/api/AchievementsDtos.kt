@@ -34,3 +34,31 @@ data class AchievementsMeDto(
     val inbox: InboxDeliveryStatsDto,
     val thisWeekVisited: Boolean,
 )
+
+data class PointLeaderDto(
+    val rank: Int,
+    val username: String,
+    val fullName: String,
+    val points: Long,
+    val isMe: Boolean = false,
+)
+
+data class AchievementsLeaderboardDto(
+    val leaders: List<PointLeaderDto>,
+    val me: PointLeaderDto?,
+    val totalParticipants: Int,
+)
+
+data class ExtPointAwardRequest(
+    val user: String,
+    val code: String,
+    val points: Int,
+    val refId: String,
+    val title: String,
+)
+
+data class ExtPointAwardResponse(
+    val username: String,
+    val balance: Long,
+    val awarded: Boolean,
+)

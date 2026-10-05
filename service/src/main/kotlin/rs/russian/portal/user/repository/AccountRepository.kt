@@ -42,6 +42,10 @@ interface AccountRepository : JpaRepository<Account, Int> {
     fun findAllByUsernameIn(usernames: List<String>): List<Account>
 
     @EntityGraph(value = GRAPH_FULL)
+    @Query("SELECT a FROM Account a WHERE LOWER(a.username) IN :usernames")
+    fun findAllByUsernameLowerIn(@Param("usernames") usernames: Collection<String>): List<Account>
+
+    @EntityGraph(value = GRAPH_FULL)
     fun findAllByReportControllerUsernameIgnoreCaseAndActiveTrue(reportControllerUsername: String): List<Account>
 
     @Modifying
