@@ -49,6 +49,12 @@ class Report(
 
     var createTime: OffsetDateTime = OffsetDateTime.now(),
 
+    /** Last time the volunteer submitted / resubmitted the report. */
+    var submittedAt: OffsetDateTime = OffsetDateTime.now(),
+
+    /** Set when status becomes ACCEPTED; cleared when acceptance is cancelled. */
+    var acceptedAt: OffsetDateTime? = null,
+
     @Enumerated(STRING)
     var status: ReportStatus = ReportStatus.CREATED,
 

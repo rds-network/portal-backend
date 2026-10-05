@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.56.0-report-submitted-accepted-at
+      author: portal
+      changes:
+        - addColumn:
+            tableName: report
+            columns:
+              - column:
+                  name: submitted_at
+                  type: DATETIME
+                  constraints:
+                    nullable: true
+              - column:
+                  name: accepted_at
+                  type: DATETIME
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: >
+              UPDATE report
+              SET submitted_at = create_time
+              WHERE submitted_at IS NULL
+        - sql:
+            sql: >
+              UPDATE report
+              SET accepted_at = COALESCE(version, create_time)
+              WHERE status = 'ACCEPTED' AND accepted_at IS NULL
+        - addNotNullConstraint:
+            tableName: report
+            columnName: submitted_at
+            columnDataType: DATETIME
+        - createIndex:
+            tableName: report
+            indexName: idx_report_submitted_at
+            columns:
+              - column:
+                  name: submitted_at
+        - createIndex:
+            tableName: report
+            indexName: idx_report_accepted_at
+            columns:
+              - column:
+                  name: accepted_at

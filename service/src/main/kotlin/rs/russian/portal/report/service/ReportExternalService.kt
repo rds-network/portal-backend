@@ -12,6 +12,7 @@ import rs.russian.portal.shared.ai.service.TextTranslationService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
+import java.time.OffsetDateTime
 
 @Service
 class ReportExternalService(
@@ -24,10 +25,13 @@ class ReportExternalService(
     @Transactional
     fun createReport(request: CreateReportRequest): Report {
         val account = accountService.getAccountByLogin(request.user)
+        val now = OffsetDateTime.now()
         val report = Report(
             isAuto = true,
             account = account,
             status = ReportStatus.CREATED,
+            createTime = now,
+            submittedAt = now,
             program = account.info?.program,
             project = account.info?.project
         )
