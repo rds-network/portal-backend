@@ -22,4 +22,14 @@ interface VolunteerPointEventRepository : JpaRepository<VolunteerPointEvent, UUI
     fun countByUsernameAndCode(username: String, code: String): Long
 
     fun findTop200ByCodeOrderByCreatedAtDesc(code: String): List<VolunteerPointEvent>
+
+    @Query(
+        """
+        SELECT LOWER(e.username), COALESCE(SUM(e.points), 0)
+        FROM VolunteerPointEvent e
+        GROUP BY LOWER(e.username)
+        ORDER BY COALESCE(SUM(e.points), 0) DESC
+        """
+    )
+    fun sumPointsGrouped(): List<Array<Any>>
 }
