@@ -3,6 +3,7 @@ package rs.russian.portal.report.service
 import jakarta.persistence.EntityManager
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
@@ -34,6 +35,7 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import rs.russian.portal.workassignment.service.WorkAssignmentService
+import java.time.OffsetDateTime
 import java.util.*
 
 @Service
@@ -62,9 +64,12 @@ class ReportService(
     fun createReport(reportDto: ReportDto): Report {
         val currentAccount = accountService.getCurrentAccount()
         requireReportingAllowed(currentAccount)
+        val now = OffsetDateTime.now()
         val report = Report(
             account = currentAccount,
             status = ReportStatus.CREATED,
+            createTime = now,
+            submittedAt = now,
             program = currentAccount.info?.program,
             project = currentAccount.info?.project
         )
@@ -115,6 +120,8 @@ class ReportService(
         }
         refreshAssignment(report, reportDto, editor)
         report.status = ReportStatus.CREATED
+        report.submittedAt = OffsetDateTime.now()
+        report.acceptedAt = null
         report.tasks.clear()
         val saved = reportRepository.save(report.also { it.tasks.addAll(tasks) })
         workAssignmentService.markFromReport(saved)
@@ -139,7 +146,7 @@ class ReportService(
 
     @Transactional(readOnly = true)
     fun getReports(reportFilter: ReportFilter, pageable: Pageable): Page<Report> {
-        return findAllFull(from(reportFilter), pageable)
+        return findAllFull(from(reportFilter), withAcceptedAtNullsLast(pageable))
     }
 
     @Transactional(readOnly = true)
@@ -209,11 +216,19 @@ class ReportService(
             )
             report.notes.add(note)
         }
+        val previousStatus = report.status
         report.status = status
         report.moderator = moderator
+        when (status) {
+            ReportStatus.ACCEPTED -> report.acceptedAt = OffsetDateTime.now()
+            ReportStatus.CREATED, ReportStatus.REJECTED -> report.acceptedAt = null
+        }
         workAssignmentService.markFromReport(report)
         if (status == ReportStatus.ACCEPTED || status == ReportStatus.REJECTED) {
             notifyReportDecision(report, status, noteText, moderator.username)
+        }
+        if (status == ReportStatus.CREATED && previousStatus == ReportStatus.ACCEPTED) {
+            notifyAcceptanceCancelled(report, noteText, moderator.username)
         }
         if (status == ReportStatus.ACCEPTED && noteText.isNullOrBlank()) {
             report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
@@ -257,6 +272,33 @@ class ReportService(
             createdBy = createdBy,
             needsAck = status == ReportStatus.REJECTED || remark != null,
         )
+    }
+
+    private fun notifyAcceptanceCancelled(
+        report: Report,
+        noteText: String?,
+        createdBy: String,
+    ) {
+        val reportId = report.id?.toString() ?: return
+        val date = report.createTime.toLocalDate()
+        val remark = noteText?.trim()?.takeIf { it.isNotEmpty() }
+        val remarkLine = remark?.let { "\n\nКомментарий: $it" } ?: ""
+        inboxService.notifyReportDecision(
+            username = report.account.username,
+            subject = "Приёмка отчёта отменена ($date)",
+            body = "Приёмка вашего отчёта от $date отменена — отчёт снова в работе.$remarkLine\n\n/report/$reportId",
+            createdBy = createdBy,
+            needsAck = true,
+        )
+    }
+
+    /** Keep unaccepted reports at the end when sorting by acceptance time. */
+    private fun withAcceptedAtNullsLast(pageable: Pageable): Pageable {
+        if (pageable.sort.isUnsorted) return pageable
+        val orders = pageable.sort.map { order ->
+            if (order.property == "acceptedAt") order.nullsLast() else order
+        }.toList()
+        return PageRequest.of(pageable.pageNumber, pageable.pageSize, Sort.by(orders))
     }
 
     /**
