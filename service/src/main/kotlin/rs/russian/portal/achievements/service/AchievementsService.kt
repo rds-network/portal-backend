@@ -58,6 +58,8 @@ class AchievementsService(
         val hasAvatar = account?.info?.avatar != null
         val acceptedCount =
             reportRepository.countByAccountUsernameIgnoreCaseAndStatus(login, ReportStatus.ACCEPTED)
+        val leaderboardRank = leaderboardRankFor(login)
+        val bestEkomapaPlace = bestEkomapaPodiumPlace(login)
         val achievements = AchievementCatalog.ALL.map { def ->
             val progress = when (def.kind) {
                 AchievementCatalog.Kind.WEEKLY_LOGINS -> weeklyLogins.toInt()
@@ -67,6 +69,11 @@ class AchievementsService(
                 AchievementCatalog.Kind.HAS_AVATAR -> if (hasAvatar) 1 else 0
                 AchievementCatalog.Kind.ANY_ACCEPTED_REPORT -> acceptedCount.toInt().coerceAtMost(1)
                 AchievementCatalog.Kind.POSITIVE_BALANCE -> if (balance > 0) 1 else 0
+                AchievementCatalog.Kind.IN_LEADERBOARD -> if (leaderboardRank > 0) 1 else 0
+                AchievementCatalog.Kind.LEADERBOARD_TOP ->
+                    if (leaderboardRank > 0 && leaderboardRank <= def.target) 1 else 0
+                AchievementCatalog.Kind.EKOMAPA_PODIUM_BEST ->
+                    if (bestEkomapaPlace != null && bestEkomapaPlace <= def.target) 1 else 0
             }
             AchievementDto(
                 id = def.id,
@@ -268,6 +275,47 @@ class AchievementsService(
         if (u in LEADERBOARD_EXCLUDED_USERNAMES || e in LEADERBOARD_EXCLUDED_EMAILS) return true
         if (e.startsWith("legkov777@")) return true
         return LEADERBOARD_EXCLUDED_NAME_MARKERS.any { marker -> name.contains(marker) }
+    }
+
+    /** 1-based place among non-excluded users, or -1 if not listed. */
+    private fun leaderboardRankFor(login: String): Int {
+        val me = login.lowercase()
+        val viewer = accountRepository.findAllByUsernameLowerIn(listOf(me)).firstOrNull()
+        if (isExcludedFromLeaderboard(me, viewer?.email, viewer?.fullName)) return -1
+
+        val rawTotals = pointEvents.sumPointsGrouped().mapNotNull { row ->
+            val username = (row[0] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val points = when (val raw = row[1]) {
+                is Number -> raw.toLong()
+                else -> 0L
+            }
+            if (points <= 0) return@mapNotNull null
+            username to points
+        }
+        if (rawTotals.isEmpty()) return -1
+
+        val accountMap = accountRepository.findAllByUsernameLowerIn(rawTotals.map { it.first })
+            .associateBy { it.username.lowercase() }
+        val totals = rawTotals.filter { (username, _) ->
+            val account = accountMap[username]
+            !isExcludedFromLeaderboard(username, account?.email, account?.fullName)
+        }
+        val index = totals.indexOfFirst { it.first == me }
+        return if (index >= 0) index + 1 else -1
+    }
+
+    /** Best (lowest) Ekomapa monthly podium place from ledger refIds like `2026-09-1`. */
+    private fun bestEkomapaPodiumPlace(login: String): Int? {
+        return pointEvents.findByUsernameOrderByCreatedAtDesc(login)
+            .asSequence()
+            .filter { it.code == CODE_EKOMAPA_PODIUM }
+            .mapNotNull { parseEkomapaPodiumPlace(it.refId) }
+            .minOrNull()
+    }
+
+    private fun parseEkomapaPodiumPlace(refId: String?): Int? {
+        val place = refId?.substringAfterLast('-')?.toIntOrNull() ?: return null
+        return place.takeIf { it in 1..3 }
     }
 
     /**

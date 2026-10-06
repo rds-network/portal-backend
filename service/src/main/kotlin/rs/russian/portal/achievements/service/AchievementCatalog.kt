@@ -25,6 +25,12 @@ object AchievementCatalog {
         HAS_AVATAR,
         ANY_ACCEPTED_REPORT,
         POSITIVE_BALANCE,
+        /** Visible in the public/staff leaderboard (has points, not excluded). */
+        IN_LEADERBOARD,
+        /** Current portal leaderboard place ≤ target (1=gold, 2=silver, 3=bronze). */
+        LEADERBOARD_TOP,
+        /** Best Ekomapa monthly cleanup podium place ever ≤ target (1/2/3). */
+        EKOMAPA_PODIUM_BEST,
     }
 
     val ALL: List<Def> = listOf(
@@ -132,6 +138,68 @@ object AchievementCatalog {
             description = "Сумма баллов больше нуля.",
             points = 10,
             kind = Kind.POSITIVE_BALANCE,
+        ),
+        Def(
+            id = "ranking_listed",
+            category = "ranking",
+            title = "В рейтинге",
+            description = "Появились в общем рейтинге волонтёров (есть баллы).",
+            points = 15,
+            kind = Kind.IN_LEADERBOARD,
+        ),
+        Def(
+            id = "ranking_bronze",
+            category = "ranking",
+            title = "Бронза рейтинга",
+            description = "Топ-3 общего рейтинга портала.",
+            points = 75,
+            kind = Kind.LEADERBOARD_TOP,
+            target = 3,
+        ),
+        Def(
+            id = "ranking_silver",
+            category = "ranking",
+            title = "Серебро рейтинга",
+            description = "Топ-2 общего рейтинга портала.",
+            points = 100,
+            kind = Kind.LEADERBOARD_TOP,
+            target = 2,
+        ),
+        Def(
+            id = "ranking_gold",
+            category = "ranking",
+            title = "Чемпион рейтинга",
+            description = "1 место в общем рейтинге портала.",
+            points = 150,
+            kind = Kind.LEADERBOARD_TOP,
+            target = 1,
+        ),
+        Def(
+            id = "ekomapa_bronze",
+            category = "ranking",
+            title = "Бронза месяца",
+            description = "3 место по уборкам Экомапы за месяц.",
+            points = 75,
+            kind = Kind.EKOMAPA_PODIUM_BEST,
+            target = 3,
+        ),
+        Def(
+            id = "ekomapa_silver",
+            category = "ranking",
+            title = "Серебро месяца",
+            description = "2 место по уборкам Экомапы за месяц.",
+            points = 100,
+            kind = Kind.EKOMAPA_PODIUM_BEST,
+            target = 2,
+        ),
+        Def(
+            id = "ekomapa_gold",
+            category = "ranking",
+            title = "Чемпион месяца",
+            description = "1 место по уборкам Экомапы за месяц.",
+            points = 150,
+            kind = Kind.EKOMAPA_PODIUM_BEST,
+            target = 1,
         ),
     )
 }
