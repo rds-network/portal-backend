@@ -47,6 +47,8 @@ data class AchievementsLeaderboardDto(
     val leaders: List<PointLeaderDto>,
     val me: PointLeaderDto?,
     val totalParticipants: Int,
+    /** Full table beyond the podium is only for managers/admins. */
+    val fullList: Boolean = false,
 )
 
 data class ExtPointAwardRequest(

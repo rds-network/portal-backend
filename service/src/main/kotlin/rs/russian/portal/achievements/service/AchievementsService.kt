@@ -17,6 +17,7 @@ import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -178,7 +179,13 @@ class AchievementsService(
         val cap = limit.coerceIn(1, 200)
         val grouped = pointEvents.sumPointsGrouped()
         val login = currentUserLogin()?.lowercase()
-        val totals = grouped.mapNotNull { row ->
+        val viewer = login?.let { accountRepository.findAllByUsernameLowerIn(listOf(it)).firstOrNull() }
+        val canSeeFull = viewer?.groups?.any {
+            it == UserGroup.ADMIN || it == UserGroup.ADMIN_SSO ||
+                it == UserGroup.ADMIN_VOLUNTEER || it == UserGroup.MAIN_VOLUNTEER
+        } == true
+
+        val rawTotals = grouped.mapNotNull { row ->
             val username = (row[0] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             val points = when (val raw = row[1]) {
                 is Number -> raw.toLong()
@@ -186,11 +193,19 @@ class AchievementsService(
             }
             username to points
         }
-        val usernames = totals.map { it.first }.toMutableSet()
-        if (login != null) usernames.add(login)
-        val accountMap = accountRepository.findAllByUsernameLowerIn(usernames)
+        val lookupNames = rawTotals.map { it.first }.toMutableSet()
+        if (login != null) lookupNames.add(login)
+        val accountMap = accountRepository.findAllByUsernameLowerIn(lookupNames)
             .associateBy { it.username.lowercase() }
-        val leaders = totals.take(cap).mapIndexed { index, (username, points) ->
+
+        // Staff / test accounts stay out of the public ranking (GDPR + fair play).
+        val totals = rawTotals.filter { (username, _) ->
+            val account = accountMap[username]
+            !isExcludedFromLeaderboard(username, account?.email, account?.fullName)
+        }
+
+        val visibleCap = if (canSeeFull) cap else PUBLIC_PODIUM_SIZE
+        val leaders = totals.take(visibleCap).mapIndexed { index, (username, points) ->
             val account = accountMap[username]
             PointLeaderDto(
                 rank = index + 1,
@@ -200,9 +215,16 @@ class AchievementsService(
                 isMe = login != null && username == login,
             )
         }
-        val meRank = login?.let { me -> totals.indexOfFirst { it.first == me } }
+
+        val viewerExcluded = login != null && isExcludedFromLeaderboard(
+            login,
+            viewer?.email,
+            viewer?.fullName,
+        )
+        val meRank = if (viewerExcluded) -1 else login?.let { me -> totals.indexOfFirst { it.first == me } } ?: -1
         val me = when {
-            meRank != null && meRank >= 0 -> {
+            viewerExcluded || login == null -> null
+            meRank >= 0 -> {
                 val (username, points) = totals[meRank]
                 val account = accountMap[username]
                 PointLeaderDto(
@@ -213,7 +235,7 @@ class AchievementsService(
                     isMe = true,
                 )
             }
-            login != null -> {
+            else -> {
                 val account = accountMap[login]
                 PointLeaderDto(
                     rank = totals.size + 1,
@@ -223,13 +245,21 @@ class AchievementsService(
                     isMe = true,
                 )
             }
-            else -> null
         }
         return AchievementsLeaderboardDto(
             leaders = leaders,
             me = me,
             totalParticipants = totals.size,
+            fullList = canSeeFull,
         )
+    }
+
+    private fun isExcludedFromLeaderboard(username: String?, email: String?, fullName: String?): Boolean {
+        val u = username?.trim()?.lowercase().orEmpty()
+        val e = email?.trim()?.lowercase().orEmpty()
+        if (u in LEADERBOARD_EXCLUDED_USERNAMES || e in LEADERBOARD_EXCLUDED_EMAILS) return true
+        val name = fullName?.trim()?.lowercase().orEmpty()
+        return LEADERBOARD_EXCLUDED_NAME_MARKERS.any { marker -> name.contains(marker) }
     }
 
     /**
@@ -368,9 +398,14 @@ class AchievementsService(
         const val CODE_MANAGER_GRATITUDE = "MANAGER_GRATITUDE"
         const val CODE_MISSION_CLAIM = "MISSION_CLAIM"
         const val CODE_EKOMAPA_PODIUM = "EKOMAPA_MONTHLY_PODIUM"
+        const val PUBLIC_PODIUM_SIZE = 3
 
         /** Portal points for Ekomapa monthly cleanup podium: 1st / 2nd / 3rd. */
         val EKOMAPA_PODIUM_POINTS: Map<Int, Int> = mapOf(1 to 30, 2 to 20, 3 to 10)
+
+        private val LEADERBOARD_EXCLUDED_USERNAMES = setOf("legkov777")
+        private val LEADERBOARD_EXCLUDED_EMAILS = setOf("legkov777@gmail.com")
+        private val LEADERBOARD_EXCLUDED_NAME_MARKERS = setOf("leonid stetsenko", "stetsenko leonid")
 
         private val weekFields = WeekFields.of(Locale("ru", "RU"))
 
