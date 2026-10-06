@@ -4,6 +4,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.generated.model.ApplicationDto
+import rs.russian.portal.application.domain.ApplicationStatus
 import rs.russian.portal.application.domain.ApplicationType
 import rs.russian.portal.application.mapper.ApplicationMapper
 import rs.russian.portal.application.repository.ApplicationRepository
@@ -71,6 +72,24 @@ class ClanoviApplicationService(
             throw NoSuchElementException()
         }
         return applicationMapper.toDto(application)
+    }
+
+    /**
+     * After Clanovi emails the document pack: mark the portal application completed (DONE).
+     * Idempotent if already DONE. Requires contract dates + program/project (same as UI).
+     */
+    @Transactional
+    fun markDone(id: UUID): ApplicationDto {
+        val application = applicationService.get(id)
+        if (application.email == DEPERSONALIZED_EMAIL) {
+            throw NoSuchElementException()
+        }
+        if (application.status == ApplicationStatus.DONE) {
+            return applicationMapper.toDto(application)
+        }
+        val dto = applicationMapper.toDto(application)
+        dto.status = ApplicationStatus.DONE.name
+        return applicationMapper.toDto(applicationService.update(dto))
     }
 
     companion object {
