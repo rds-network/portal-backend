@@ -17,6 +17,7 @@ import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import java.time.DayOfWeek
@@ -180,10 +181,13 @@ class AchievementsService(
         val grouped = pointEvents.sumPointsGrouped()
         val login = currentUserLogin()?.lowercase()
         val viewer = login?.let { accountRepository.findAllByUsernameLowerIn(listOf(it)).firstOrNull() }
-        val canSeeFull = viewer?.groups?.any {
+        val jwtRoles = currentUserRoles().orEmpty()
+        val accountRoles = viewer?.groups.orEmpty()
+        val roles = jwtRoles + accountRoles
+        val isManager = roles.any {
             it == UserGroup.ADMIN || it == UserGroup.ADMIN_SSO ||
                 it == UserGroup.ADMIN_VOLUNTEER || it == UserGroup.MAIN_VOLUNTEER
-        } == true
+        }
 
         val rawTotals = grouped.mapNotNull { row ->
             val username = (row[0] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
@@ -204,6 +208,14 @@ class AchievementsService(
             !isExcludedFromLeaderboard(username, account?.email, account?.fullName)
         }
 
+        val viewerExcluded = login != null && isExcludedFromLeaderboard(
+            login,
+            viewer?.email,
+            viewer?.fullName,
+        )
+        // Managers and excluded staff (e.g. portal owners) always see the full table.
+        val canSeeFull = isManager || viewerExcluded
+
         val visibleCap = if (canSeeFull) cap else PUBLIC_PODIUM_SIZE
         val leaders = totals.take(visibleCap).mapIndexed { index, (username, points) ->
             val account = accountMap[username]
@@ -212,15 +224,10 @@ class AchievementsService(
                 username = account?.username ?: username,
                 fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: username),
                 points = points,
-                isMe = login != null && username == login,
+                isMe = login != null && username == login && !viewerExcluded,
             )
         }
 
-        val viewerExcluded = login != null && isExcludedFromLeaderboard(
-            login,
-            viewer?.email,
-            viewer?.fullName,
-        )
         val meRank = if (viewerExcluded) -1 else login?.let { me -> totals.indexOfFirst { it.first == me } } ?: -1
         val me = when {
             viewerExcluded || login == null -> null
@@ -257,8 +264,9 @@ class AchievementsService(
     private fun isExcludedFromLeaderboard(username: String?, email: String?, fullName: String?): Boolean {
         val u = username?.trim()?.lowercase().orEmpty()
         val e = email?.trim()?.lowercase().orEmpty()
+        val name = fullName?.trim()?.lowercase()?.replace(Regex("\\s+"), " ").orEmpty()
         if (u in LEADERBOARD_EXCLUDED_USERNAMES || e in LEADERBOARD_EXCLUDED_EMAILS) return true
-        val name = fullName?.trim()?.lowercase().orEmpty()
+        if (e.startsWith("legkov777@")) return true
         return LEADERBOARD_EXCLUDED_NAME_MARKERS.any { marker -> name.contains(marker) }
     }
 
@@ -403,9 +411,18 @@ class AchievementsService(
         /** Portal points for Ekomapa monthly cleanup podium: 1st / 2nd / 3rd. */
         val EKOMAPA_PODIUM_POINTS: Map<Int, Int> = mapOf(1 to 30, 2 to 20, 3 to 10)
 
-        private val LEADERBOARD_EXCLUDED_USERNAMES = setOf("legkov777")
+        private val LEADERBOARD_EXCLUDED_USERNAMES = setOf(
+            "legkov777",
+            "leonid.stetsenko",
+            "leonid_stetsenko",
+            "lstetsenko",
+        )
         private val LEADERBOARD_EXCLUDED_EMAILS = setOf("legkov777@gmail.com")
-        private val LEADERBOARD_EXCLUDED_NAME_MARKERS = setOf("leonid stetsenko", "stetsenko leonid")
+        private val LEADERBOARD_EXCLUDED_NAME_MARKERS = setOf(
+            "stetsenko",
+            "стеценко",
+            "legkov777",
+        )
 
         private val weekFields = WeekFields.of(Locale("ru", "RU"))
 
