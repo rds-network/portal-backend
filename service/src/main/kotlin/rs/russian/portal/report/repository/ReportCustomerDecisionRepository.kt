@@ -16,7 +16,9 @@ interface ReportCustomerDecisionRepository : JpaRepository<ReportCustomerDecisio
         customerUsername: String,
     ): ReportCustomerDecision?
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    // clearAutomatically=false: callers often keep mutating the same Report instance after this delete;
+    // clearing the persistence context would detach it and drop status/moderator updates.
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("DELETE FROM ReportCustomerDecision d WHERE d.report.id = :reportId")
     fun deleteAllByReportId(@Param("reportId") reportId: UUID)
 }
