@@ -33,6 +33,7 @@ class ReportServiceCustomerTest {
         reportMapper = mockk(relaxed = true),
         noteService = mockk(relaxed = true),
         reportRepository = mockk(relaxed = true),
+        reportCustomerDecisionRepository = mockk(relaxed = true),
         entityManager = mockk(relaxed = true),
         textTranslationService = mockk(relaxed = true),
         workAssignmentService = mockk(relaxed = true),
