@@ -24,6 +24,7 @@ databaseChangeLog:
                     referencedTableName: report
                     referencedColumnNames: id
                     foreignKeyName: fk_report_customer_decision_report
+                    deleteCascade: true
                   name: report_id
                   type: UUID
               - column:

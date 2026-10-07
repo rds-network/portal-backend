@@ -61,6 +61,9 @@ class Report(
     @OneToMany(mappedBy = "report", cascade = [ALL], orphanRemoval = true)
     var tasks: MutableSet<Task> = mutableSetOf(),
 
+    @OneToMany(mappedBy = "report", cascade = [ALL], orphanRemoval = true)
+    var customerDecisions: MutableSet<ReportCustomerDecision> = mutableSetOf(),
+
     @ManyToOne(fetch = LAZY)
     @JoinColumn(name = "user_login", referencedColumnName = "username")
     var account: Account,

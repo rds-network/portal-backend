@@ -11,6 +11,7 @@ import rs.russian.portal.config.DefaultUserFilter
 import rs.russian.portal.report.domain.Report
 import rs.russian.portal.report.domain.Task
 import rs.russian.portal.report.domain.enums.ReportStatus
+import rs.russian.portal.report.repository.ReportCustomerDecisionRepository
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.testconfig.AbstractIntegrationTest
 import rs.russian.portal.user.service.AccountService
@@ -26,6 +27,9 @@ class ReportServiceTest : AbstractIntegrationTest() {
     lateinit var reportRepository: ReportRepository
 
     @Autowired
+    lateinit var reportCustomerDecisionRepository: ReportCustomerDecisionRepository
+
+    @Autowired
     lateinit var accountService: AccountService
 
     @Autowired
@@ -35,6 +39,7 @@ class ReportServiceTest : AbstractIntegrationTest() {
 
     @BeforeAll
     fun setup() {
+        reportCustomerDecisionRepository.deleteAll()
         reportRepository.deleteAll()
 
         SecurityContextHolder.getContext().authentication =

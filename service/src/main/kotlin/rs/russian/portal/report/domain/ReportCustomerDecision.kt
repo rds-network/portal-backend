@@ -8,6 +8,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.hibernate.annotations.OnDelete
+import org.hibernate.annotations.OnDeleteAction
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.shared.jpa.JpaEntity
 import java.time.LocalDateTime
@@ -23,6 +25,7 @@ class ReportCustomerDecision(
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "report_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     var report: Report,
 
     var customerUsername: String,
