@@ -1,6 +1,7 @@
 package rs.russian.portal.report.api
 
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
@@ -11,6 +12,7 @@ import rs.russian.portal.note.mapper.NoteMapper
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.mapper.ReportMapper
 import rs.russian.portal.report.service.ReportService
+import rs.russian.portal.report.api.ReportCustomerAcceptancesResponse
 import rs.russian.portal.shared.jpa.convert
 import rs.russian.portal.shared.security.Authorized
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
@@ -83,5 +85,10 @@ class ReportController(
         val report = reportService.updateAssignment(id, request.programCode, request.projectCode)
         return ResponseEntity.ok(reportMapper.map(report))
     }
+
+    /** Статусы приёмки по заказчикам (несколько кураторов в одном отчёте). */
+    @GetMapping("/report/{id}/customer-acceptances")
+    fun customerAcceptances(@PathVariable id: UUID): ResponseEntity<ReportCustomerAcceptancesResponse> =
+        ResponseEntity.ok(reportService.customerAcceptances(id))
 
 }

@@ -86,6 +86,69 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         pageable: Pageable,
     ): Page<UUID>
 
+    /**
+     * Очередь «На приёмке»: CREATED и ещё нет моего ACCEPTED по роли заказчика (или контролёра).
+     * При нескольких заказчиках отчёт остаётся у других, пока они не примут свою часть.
+     */
+    @Query(
+        value = """
+        SELECT r.id FROM Report r
+        WHERE r.status = rs.russian.portal.report.domain.enums.ReportStatus.CREATED
+          AND (
+            EXISTS (
+                SELECT 1 FROM Task t
+                WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ReportCustomerDecision d
+                    WHERE d.report = r
+                      AND LOWER(d.customerUsername) = LOWER(t.customer.username)
+                      AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+                  )
+            )
+            OR (
+              LOWER(r.account.reportControllerUsername) = :controller
+              AND NOT EXISTS (
+                SELECT 1 FROM ReportCustomerDecision d
+                WHERE d.report = r
+                  AND LOWER(d.customerUsername) = :controller
+                  AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+              )
+            )
+          )
+        ORDER BY r.createTime DESC
+        """,
+        countQuery = """
+        SELECT COUNT(r.id) FROM Report r
+        WHERE r.status = rs.russian.portal.report.domain.enums.ReportStatus.CREATED
+          AND (
+            EXISTS (
+                SELECT 1 FROM Task t
+                WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ReportCustomerDecision d
+                    WHERE d.report = r
+                      AND LOWER(d.customerUsername) = LOWER(t.customer.username)
+                      AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+                  )
+            )
+            OR (
+              LOWER(r.account.reportControllerUsername) = :controller
+              AND NOT EXISTS (
+                SELECT 1 FROM ReportCustomerDecision d
+                WHERE d.report = r
+                  AND LOWER(d.customerUsername) = :controller
+                  AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+              )
+            )
+          )
+        """
+    )
+    fun findIdsByCustomersPending(
+        @Param("logins") logins: Collection<String>,
+        @Param("controller") controller: String,
+        pageable: Pageable,
+    ): Page<UUID>
+
     @Query(
         """
         SELECT COUNT(r.id) FROM Report r
@@ -103,6 +166,38 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         @Param("logins") logins: Collection<String>,
         @Param("controller") controller: String,
         @Param("status") status: ReportStatus?,
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(r.id) FROM Report r
+        WHERE r.status = rs.russian.portal.report.domain.enums.ReportStatus.CREATED
+          AND (
+            EXISTS (
+                SELECT 1 FROM Task t
+                WHERE t.report = r AND LOWER(t.customer.username) IN :logins
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ReportCustomerDecision d
+                    WHERE d.report = r
+                      AND LOWER(d.customerUsername) = LOWER(t.customer.username)
+                      AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+                  )
+            )
+            OR (
+              LOWER(r.account.reportControllerUsername) = :controller
+              AND NOT EXISTS (
+                SELECT 1 FROM ReportCustomerDecision d
+                WHERE d.report = r
+                  AND LOWER(d.customerUsername) = :controller
+                  AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+              )
+            )
+          )
+        """
+    )
+    fun countByCustomersPending(
+        @Param("logins") logins: Collection<String>,
+        @Param("controller") controller: String,
     ): Long
 
     fun countByAccountUsernameIgnoreCaseAndStatus(username: String, status: ReportStatus): Long

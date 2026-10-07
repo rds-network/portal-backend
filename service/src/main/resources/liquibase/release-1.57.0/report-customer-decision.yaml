@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.57.0-report-customer-decision
+      author: portal
+      changes:
+        - createTable:
+            tableName: report_customer_decision
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_report_customer_decision
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    referencedTableName: report
+                    referencedColumnNames: id
+                    foreignKeyName: fk_report_customer_decision_report
+                  name: report_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: customer_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(32)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: decided_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: decided_at
+                  type: DATETIME
+              - column:
+                  name: note
+                  type: TEXT
+        - addUniqueConstraint:
+            tableName: report_customer_decision
+            columnNames: report_id, customer_username
+            constraintName: uq_report_customer_decision
+        - createIndex:
+            tableName: report_customer_decision
+            indexName: idx_report_customer_decision_report
+            columns:
+              - column:
+                  name: report_id
