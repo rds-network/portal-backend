@@ -659,8 +659,12 @@ class InboxService(
         ) {
             return null
         }
-        val body = thread.messages.lastOrNull()?.body.orEmpty()
-        return REPORT_PATH.find(body)?.groupValues?.get(1)
+        // Prefer the first message that contains /report/{uuid} — replies must not hide the link.
+        for (message in thread.messages) {
+            val id = REPORT_PATH.find(message.body.orEmpty())?.groupValues?.get(1)
+            if (id != null) return id
+        }
+        return null
     }
 
     private fun isManager(groups: Set<rs.russian.portal.user.domain.enums.UserGroup>): Boolean =
