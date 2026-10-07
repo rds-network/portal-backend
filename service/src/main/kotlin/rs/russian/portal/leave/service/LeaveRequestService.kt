@@ -17,7 +17,10 @@ import rs.russian.portal.leave.repository.LeaveRequestRepository
 import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.shared.security.realUserLogin
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
@@ -40,19 +43,32 @@ class LeaveRequestService(
 
     @Transactional(readOnly = true)
     fun meta(): LeaveRequestMetaDto {
-        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        // Gate on the real OIDC principal — impersonation must not hide the approve queue.
+        val real = realUserLogin() ?: throw NotAuthorizedException()
         return LeaveRequestMetaDto(
             approverUsername = approverUsername(),
-            isLeaveApprover = isLeaveApprover(login),
+            isLeaveApprover = isLeaveApprover(real),
         )
     }
 
-    fun isLeaveApprover(username: String?): Boolean {
-        if (username.isNullOrBlank()) return false
-        return username.equals(approverUsername(), ignoreCase = true)
+    /**
+     * Same gate as impersonation / account-status: configured leave approver
+     * (username, email local-part, matching Account) or ADMIN_SSO.
+     * OIDC login may not equal portal username `legkov777`.
+     */
+    fun isLeaveApprover(login: String? = null, account: Account? = null): Boolean {
+        val real = login ?: realUserLogin()
+        val resolved = account ?: resolveAccount(real)
+        return PrivilegedOps.isAllowed(real, currentUserRoles(), resolved)
     }
 
     fun approverUsername(): String = appProperties.leave.approverUsername.trim()
+
+    private fun resolveAccount(login: String?): Account? {
+        if (login.isNullOrBlank()) return null
+        return accountRepository.findByUsername(login).orElse(null)
+            ?: accountRepository.findByEmail(login).orElse(null)
+    }
 
     @Transactional
     fun create(request: LeaveRequestCreateRequest): LeaveRequestDto {
@@ -87,8 +103,7 @@ class LeaveRequestService(
 
     @Transactional(readOnly = true)
     fun pending(): List<LeaveRequestDto> {
-        val actor = accountService.getCurrentAccount()
-        if (!isLeaveApprover(actor.username)) {
+        if (!isLeaveApprover()) {
             return emptyList()
         }
         return leaveRequestRepository.findAllByStatusOrderByCreatedAtAsc(LeaveRequestStatus.PENDING)
@@ -107,7 +122,7 @@ class LeaveRequestService(
             LeaveRequestStatus.PENDING,
             PageRequest.of(0, HISTORY_LIMIT),
         )
-        if (isLeaveApprover(actor.username)) {
+        if (isLeaveApprover()) {
             return decided.map(::toDto)
         }
         return decided
@@ -165,8 +180,7 @@ class LeaveRequestService(
     }
 
     private fun assertCanDecide() {
-        val actor = accountService.getCurrentAccount()
-        if (!isLeaveApprover(actor.username)) {
+        if (!isLeaveApprover()) {
             throw NotAuthorizedException()
         }
     }

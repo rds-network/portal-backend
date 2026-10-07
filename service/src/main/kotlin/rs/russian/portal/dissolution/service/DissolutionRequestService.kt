@@ -16,7 +16,10 @@ import rs.russian.portal.dissolution.repository.DissolutionRequestRepository
 import rs.russian.portal.inbox.service.InboxService
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.shared.security.realUserLogin
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
@@ -39,19 +42,30 @@ class DissolutionRequestService(
 
     @Transactional(readOnly = true)
     fun meta(): DissolutionRequestMetaDto {
-        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        val real = realUserLogin() ?: throw NotAuthorizedException()
         return DissolutionRequestMetaDto(
             approverUsername = approverUsername(),
-            isDissolutionApprover = isDissolutionApprover(login),
+            isDissolutionApprover = isDissolutionApprover(real),
         )
     }
 
-    fun isDissolutionApprover(username: String?): Boolean {
-        if (username.isNullOrBlank()) return false
-        return username.equals(approverUsername(), ignoreCase = true)
+    /**
+     * Same gate as leave: configured approver (username / email / Account) or ADMIN_SSO.
+     * Uses the real OIDC principal so impersonation does not hide the queue.
+     */
+    fun isDissolutionApprover(login: String? = null, account: Account? = null): Boolean {
+        val real = login ?: realUserLogin()
+        val resolved = account ?: resolveAccount(real)
+        return PrivilegedOps.isAllowed(real, currentUserRoles(), resolved)
     }
 
     fun approverUsername(): String = appProperties.leave.approverUsername.trim()
+
+    private fun resolveAccount(login: String?): Account? {
+        if (login.isNullOrBlank()) return null
+        return accountRepository.findByUsername(login).orElse(null)
+            ?: accountRepository.findByEmail(login).orElse(null)
+    }
 
     @Transactional
     fun create(request: DissolutionRequestCreateRequest): DissolutionRequestDto {
@@ -87,8 +101,7 @@ class DissolutionRequestService(
 
     @Transactional(readOnly = true)
     fun pending(): List<DissolutionRequestDto> {
-        val actor = accountService.getCurrentAccount()
-        if (!isDissolutionApprover(actor.username)) {
+        if (!isDissolutionApprover()) {
             return emptyList()
         }
         return dissolutionRequestRepository.findAllByStatusOrderByCreatedAtAsc(DissolutionRequestStatus.PENDING)
@@ -106,7 +119,7 @@ class DissolutionRequestService(
             DissolutionRequestStatus.PENDING,
             PageRequest.of(0, HISTORY_LIMIT),
         )
-        if (isDissolutionApprover(actor.username)) {
+        if (isDissolutionApprover()) {
             return decided.map(::toDto)
         }
         return decided
@@ -171,8 +184,7 @@ class DissolutionRequestService(
     }
 
     private fun assertCanDecide() {
-        val actor = accountService.getCurrentAccount()
-        if (!isDissolutionApprover(actor.username)) {
+        if (!isDissolutionApprover()) {
             throw NotAuthorizedException()
         }
     }

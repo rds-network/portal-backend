@@ -15,7 +15,10 @@ import rs.russian.portal.inbox.domain.InboxThread
 import rs.russian.portal.inbox.repository.InboxThreadRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.shared.security.realUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
@@ -37,13 +40,13 @@ class InboxService(
     @Transactional(readOnly = true)
     fun unreadCount(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return inboxThreadRepository.countUnread(login, leaveApproverUsername())
+        return inboxThreadRepository.countUnread(login, leaveApproverForQuery(login))
     }
 
     @Transactional(readOnly = true)
     fun pendingAckCount(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return inboxThreadRepository.countPendingAck(login, leaveApproverUsername())
+        return inboxThreadRepository.countPendingAck(login, leaveApproverForQuery(login))
     }
 
     @Transactional(readOnly = true)
@@ -474,7 +477,7 @@ class InboxService(
 
     /**
      * Visible if the user is a participant, with leave/dissolution kinds further restricted:
-     * - LEAVE_REQUEST / DISSOLUTION_REQUEST: leave approver or requester (createdBy) only
+     * - LEAVE_REQUEST / DISSOLUTION_REQUEST: privileged leave approver (real principal) or requester
      * - LEAVE_DECISION / DISSOLUTION_DECISION: recipient (volunteer) or createdBy (approver) only
      */
     internal fun canSee(thread: InboxThread, username: String): Boolean {
@@ -482,7 +485,8 @@ class InboxService(
         if (!isParticipant) return false
         return when (thread.kind) {
             InboxThread.KIND_LEAVE_REQUEST, InboxThread.KIND_DISSOLUTION_REQUEST ->
-                username.equals(leaveApproverUsername(), ignoreCase = true) ||
+                isLeaveApproverActor() ||
+                    username.equals(leaveApproverUsername(), ignoreCase = true) ||
                     username.equals(thread.createdBy, ignoreCase = true)
             InboxThread.KIND_LEAVE_DECISION, InboxThread.KIND_DISSOLUTION_DECISION ->
                 username.equals(thread.recipient, ignoreCase = true) ||
@@ -492,6 +496,27 @@ class InboxService(
     }
 
     private fun leaveApproverUsername(): String = appProperties.leave.approverUsername.trim()
+
+    private fun isLeaveApproverActor(): Boolean =
+        PrivilegedOps.isAllowed(realUserLogin(), currentUserRoles())
+
+    /**
+     * JPQL leave/dissolution filters compare username == leaveApprover.
+     * When the real actor is privileged and not impersonating, pass [login] so ADMIN_SSO /
+     * email-local-part matches still see unread leave threads.
+     */
+    private fun leaveApproverForQuery(login: String): String {
+        val real = realUserLogin()
+        return if (
+            PrivilegedOps.isAllowed(real, currentUserRoles()) &&
+            real != null &&
+            real.equals(login, ignoreCase = true)
+        ) {
+            login
+        } else {
+            leaveApproverUsername()
+        }
+    }
 
     private fun toListDto(
         thread: InboxThread,
@@ -634,8 +659,12 @@ class InboxService(
         ) {
             return null
         }
-        val body = thread.messages.lastOrNull()?.body.orEmpty()
-        return REPORT_PATH.find(body)?.groupValues?.get(1)
+        // Prefer the first message that contains /report/{uuid} — replies must not hide the link.
+        for (message in thread.messages) {
+            val id = REPORT_PATH.find(message.body.orEmpty())?.groupValues?.get(1)
+            if (id != null) return id
+        }
+        return null
     }
 
     private fun isManager(groups: Set<rs.russian.portal.user.domain.enums.UserGroup>): Boolean =
