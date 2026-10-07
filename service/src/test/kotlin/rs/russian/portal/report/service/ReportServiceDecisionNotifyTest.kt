@@ -36,6 +36,7 @@ class ReportServiceDecisionNotifyTest {
         reportMapper = mockk(relaxed = true),
         noteService = noteService,
         reportRepository = reportRepository,
+        reportCustomerDecisionRepository = mockk(relaxed = true),
         entityManager = mockk(relaxed = true),
         textTranslationService = mockk(relaxed = true),
         workAssignmentService = workAssignmentService,
