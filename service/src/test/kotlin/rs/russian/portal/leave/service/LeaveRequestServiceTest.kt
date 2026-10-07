@@ -20,7 +20,10 @@ import rs.russian.portal.leave.domain.enums.LeaveRequestStatus
 import rs.russian.portal.leave.repository.LeaveRequestRepository
 import rs.russian.portal.program.service.ProgramCuratorService
 import rs.russian.portal.shared.exception.NotAuthorizedException
+import rs.russian.portal.shared.security.PrivilegedOps
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.shared.security.realUserLogin
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
@@ -78,18 +81,30 @@ class LeaveRequestServiceTest {
     @BeforeEach
     fun setUp() {
         mockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
+        PrivilegedOps.approverUsername = "legkov777"
+        PrivilegedOps.accountLookup = { login ->
+            when {
+                login.equals("legkov777", ignoreCase = true) -> approver
+                login.equals(approver.email, ignoreCase = true) -> approver
+                else -> null
+            }
+        }
         every { leaveRequestRepository.save(any()) } answers { firstArg() }
         every { accountRepository.findByUsername("legkov777") } returns Optional.of(approver)
+        every { accountRepository.findByEmail(any()) } returns Optional.empty()
+        every { currentUserRoles() } returns emptySet()
     }
 
     @AfterEach
     fun tearDown() {
+        PrivilegedOps.accountLookup = null
         unmockkStatic("rs.russian.portal.shared.security.SecurityExtensionsKt")
     }
 
     @Test
     fun `notifyNewLeave notifies only the configured leave approver`() {
         every { currentUserLogin() } returns volunteer.username
+        every { realUserLogin() } returns volunteer.username
         every { accountService.getCurrentAccount() } returns volunteer
         every { accountRepository.findByUsername("volunteer") } returns Optional.of(volunteer)
 
@@ -122,6 +137,7 @@ class LeaveRequestServiceTest {
     @Test
     fun `notifyNewLeave skips when requester is the leave approver`() {
         every { currentUserLogin() } returns approver.username
+        every { realUserLogin() } returns approver.username
         every { accountService.getCurrentAccount() } returns approver
         every { accountRepository.findByUsername("legkov777") } returns Optional.of(approver)
 
@@ -148,14 +164,37 @@ class LeaveRequestServiceTest {
         every { accountRepository.findByUsername(volunteer.username) } returns Optional.of(volunteer)
 
         every { currentUserLogin() } returns curator.username
+        every { realUserLogin() } returns curator.username
         every { accountService.getCurrentAccount() } returns curator
         assertThrows<NotAuthorizedException> { service.accept(leave.id!!) }
 
         every { currentUserLogin() } returns approver.username
+        every { realUserLogin() } returns approver.username
         every { accountService.getCurrentAccount() } returns approver
         val dto = service.accept(leave.id!!)
         assertEquals(LeaveRequestStatus.ACCEPTED, dto.status)
         assertEquals("legkov777", dto.decidedBy)
+    }
+
+    @Test
+    fun `accept is allowed for ADMIN_SSO even when username differs`() {
+        val leave = LeaveRequest(
+            id = UUID.randomUUID(),
+            username = volunteer.username,
+            startDate = LocalDate.of(2026, 10, 1),
+            endDate = LocalDate.of(2026, 10, 14),
+            status = LeaveRequestStatus.PENDING,
+        )
+        every { leaveRequestRepository.findById(leave.id!!) } returns Optional.of(leave)
+        every { accountRepository.findByUsername(volunteer.username) } returns Optional.of(volunteer)
+        every { currentUserLogin() } returns "other_admin"
+        every { realUserLogin() } returns "other_admin"
+        every { currentUserRoles() } returns setOf(UserGroup.ADMIN_SSO)
+        every { accountService.getCurrentAccount() } returns curator
+
+        val dto = service.accept(leave.id!!)
+        assertEquals(LeaveRequestStatus.ACCEPTED, dto.status)
+        assertEquals("other_admin", dto.decidedBy)
     }
 
     @Test
@@ -169,6 +208,7 @@ class LeaveRequestServiceTest {
         )
         every { leaveRequestRepository.findById(leave.id!!) } returns Optional.of(leave)
         every { currentUserLogin() } returns curator.username
+        every { realUserLogin() } returns curator.username
         every { accountService.getCurrentAccount() } returns curator
 
         assertThrows<NotAuthorizedException> { service.reject(leave.id!!, null) }
@@ -189,10 +229,33 @@ class LeaveRequestServiceTest {
         } returns listOf(leave)
         every { accountRepository.findByUsername(volunteer.username) } returns Optional.of(volunteer)
 
+        every { realUserLogin() } returns curator.username
         every { accountService.getCurrentAccount() } returns curator
         assertTrue(service.pending().isEmpty())
 
+        every { realUserLogin() } returns approver.username
         every { accountService.getCurrentAccount() } returns approver
         assertEquals(1, service.pending().size)
+    }
+
+    @Test
+    fun `pending still visible for approver while impersonating`() {
+        val leave = LeaveRequest(
+            id = UUID.randomUUID(),
+            username = volunteer.username,
+            startDate = LocalDate.of(2026, 10, 1),
+            endDate = LocalDate.of(2026, 10, 14),
+            status = LeaveRequestStatus.PENDING,
+        )
+        every {
+            leaveRequestRepository.findAllByStatusOrderByCreatedAtAsc(LeaveRequestStatus.PENDING)
+        } returns listOf(leave)
+        every { accountRepository.findByUsername(volunteer.username) } returns Optional.of(volunteer)
+        every { currentUserLogin() } returns volunteer.username
+        every { realUserLogin() } returns approver.username
+        every { accountService.getCurrentAccount() } returns volunteer
+
+        assertEquals(1, service.pending().size)
+        assertTrue(service.meta().isLeaveApprover)
     }
 }
