@@ -17,10 +17,14 @@ import rs.russian.portal.file.service.FileService
 import rs.russian.portal.note.domain.Note
 import rs.russian.portal.note.domain.enums.EntityType
 import rs.russian.portal.note.service.NoteService
+import rs.russian.portal.report.api.ReportCustomerAcceptanceDto
+import rs.russian.portal.report.api.ReportCustomerAcceptancesResponse
 import rs.russian.portal.report.domain.Report
+import rs.russian.portal.report.domain.ReportCustomerDecision
 import rs.russian.portal.report.domain.enums.ReportStatus
 import rs.russian.portal.report.domain.specification.from
 import rs.russian.portal.report.mapper.ReportMapper
+import rs.russian.portal.report.repository.ReportCustomerDecisionRepository
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.ai.domain.AiProfileCode.SERBIAN_TRANSLATOR
 import rs.russian.portal.shared.ai.service.TextTranslationService
@@ -45,6 +49,7 @@ class ReportService(
     private val reportMapper: ReportMapper,
     private val noteService: NoteService,
     private val reportRepository: ReportRepository,
+    private val reportCustomerDecisionRepository: ReportCustomerDecisionRepository,
     private val entityManager: EntityManager,
     private val textTranslationService: TextTranslationService,
     private val workAssignmentService: WorkAssignmentService,
@@ -124,6 +129,7 @@ class ReportService(
         report.acceptedAt = null
         report.tasks.clear()
         val saved = reportRepository.save(report.also { it.tasks.addAll(tasks) })
+        saved.id?.let { reportCustomerDecisionRepository.deleteAllByReportId(it) }
         workAssignmentService.markFromReport(saved)
         notifyCustomers(saved)
         return saved
@@ -153,7 +159,11 @@ class ReportService(
     fun getReportsForCustomer(status: ReportStatus?, pageable: Pageable): Page<Report> {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         val logins = customerLoginsFor(login)
-        val ids = reportRepository.findIdsByCustomers(logins, login.lowercase(), status, pageable)
+        val ids = if (status == ReportStatus.CREATED) {
+            reportRepository.findIdsByCustomersPending(logins, login.lowercase(), pageable)
+        } else {
+            reportRepository.findIdsByCustomers(logins, login.lowercase(), status, pageable)
+        }
         if (ids.content.isEmpty()) {
             return PageImpl(emptyList(), ids.pageable, ids.totalElements)
         }
@@ -164,10 +174,9 @@ class ReportService(
     @Transactional(readOnly = true)
     fun pendingCountForCustomer(): Long {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
-        return reportRepository.countByCustomers(
+        return reportRepository.countByCustomersPending(
             customerLoginsFor(login),
             login.lowercase(),
-            ReportStatus.CREATED,
         )
     }
 
@@ -217,6 +226,107 @@ class ReportService(
             report.notes.add(note)
         }
         val previousStatus = report.status
+        when (status) {
+            ReportStatus.ACCEPTED -> acceptReport(report, moderator, noteText, curatorGratitude, managerGratitude)
+            ReportStatus.REJECTED -> finalizeStatus(report, ReportStatus.REJECTED, moderator, noteText)
+            ReportStatus.CREATED -> {
+                reportCustomerDecisionRepository.deleteAllByReportId(reportId)
+                finalizeStatus(report, ReportStatus.CREATED, moderator, noteText)
+                if (previousStatus == ReportStatus.ACCEPTED) {
+                    notifyAcceptanceCancelled(report, noteText, moderator.username)
+                }
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun customerAcceptances(reportId: UUID): ReportCustomerAcceptancesResponse {
+        val login = currentUserLogin() ?: throw NotAuthorizedException()
+        val report = getReport(reportId)
+        val actor = accountService.getAccountByLogin(login)
+        val covered = customersCoveredBy(actor.username, actor.groups, report)
+        val allCustomers = taskCustomerUsernames(report)
+        val decisions = reportCustomerDecisionRepository.findAllByReportId(reportId)
+            .associateBy { it.customerUsername.lowercase() }
+        val acceptances = allCustomers.map { customer ->
+            val decision = decisions[customer.lowercase()]
+            val account = accountService.findAccountByLogin(customer)
+            ReportCustomerAcceptanceDto(
+                customer = customer,
+                customerName = account?.fullName,
+                status = decision?.status?.name,
+                decidedBy = decision?.decidedBy,
+                decidedAt = decision?.decidedAt?.toString(),
+            )
+        }
+        val pendingForMe = report.status == ReportStatus.CREATED &&
+            canModerate(report, actor.username, actor.groups) &&
+            (
+                covered.isEmpty() ||
+                    covered.any { decisions[it.lowercase()]?.status != ReportStatus.ACCEPTED }
+                )
+        return ReportCustomerAcceptancesResponse(
+            reportId = reportId.toString(),
+            multiCustomer = allCustomers.size > 1,
+            pendingForMe = pendingForMe,
+            acceptances = acceptances,
+        )
+    }
+
+    private fun acceptReport(
+        report: Report,
+        moderator: Account,
+        noteText: String?,
+        curatorGratitude: Boolean,
+        managerGratitude: Boolean,
+    ) {
+        val allCustomers = taskCustomerUsernames(report)
+        val covered = customersCoveredBy(moderator.username, moderator.groups, report)
+        val usePartial = shouldUsePartialAcceptance(report, allCustomers, covered)
+        if (usePartial) {
+            covered.forEach { customer ->
+                upsertCustomerDecision(report, customer, ReportStatus.ACCEPTED, moderator.username, noteText)
+            }
+            val decisions = reportCustomerDecisionRepository.findAllByReportId(report.id!!)
+            val acceptedCustomers = decisions
+                .filter { it.status == ReportStatus.ACCEPTED }
+                .map { it.customerUsername.lowercase() }
+                .toSet()
+            val allAccepted = allCustomers.all { acceptedCustomers.contains(it.lowercase()) }
+            if (!allAccepted) {
+                // Частичная приёмка: отчёт остаётся CREATED, волонтёра ещё не уведомляем.
+                report.moderator = moderator
+                return
+            }
+        } else {
+            allCustomers.forEach { customer ->
+                upsertCustomerDecision(report, customer, ReportStatus.ACCEPTED, moderator.username, noteText)
+            }
+        }
+        finalizeStatus(report, ReportStatus.ACCEPTED, moderator, noteText)
+        notifyReportDecision(report, ReportStatus.ACCEPTED, noteText, moderator.username)
+        if (noteText.isNullOrBlank()) {
+            report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
+        }
+        if (curatorGratitude) {
+            report.id?.let { achievementsService.onCuratorGratitude(report.account.username, it, moderator.username) }
+        }
+        if (managerGratitude && canAwardManagerGratitude(moderator.groups)) {
+            report.id?.let { achievementsService.onManagerGratitude(report.account.username, it, moderator.username) }
+        }
+    }
+
+    private fun finalizeStatus(
+        report: Report,
+        status: ReportStatus,
+        moderator: Account,
+        noteText: String?,
+    ) {
+        if (status == ReportStatus.REJECTED) {
+            taskCustomerUsernames(report).forEach { customer ->
+                upsertCustomerDecision(report, customer, ReportStatus.REJECTED, moderator.username, noteText)
+            }
+        }
         report.status = status
         report.moderator = moderator
         when (status) {
@@ -224,21 +334,74 @@ class ReportService(
             ReportStatus.CREATED, ReportStatus.REJECTED -> report.acceptedAt = null
         }
         workAssignmentService.markFromReport(report)
-        if (status == ReportStatus.ACCEPTED || status == ReportStatus.REJECTED) {
+        if (status == ReportStatus.REJECTED) {
             notifyReportDecision(report, status, noteText, moderator.username)
         }
-        if (status == ReportStatus.CREATED && previousStatus == ReportStatus.ACCEPTED) {
-            notifyAcceptanceCancelled(report, noteText, moderator.username)
+    }
+
+    private fun shouldUsePartialAcceptance(
+        report: Report,
+        allCustomers: List<String>,
+        covered: Set<String>,
+    ): Boolean {
+        if (!report.account.reportControllerUsername.isNullOrBlank()) return false
+        if (allCustomers.size <= 1) return false
+        if (covered.isEmpty()) return false
+        val coveredLower = covered.map { it.lowercase() }.toSet()
+        val allLower = allCustomers.map { it.lowercase() }.toSet()
+        return !coveredLower.containsAll(allLower)
+    }
+
+    private fun taskCustomerUsernames(report: Report): List<String> =
+        report.tasks.mapNotNull { it.customer?.username }.distinctBy { it.lowercase() }
+
+    private fun customersCoveredBy(login: String, groups: Set<UserGroup>, report: Report): Set<String> {
+        val programCode = report.program?.code
+        val controller = report.account.reportControllerUsername?.takeIf { it.isNotBlank() }
+        if (controller != null) {
+            if (controller.equals(login, ignoreCase = true) ||
+                programCuratorService.canAcceptAsDelegate(login, controller, programCode) ||
+                groups.any { it in SUPER_ADMINS }
+            ) {
+                return setOf(controller)
+            }
+            return emptySet()
         }
-        if (status == ReportStatus.ACCEPTED && noteText.isNullOrBlank()) {
-            report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
+        return taskCustomerUsernames(report).filter { customer ->
+            customer.equals(login, ignoreCase = true) ||
+                programCuratorService.canAcceptAsDelegate(login, customer, programCode)
+        }.toSet()
+    }
+
+    private fun upsertCustomerDecision(
+        report: Report,
+        customerUsername: String,
+        status: ReportStatus,
+        decidedBy: String,
+        note: String?,
+    ) {
+        val reportId = report.id ?: return
+        val existing = reportCustomerDecisionRepository.findByReportIdAndCustomerUsernameIgnoreCase(
+            reportId,
+            customerUsername,
+        )
+        if (existing != null) {
+            existing.status = status
+            existing.decidedBy = decidedBy
+            existing.decidedAt = OffsetDateTime.now()
+            existing.note = note?.trim()?.takeIf { it.isNotEmpty() }
+            reportCustomerDecisionRepository.save(existing)
+            return
         }
-        if (status == ReportStatus.ACCEPTED && curatorGratitude) {
-            report.id?.let { achievementsService.onCuratorGratitude(report.account.username, it, moderator.username) }
-        }
-        if (status == ReportStatus.ACCEPTED && managerGratitude && canAwardManagerGratitude(moderator.groups)) {
-            report.id?.let { achievementsService.onManagerGratitude(report.account.username, it, moderator.username) }
-        }
+        reportCustomerDecisionRepository.save(
+            ReportCustomerDecision(
+                report = report,
+                customerUsername = customerUsername,
+                status = status,
+                decidedBy = decidedBy,
+                note = note?.trim()?.takeIf { it.isNotEmpty() },
+            )
+        )
     }
 
     private fun canAwardManagerGratitude(groups: Set<UserGroup>): Boolean =
