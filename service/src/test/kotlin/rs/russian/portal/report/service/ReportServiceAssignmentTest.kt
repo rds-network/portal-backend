@@ -12,6 +12,7 @@ import rs.russian.portal.config.DefaultUserFilter.Companion.USERNAME
 import rs.russian.portal.program.domain.ProgramCurator
 import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.report.domain.enums.ReportStatus
+import rs.russian.portal.report.repository.ReportCustomerDecisionRepository
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.testconfig.AbstractIntegrationTest
@@ -34,6 +35,9 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
     lateinit var reportRepository: ReportRepository
 
     @Autowired
+    lateinit var reportCustomerDecisionRepository: ReportCustomerDecisionRepository
+
+    @Autowired
     lateinit var accountService: AccountService
 
     @Autowired
@@ -46,6 +50,7 @@ class ReportServiceAssignmentTest : AbstractIntegrationTest() {
 
     @BeforeEach
     fun setup() {
+        reportCustomerDecisionRepository.deleteAll()
         reportRepository.deleteAll()
         SecurityContextHolder.getContext().authentication = defaultUserFilter.getDefaultOAuth2Token()
         customerLogin = ensureApprover()
