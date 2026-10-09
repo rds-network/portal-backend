@@ -206,11 +206,14 @@ class AccountService(
     @Transactional(readOnly = true)
     fun search(query: String, pageRequest: PageRequest, filter: UserSearchFilter?): Page<Account> {
         // Fast path: EVO-32 → exact ekomapa_user_id (works even if LIKE OR-branch is odd).
+        // Reload via findAllByIdIn so GRAPH_FULL is attached (bare find → LazyInitializationException in controller).
         EkomapaVolunteerCode.parseIdFromSearch(query)?.let { evoId ->
             accountRepository.findByEkomapaUserId(evoId).orElse(null)?.let { linked ->
                 if (matchesSearchFilter(linked, filter)) {
                     val pageable = convert(pageRequest)
-                    return PageImpl(listOf(linked), pageable, 1)
+                    val id = linked.id ?: return@let
+                    val full = accountRepository.findAllByIdIn(listOf(id), pageable.sort)
+                    return PageImpl(full, pageable, full.size.toLong().coerceAtLeast(1))
                 }
             }
         }
