@@ -86,10 +86,13 @@ class AccountService(
             throw InvalidRequestException("user or email is required")
         }
 
+        // 1) username/email 2) уже привязанный EVO (синк прошёл, а ekomapa шлёт неверный local-part)
         val account = resolveAccountForEkomapaLink(login, emailNorm)
+            ?: accountRepository.findByEkomapaUserId(ekomapaUserId).orElse(null)
             ?: throw InvalidRequestException(
-                "Account not found for user='$login' email='${emailNorm ?: ""}'. " +
-                    "Portal login from Ekomapa must match an existing volunteer account.",
+                "Account not found for user='$login' email='${emailNorm ?: ""}' ekomapaUserId=$ekomapaUserId. " +
+                    "Portal login from Ekomapa must match an existing volunteer account, " +
+                    "or EVO must already be linked on the portal.",
             )
 
         accountRepository.findByEkomapaUserId(ekomapaUserId).ifPresent { other ->
