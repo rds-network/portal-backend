@@ -30,14 +30,27 @@ class EkomapaLinkExternalController(
     @PostMapping("/ekomapa/link")
     fun link(@RequestBody body: JsonNode): ResponseEntity<ExtEkomapaLinkResponse> {
         val user = body.path("user").asText("").trim()
-        val email = body.path("email").asText("").trim().takeIf { it.isNotEmpty() }
+            .ifEmpty { body.path("username").asText("").trim() }
+            .ifEmpty { body.path("login").asText("").trim() }
+        val email = sequenceOf("email", "mail", "userEmail")
+            .map { body.path(it).asText("").trim() }
+            .firstOrNull { it.isNotEmpty() }
+        val idNode = when {
+            !body.path("ekomapaUserId").isMissingNode -> body.path("ekomapaUserId")
+            !body.path("ekomapa_user_id").isMissingNode -> body.path("ekomapa_user_id")
+            !body.path("evoId").isMissingNode -> body.path("evoId")
+            else -> body.path("ekomapaUserId")
+        }
         val ekomapaUserId = when {
-            body.path("ekomapaUserId").canConvertToInt() -> body.path("ekomapaUserId").asInt()
-            body.path("ekomapa_user_id").canConvertToInt() -> body.path("ekomapa_user_id").asInt()
+            idNode.canConvertToInt() -> idNode.asInt()
+            idNode.isTextual -> idNode.asText("").trim().toIntOrNull() ?: 0
+            idNode.isNumber -> idNode.intValue()
             else -> 0
         }
         if (ekomapaUserId <= 0) {
-            throw InvalidRequestException("ekomapaUserId must be a positive integer")
+            throw InvalidRequestException(
+                "ekomapaUserId must be a positive integer (got keys=${body.fieldNames().asSequence().toList()})",
+            )
         }
         if (user.isEmpty() && email.isNullOrBlank()) {
             throw InvalidRequestException("user or email is required")

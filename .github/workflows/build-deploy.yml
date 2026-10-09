@@ -50,7 +50,7 @@ jobs:
       - name: Start deploy
         id: start_deploy
         run: |
-          response=$(curl -s --request POST '${{ vars.COOLIFY_API_URL }}/api/v1/deploy?uuid=${{ vars.COOLIFY_SERVICE_ID }}&force=false' --header 'Authorization: Bearer ${{ secrets.COOLIFY_API_KEY }}')
+          response=$(curl -s --request POST '${{ vars.COOLIFY_API_URL }}/api/v1/deploy?uuid=${{ vars.COOLIFY_SERVICE_ID }}&force=true' --header 'Authorization: Bearer ${{ secrets.COOLIFY_API_KEY }}')
           deployment_uuid=$(echo $response | jq -r '.deployments[0].deployment_uuid')
           if [[ $deployment_uuid == "null" ]]; then
             printf "Failed to start deployment: \n$response"
