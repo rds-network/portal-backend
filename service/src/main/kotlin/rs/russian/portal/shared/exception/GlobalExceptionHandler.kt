@@ -82,7 +82,9 @@ class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException::class, HttpMessageNotReadableException::class)
     fun handleMalformedRequest(ex: Exception, request: WebRequest): ResponseEntity<ErrorResponse> {
         log.warn("Malformed request on URL: {} - Error: {}", getRequestUrl(request), ex.message)
-        return ResponseEntity(ErrorResponse(BAD_REQUEST.reasonPhrase), BAD_REQUEST)
+        // Surface Jackson/parse detail so external clients (Ekomapa sync) can diagnose 400s.
+        val detail = ex.message?.trim()?.takeIf { it.isNotEmpty() } ?: BAD_REQUEST.reasonPhrase
+        return ResponseEntity(ErrorResponse(detail.take(500)), BAD_REQUEST)
     }
 
     @ExceptionHandler(ConstraintViolationException::class)
