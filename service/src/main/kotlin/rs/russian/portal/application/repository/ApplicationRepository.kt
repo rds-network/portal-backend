@@ -78,4 +78,17 @@ interface ApplicationRepository : JpaRepository<Application, UUID> {
         @Param("depersonalized") depersonalized: String,
         pageable: Pageable,
     ): List<Application>
+
+    @Query(
+        """
+        SELECT a FROM Application a
+        WHERE LOWER(a.assignee) = LOWER(:assignee)
+          AND a.status NOT IN :closed
+        ORDER BY a.created DESC, a.id DESC
+        """
+    )
+    fun findOpenByAssigneeIgnoreCase(
+        @Param("assignee") assignee: String,
+        @Param("closed") closed: Collection<ApplicationStatus>,
+    ): List<Application>
 }
