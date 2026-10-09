@@ -24,7 +24,8 @@ class ReportExternalService(
 
     @Transactional
     fun createReport(request: CreateReportRequest): Report {
-        val account = accountService.getAccountByLogin(request.user)
+        // username / email / EVO-{ekomapaUserId} — как при линке EVO
+        val account = accountService.resolveAccountForExternalApi(request.user)
         val now = OffsetDateTime.now()
         val report = Report(
             isAuto = true,

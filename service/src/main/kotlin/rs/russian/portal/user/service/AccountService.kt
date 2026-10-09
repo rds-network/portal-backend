@@ -103,11 +103,27 @@ class AccountService(
         return save(account)
     }
 
+    /**
+     * Резолв аккаунта для External API (отчёты, линк EVO): username / email / EVO-{id}.
+     */
+    @Transactional(readOnly = true)
+    fun resolveAccountForExternalApi(user: String, email: String? = null): Account {
+        val login = user.trim()
+        val emailNorm = email?.trim()?.takeIf { it.isNotEmpty() }
+        return resolveAccountForEkomapaLink(login, emailNorm)
+            ?: throw EntityNotFoundException(
+                "Account not found for user='$login' email='${emailNorm ?: ""}'",
+            )
+    }
+
     private fun resolveAccountForEkomapaLink(login: String, email: String?): Account? {
         if (login.isNotEmpty()) {
             findAccountByLogin(login)?.let { return it }
             findAccountByEmail(login)?.let { return it }
             accountRepository.findAllByUsernameLowerIn(listOf(login.lowercase())).firstOrNull()?.let { return it }
+            EkomapaVolunteerCode.parseIdFromSearch(login)?.let { ekomapaId ->
+                accountRepository.findByEkomapaUserId(ekomapaId).orElse(null)?.let { return it }
+            }
         }
         if (!email.isNullOrBlank()) {
             findAccountByEmail(email)?.let { return it }
