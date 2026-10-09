@@ -1695,6 +1695,10 @@ components:
           type: string
           nullable: true
           description: Кто поставил аккаунт в очередь на расторжение
+        ekomapaUserId:
+          type: integer
+          nullable: true
+          description: ID пользователя в Экомапе (публичный код EVO-{id})
     DissolutionQueueRequest:
       type: object
       description: Опциональная причина постановки в очередь на расторжение
