@@ -14,6 +14,7 @@ import rs.russian.portal.report.domain.Task
 import rs.russian.portal.shared.jpa.empty
 import rs.russian.portal.shared.jpa.equal
 import rs.russian.portal.shared.jpa.like
+import rs.russian.portal.user.EkomapaVolunteerCode
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.Account_
 import rs.russian.portal.user.domain.Contract
@@ -25,11 +26,20 @@ fun searchSpecification(query: String, filter: UserSearchFilter?): Specification
     var resultSpec: Specification<Account> = empty()
 
     if (query.isNotBlank()) {
-        val querySpec = like<Account>(Account_.FULL_NAME, query)
+        var querySpec = like<Account>(Account_.FULL_NAME, query)
             .or(like(Account_.USERNAME, query))
             .or(like(Account_.EMAIL, query))
             .or(like(Account_.INFO, UserInfo_.TELEGRAM, query.replace("@", "")))
             .or(like(Account_.INFO, UserInfo_.PHONE, query))
+
+        // EVO-123 / цифры → ekomapa_user_id; RDS-V-000072 → portal Account.id
+        EkomapaVolunteerCode.parseIdFromSearch(query)?.let { ekomapaId ->
+            querySpec = querySpec.or(equal(Account_.EKOMAPA_USER_ID, ekomapaId))
+        }
+        EkomapaVolunteerCode.parsePortalVolId(query)?.let { portalId ->
+            querySpec = querySpec.or(equal(Account_.ID, portalId))
+        }
+
         resultSpec = resultSpec.and(querySpec)
     }
 

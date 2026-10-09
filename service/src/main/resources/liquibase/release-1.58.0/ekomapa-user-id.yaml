@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.58.0-account-ekomapa-user-id
+      author: portal
+      changes:
+        - addColumn:
+            tableName: account
+            columns:
+              - column:
+                  name: ekomapa_user_id
+                  type: INT
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: account
+            indexName: uq_account_ekomapa_user_id
+            unique: true
+            columns:
+              - column:
+                  name: ekomapa_user_id

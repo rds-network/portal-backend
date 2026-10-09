@@ -71,6 +71,30 @@ class AccountService(
         return accountRepository.findByEmail(email).orElse(null)
     }
 
+    /**
+     * Привязка EVO (ekomapa users.id) к аккаунту портала.
+     * Вызывается Экомапой после Authentik-логина / backfill.
+     */
+    @Transactional
+    fun linkEkomapaUserId(username: String, ekomapaUserId: Int): Account {
+        if (ekomapaUserId <= 0) throw InvalidRequestException("ekomapaUserId must be positive")
+        val login = username.trim()
+        if (login.isEmpty()) throw InvalidRequestException("user is required")
+
+        accountRepository.findByEkomapaUserId(ekomapaUserId).ifPresent { other ->
+            if (!other.username.equals(login, ignoreCase = true)) {
+                other.ekomapaUserId = null
+                accountRepository.save(other)
+            }
+        }
+
+        val account = findAccountByLogin(login)
+            ?: findAccountByEmail(login)
+            ?: throw EntityNotFoundException("Account $login not found")
+        account.ekomapaUserId = ekomapaUserId
+        return save(account)
+    }
+
     @Transactional(readOnly = true)
     fun getCurrentAccount(): Account = getAccountByLogin(currentUserLogin() ?: throw NotAuthorizedException())
 

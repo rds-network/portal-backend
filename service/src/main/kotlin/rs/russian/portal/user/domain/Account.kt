@@ -108,6 +108,12 @@ class Account(
     /** Опциональная причина постановки в очередь. */
     var dissolutionQueueReason: String? = null,
 
+    /**
+     * ID пользователя в Экомапе (код EVO-{id}).
+     * Заполняется синками из Экомапы при привязке Authentik / artisan backfill.
+     */
+    var ekomapaUserId: Int? = null,
+
     ) : JpaEntity<Int>() {
 
     override fun equalityProperties() = setOf(Account::username)
