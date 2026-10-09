@@ -1,5 +1,6 @@
 package rs.russian.portal.user.api
 
+import com.fasterxml.jackson.databind.JsonNode
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -22,16 +23,22 @@ class EkomapaLinkExternalController(
     private val accountService: AccountService,
 ) {
     /**
-     * Body is parsed as a map so a Kotlin data-class / Jackson mismatch cannot 400 every sync call.
+     * JsonNode avoids Kotlin Map/data-class Jackson 400s on the service-account sync path.
      * Expected JSON: { "user": "login-or-email", "ekomapaUserId": 32, "email": "optional@…" }
      */
     @AuthorizedService
     @PostMapping("/ekomapa/link")
-    fun link(@RequestBody body: Map<String, Any?>): ResponseEntity<ExtEkomapaLinkResponse> {
-        val user = (body["user"] as? String)?.trim().orEmpty()
-        val email = (body["email"] as? String)?.trim()?.takeIf { it.isNotEmpty() }
-        val ekomapaUserId = parsePositiveInt(body["ekomapaUserId"])
-            ?: throw InvalidRequestException("ekomapaUserId must be a positive integer")
+    fun link(@RequestBody body: JsonNode): ResponseEntity<ExtEkomapaLinkResponse> {
+        val user = body.path("user").asText("").trim()
+        val email = body.path("email").asText("").trim().takeIf { it.isNotEmpty() }
+        val ekomapaUserId = when {
+            body.path("ekomapaUserId").canConvertToInt() -> body.path("ekomapaUserId").asInt()
+            body.path("ekomapa_user_id").canConvertToInt() -> body.path("ekomapa_user_id").asInt()
+            else -> 0
+        }
+        if (ekomapaUserId <= 0) {
+            throw InvalidRequestException("ekomapaUserId must be a positive integer")
+        }
         if (user.isEmpty() && email.isNullOrBlank()) {
             throw InvalidRequestException("user or email is required")
         }
@@ -47,14 +54,5 @@ class EkomapaLinkExternalController(
                 evoCode = EkomapaVolunteerCode.format(ekomapaUserId),
             )
         )
-    }
-
-    private fun parsePositiveInt(raw: Any?): Int? {
-        val value = when (raw) {
-            is Number -> raw.toInt()
-            is String -> raw.trim().toIntOrNull()
-            else -> null
-        }
-        return value?.takeIf { it > 0 }
     }
 }
