@@ -75,25 +75,50 @@ class AccountService(
     /**
      * Привязка EVO (ekomapa users.id) к аккаунту портала.
      * Вызывается Экомапой после Authentik-логина / backfill.
+     * Ищем по username (без учёта регистра), email из [username] или отдельному [email].
      */
     @Transactional
-    fun linkEkomapaUserId(username: String, ekomapaUserId: Int): Account {
+    fun linkEkomapaUserId(username: String, ekomapaUserId: Int, email: String? = null): Account {
         if (ekomapaUserId <= 0) throw InvalidRequestException("ekomapaUserId must be positive")
         val login = username.trim()
-        if (login.isEmpty()) throw InvalidRequestException("user is required")
+        val emailNorm = email?.trim()?.takeIf { it.isNotEmpty() }
+        if (login.isEmpty() && emailNorm.isNullOrBlank()) {
+            throw InvalidRequestException("user or email is required")
+        }
+
+        val account = resolveAccountForEkomapaLink(login, emailNorm)
+            ?: throw InvalidRequestException(
+                "Account not found for user='$login' email='${emailNorm ?: ""}'. " +
+                    "Portal login from Ekomapa must match an existing volunteer account.",
+            )
 
         accountRepository.findByEkomapaUserId(ekomapaUserId).ifPresent { other ->
-            if (!other.username.equals(login, ignoreCase = true)) {
+            if (other.id != account.id) {
                 other.ekomapaUserId = null
                 accountRepository.save(other)
             }
         }
 
-        val account = findAccountByLogin(login)
-            ?: findAccountByEmail(login)
-            ?: throw EntityNotFoundException("Account $login not found")
         account.ekomapaUserId = ekomapaUserId
         return save(account)
+    }
+
+    private fun resolveAccountForEkomapaLink(login: String, email: String?): Account? {
+        if (login.isNotEmpty()) {
+            findAccountByLogin(login)?.let { return it }
+            findAccountByEmail(login)?.let { return it }
+            accountRepository.findAllByUsernameLowerIn(listOf(login.lowercase())).firstOrNull()?.let { return it }
+        }
+        if (!email.isNullOrBlank()) {
+            findAccountByEmail(email)?.let { return it }
+            // email local-part as username
+            val local = email.substringBefore("@").lowercase().trim()
+            if (local.isNotEmpty()) {
+                findAccountByLogin(local)?.let { return it }
+                accountRepository.findAllByUsernameLowerIn(listOf(local)).firstOrNull()?.let { return it }
+            }
+        }
+        return null
     }
 
     @Transactional(readOnly = true)
