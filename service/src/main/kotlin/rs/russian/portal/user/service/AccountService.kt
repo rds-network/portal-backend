@@ -22,6 +22,7 @@ import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.jpa.convert
 import rs.russian.portal.shared.security.currentUserLogin
+import rs.russian.portal.user.EkomapaVolunteerCode
 import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.ResidencePermit
 import rs.russian.portal.user.domain.UserInfo
@@ -179,6 +180,15 @@ class AccountService(
 
     @Transactional(readOnly = true)
     fun search(query: String, pageRequest: PageRequest, filter: UserSearchFilter?): Page<Account> {
+        // Fast path: EVO-32 → exact ekomapa_user_id (works even if LIKE OR-branch is odd).
+        EkomapaVolunteerCode.parseIdFromSearch(query)?.let { evoId ->
+            accountRepository.findByEkomapaUserId(evoId).orElse(null)?.let { linked ->
+                if (matchesSearchFilter(linked, filter)) {
+                    val pageable = convert(pageRequest)
+                    return PageImpl(listOf(linked), pageable, 1)
+                }
+            }
+        }
         val specification = searchSpecification(query, filter)
         return findAllFull(specification, convert(pageRequest))
     }
@@ -383,6 +393,31 @@ class AccountService(
         accounts.forEach { account -> entityManager.detach(account) }
         val accountsFull = accountRepository.findAllByIdIn(accounts.mapNotNull { it.id }, pageable.sort)
         return PageImpl(accountsFull, accounts.pageable, accounts.totalElements)
+    }
+
+    /** Minimal filter check for EVO exact-match short path (active / reportBlocked / program / project). */
+    private fun matchesSearchFilter(account: Account, filter: UserSearchFilter?): Boolean {
+        if (filter == null) return true
+        filter.onlyActive?.let { if (it && !account.active) return false }
+        filter.onlyInactive?.let { if (it && account.active) return false }
+        filter.reportBlocked?.let { if (it && !account.reportBlocked) return false }
+        filter.program?.let { code ->
+            val programCode = account.info?.program?.code
+            if (code.isBlank()) {
+                if (programCode != null) return false
+            } else if (!code.equals(programCode, ignoreCase = true)) {
+                return false
+            }
+        }
+        filter.project?.let { code ->
+            val projectCode = account.info?.project?.code
+            if (code.isBlank()) {
+                if (projectCode != null) return false
+            } else if (!code.equals(projectCode, ignoreCase = true)) {
+                return false
+            }
+        }
+        return true
     }
 
     companion object {

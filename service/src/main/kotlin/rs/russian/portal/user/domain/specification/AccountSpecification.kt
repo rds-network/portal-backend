@@ -33,8 +33,9 @@ fun searchSpecification(query: String, filter: UserSearchFilter?): Specification
             .or(like(Account_.INFO, UserInfo_.PHONE, query))
 
         // EVO-123 / цифры → ekomapa_user_id; RDS-V-000072 → portal Account.id
+        // Field name as string: metamodel constant may lag after adding the column.
         EkomapaVolunteerCode.parseIdFromSearch(query)?.let { ekomapaId ->
-            querySpec = querySpec.or(equal(Account_.EKOMAPA_USER_ID, ekomapaId))
+            querySpec = querySpec.or(equal("ekomapaUserId", ekomapaId))
         }
         EkomapaVolunteerCode.parsePortalVolId(query)?.let { portalId ->
             querySpec = querySpec.or(equal(Account_.ID, portalId))
