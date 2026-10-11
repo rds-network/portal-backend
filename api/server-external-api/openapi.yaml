@@ -34,6 +34,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReportView"
+  /report/tasks:
+    post:
+      operationId: appendReportTasks
+      description: |
+        Добавить задачи в открытый auto-отчёт (CREATED + isAuto) волонтёра
+        или создать новый, если открытого нет / лимит 10 задач.
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - report-external
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppendReportTasksRequest"
+      responses:
+        "200":
+          description: Отчет (существующий или новый)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportView"
 
 components:
   securitySchemes:
@@ -58,6 +81,33 @@ components:
         - `scope`: `profile service_account`
 
   schemas:
+    AppendReportTasksRequest:
+      type: object
+      nullable: false
+      description: Добавить задачи в открытый auto-отчёт или создать новый
+      required:
+        - user
+        - tasks
+      properties:
+        user:
+          type: string
+          nullable: false
+          description: Логин / email / EVO-{id} волонтёра
+          example: "johndoe"
+        reportId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Явный id открытого отчёта (опционально)
+        tasks:
+          type: array
+          default: [ ]
+          nullable: false
+          minItems: 1
+          maxItems: 10
+          description: Новые задачи
+          items:
+            $ref: "#/components/schemas/CreateTaskRequest"
     CreateReportRequest:
       type: object
       nullable: false
