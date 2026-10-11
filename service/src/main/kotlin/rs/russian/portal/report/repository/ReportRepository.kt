@@ -32,6 +32,19 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         status: ReportStatus,
     ): Report?
 
+    @EntityGraph(value = GRAPH_FULL)
+    fun findTopByAccountUsernameAndStatusAndIsAutoTrueAndProgramCodeIgnoreCaseOrderByCreateTimeDesc(
+        username: String,
+        status: ReportStatus,
+        programCode: String,
+    ): Report?
+
+    @EntityGraph(value = GRAPH_FULL)
+    fun findTopByAccountUsernameAndStatusAndIsAutoTrueOrderByCreateTimeDesc(
+        username: String,
+        status: ReportStatus,
+    ): Report?
+
     @Query(
         """
         SELECT
