@@ -1,0 +1,431 @@
+﻿Build	Run tests	я╗┐2026-10-07T22:20:29.4511370Z ##[group]Run ./gradlew test --no-daemon
+Build	Run tests	2026-10-07T22:20:29.4511924Z ^[[36;1m./gradlew test --no-daemon^[[0m
+Build	Run tests	2026-10-07T22:20:29.5932522Z shell: /usr/bin/bash -e {0}
+Build	Run tests	2026-10-07T22:20:29.5933043Z env:
+Build	Run tests	2026-10-07T22:20:29.5933368Z   PERIOD: 10
+Build	Run tests	2026-10-07T22:20:29.5933737Z   ATTEMPTS: 60
+Build	Run tests	2026-10-07T22:20:29.5934262Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+Build	Run tests	2026-10-07T22:20:29.5935120Z   JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+Build	Run tests	2026-10-07T22:20:29.5935773Z ##[endgroup]
+Build	Run tests	2026-10-07T22:20:33.0762325Z 
+Build	Run tests	2026-10-07T22:20:33.0763657Z Welcome to Gradle 9.7.1!
+Build	Run tests	2026-10-07T22:20:33.0772237Z 
+Build	Run tests	2026-10-07T22:20:33.0779179Z Here are the highlights of this release:
+Build	Run tests	2026-10-07T22:20:33.0780287Z  - Isolated Projects graduates to incubating
+Build	Run tests	2026-10-07T22:20:33.0781277Z  - Broader Configuration Cache compatibility
+Build	Run tests	2026-10-07T22:20:33.0781980Z  - Resilient Sync helps you fix broken builds
+Build	Run tests	2026-10-07T22:20:33.0782605Z  - More source locations in problem reports
+Build	Run tests	2026-10-07T22:20:33.0783154Z 
+Build	Run tests	2026-10-07T22:20:33.0783538Z For more details see https://docs.gradle.org/9.7.1/release-notes.html
+Build	Run tests	2026-10-07T22:20:33.0784150Z 
+Build	Run tests	2026-10-07T22:20:33.3756069Z To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.7.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Build	Run tests	2026-10-07T22:20:35.1756548Z Daemon will be stopped at the end of the build 
+Build	Run tests	2026-10-07T22:20:44.9787986Z 
+Build	Run tests	2026-10-07T22:20:44.9798877Z > Configure project :authentik-api
+Build	Run tests	2026-10-07T22:20:44.9828291Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/authentik-api/authentik.yaml
+Build	Run tests	2026-10-07T22:20:45.1760975Z 
+Build	Run tests	2026-10-07T22:20:45.1762077Z > Configure project :axios-client
+Build	Run tests	2026-10-07T22:20:45.1765953Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/axios-client/../openapi.yaml
+Build	Run tests	2026-10-07T22:20:45.2760672Z 
+Build	Run tests	2026-10-07T22:20:45.2788509Z > Configure project :helpdesk-api
+Build	Run tests	2026-10-07T22:20:45.2838893Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/helpdesk-api/helpdesk.yaml
+Build	Run tests	2026-10-07T22:20:45.3750340Z 
+Build	Run tests	2026-10-07T22:20:45.3778288Z > Configure project :outline-api
+Build	Run tests	2026-10-07T22:20:45.3809250Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/outline-api/outline.yaml
+Build	Run tests	2026-10-07T22:20:45.4750930Z 
+Build	Run tests	2026-10-07T22:20:45.4763219Z > Configure project :server-api
+Build	Run tests	2026-10-07T22:20:45.4764522Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/server-api/../openapi.yaml
+Build	Run tests	2026-10-07T22:20:45.5758146Z 
+Build	Run tests	2026-10-07T22:20:45.5778327Z > Configure project :server-external-api
+Build	Run tests	2026-10-07T22:20:45.5808645Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/server-external-api/openapi.yaml
+Build	Run tests	2026-10-07T22:20:46.1760555Z 
+Build	Run tests	2026-10-07T22:20:46.1761537Z > Configure project :wordpress-api
+Build	Run tests	2026-10-07T22:20:46.1767645Z OpenAPI path: /home/runner/work/portal-backend/portal-backend/api/wordpress-api/wordpress.yaml
+Build	Run tests	2026-10-07T22:20:55.4751123Z 
+Build	Run tests	2026-10-07T22:20:55.4752584Z > Task :authentik-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:20:55.8761497Z 
+Build	Run tests	2026-10-07T22:20:55.8762495Z > Task :authentik-api:openApiValidate
+Build	Run tests	2026-10-07T22:20:55.8763457Z Validating spec /home/runner/work/portal-backend/portal-backend/api/authentik-api/authentik.yaml
+Build	Run tests	2026-10-07T22:20:55.8764381Z Spec is valid.
+Build	Run tests	2026-10-07T22:20:56.6813612Z 
+Build	Run tests	2026-10-07T22:20:56.6830321Z > Task :authentik-api:openApiGenerate
+Build	Run tests	2026-10-07T22:20:56.6835743Z Failed to get the schema name: null
+Build	Run tests	2026-10-07T22:20:56.6836747Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6848801Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6867733Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6869605Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6870744Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6872301Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6873382Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6874408Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6875440Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6876510Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6877896Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6879254Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6880328Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6881406Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6882458Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6883519Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6884561Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6886654Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6910493Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6911712Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6912836Z Unknown `format` int32 detected for type `number`. Defaulting to `number`
+Build	Run tests	2026-10-07T22:20:56.6914266Z ################################################################################
+Build	Run tests	2026-10-07T22:20:56.6915260Z # Thanks for using OpenAPI Generator.                                          #
+Build	Run tests	2026-10-07T22:20:56.6916783Z # Please consider donation to help us maintain this project ЁЯЩП                 #
+Build	Run tests	2026-10-07T22:20:56.6918419Z # https://opencollective.com/openapi_generator/donate                          #
+Build	Run tests	2026-10-07T22:20:56.6926729Z #                                                                              #
+Build	Run tests	2026-10-07T22:20:56.6928095Z # This generator's contributed by Jim Schubert (https://github.com/jimschubert)#
+Build	Run tests	2026-10-07T22:20:56.6929529Z # Please support his work directly via https://patreon.com/jimschubert ЁЯЩП      #
+Build	Run tests	2026-10-07T22:20:56.6930592Z ################################################################################
+Build	Run tests	2026-10-07T22:20:56.6931966Z Successfully generated code to /home/runner/work/portal-backend/portal-backend/api/authentik-api/build/openapi
+Build	Run tests	2026-10-07T22:20:57.3757840Z 
+Build	Run tests	2026-10-07T22:20:57.3798318Z > Task :authentik-api:processResources NO-SOURCE
+Build	Run tests	2026-10-07T22:20:57.3828233Z > Task :authentik-api:processTestResources NO-SOURCE
+Build	Run tests	2026-10-07T22:20:57.3848154Z > Task :helpdesk-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:20:57.3877457Z 
+Build	Run tests	2026-10-07T22:20:57.3905460Z > Task :helpdesk-api:openApiValidate
+Build	Run tests	2026-10-07T22:20:57.3929632Z Validating spec /home/runner/work/portal-backend/portal-backend/api/helpdesk-api/helpdesk.yaml
+Build	Run tests	2026-10-07T22:20:57.3946480Z Spec is valid.
+Build	Run tests	2026-10-07T22:20:57.6755958Z 
+Build	Run tests	2026-10-07T22:20:57.6778485Z > Task :helpdesk-api:openApiGenerate
+Build	Run tests	2026-10-07T22:20:57.6808044Z ################################################################################
+Build	Run tests	2026-10-07T22:20:57.6828012Z # Thanks for using OpenAPI Generator.                                          #
+Build	Run tests	2026-10-07T22:20:57.6868485Z # Please consider donation to help us maintain this project ЁЯЩП                 #
+Build	Run tests	2026-10-07T22:20:57.6869888Z # https://opencollective.com/openapi_generator/donate                          #
+Build	Run tests	2026-10-07T22:20:57.6897993Z #                                                                              #
+Build	Run tests	2026-10-07T22:20:57.6928210Z # This generator's contributed by Jim Schubert (https://github.com/jimschubert)#
+Build	Run tests	2026-10-07T22:20:57.6958411Z # Please support his work directly via https://patreon.com/jimschubert ЁЯЩП      #
+Build	Run tests	2026-10-07T22:20:57.6960029Z ################################################################################
+Build	Run tests	2026-10-07T22:20:57.6966052Z Successfully generated code to /home/runner/work/portal-backend/portal-backend/api/helpdesk-api/build/openapi
+Build	Run tests	2026-10-07T22:20:58.1797720Z 
+Build	Run tests	2026-10-07T22:20:58.1828393Z > Task :helpdesk-api:processResources NO-SOURCE
+Build	Run tests	2026-10-07T22:20:58.1853386Z > Task :helpdesk-api:processTestResources NO-SOURCE
+Build	Run tests	2026-10-07T22:20:58.1879549Z > Task :outline-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:20:58.3801258Z 
+Build	Run tests	2026-10-07T22:20:58.3828374Z > Task :outline-api:openApiValidate
+Build	Run tests	2026-10-07T22:20:58.3858232Z Validating spec /home/runner/work/portal-backend/portal-backend/api/outline-api/outline.yaml
+Build	Run tests	2026-10-07T22:20:58.3903386Z Spec is valid.
+Build	Run tests	2026-10-07T22:21:00.3750635Z 
+Build	Run tests	2026-10-07T22:21:00.3753947Z > Task :outline-api:openApiGenerate
+Build	Run tests	2026-10-07T22:21:00.3765974Z allOf schema `null` containing multiple types (not model) is not supported at the moment.
+Build	Run tests	2026-10-07T22:21:00.3767722Z allOf schema `null` containing multiple types (not model) is not supported at the moment.
+Build	Run tests	2026-10-07T22:21:01.5768833Z ################################################################################
+Build	Run tests	2026-10-07T22:21:01.5848319Z # Thanks for using OpenAPI Generator.                                          #
+Build	Run tests	2026-10-07T22:21:01.5908928Z # Please consider donation to help us maintain this project ЁЯЩП                 #
+Build	Run tests	2026-10-07T22:21:01.5958868Z # https://opencollective.com/openapi_generator/donate                          #
+Build	Run tests	2026-10-07T22:21:01.6025532Z #                                                                              #
+Build	Run tests	2026-10-07T22:21:01.6078387Z # This generator's contributed by Jim Schubert (https://github.com/jimschubert)#
+Build	Run tests	2026-10-07T22:21:01.6158895Z # Please support his work directly via https://patreon.com/jimschubert ЁЯЩП      #
+Build	Run tests	2026-10-07T22:21:01.6170520Z ################################################################################
+Build	Run tests	2026-10-07T22:21:01.6219462Z Successfully generated code to /home/runner/work/portal-backend/portal-backend/api/outline-api/build/openapi
+Build	Run tests	2026-10-07T22:21:01.8767723Z 
+Build	Run tests	2026-10-07T22:21:01.8798392Z > Task :outline-api:processResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:01.8885200Z > Task :outline-api:processTestResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:01.8908093Z > Task :server-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:21:01.9797790Z 
+Build	Run tests	2026-10-07T22:21:01.9828126Z > Task :server-api:openApiValidate
+Build	Run tests	2026-10-07T22:21:01.9888373Z Validating spec /home/runner/work/portal-backend/portal-backend/api/server-api/../openapi.yaml
+Build	Run tests	2026-10-07T22:21:01.9929342Z Spec is valid.
+Build	Run tests	2026-10-07T22:21:03.9768659Z 
+Build	Run tests	2026-10-07T22:21:03.9817138Z > Task :server-api:openApiGenerate
+Build	Run tests	2026-10-07T22:21:03.9878143Z ################################################################################
+Build	Run tests	2026-10-07T22:21:03.9894128Z # Thanks for using OpenAPI Generator.                                          #
+Build	Run tests	2026-10-07T22:21:03.9978590Z # Please consider donation to help us maintain this project ЁЯЩП                 #
+Build	Run tests	2026-10-07T22:21:04.0048347Z # https://opencollective.com/openapi_generator/donate                          #
+Build	Run tests	2026-10-07T22:21:04.0049339Z ################################################################################
+Build	Run tests	2026-10-07T22:21:04.0093331Z Successfully generated code to /home/runner/work/portal-backend/portal-backend/api/server-api/build/openapi
+Build	Run tests	2026-10-07T22:21:17.6761205Z 
+Build	Run tests	2026-10-07T22:21:17.6828464Z > Task :server-api:compileKotlin
+Build	Run tests	2026-10-07T22:21:17.7756967Z > Task :server-api:compileJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:17.7778022Z > Task :server-api:processResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:17.7797993Z > Task :server-api:classes UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:18.0778423Z > Task :server-api:jar
+Build	Run tests	2026-10-07T22:21:18.0838268Z > Task :server-api:compileTestKotlin NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.0898043Z > Task :server-api:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.0978349Z > Task :server-api:processTestResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.1037996Z > Task :server-api:testClasses UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:18.1098016Z > Task :server-api:test NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.1158479Z > Task :server-external-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:21:18.2777985Z 
+Build	Run tests	2026-10-07T22:21:18.2828357Z > Task :authentik-api:compileKotlin
+Build	Run tests	2026-10-07T22:21:18.2949279Z w: file:///home/runner/work/portal-backend/portal-backend/api/authentik-api/build/openapi/src/main/kotlin/io/authentik/infrastructure/ApiClient.kt:141:12 Condition is always 'false'.
+Build	Run tests	2026-10-07T22:21:18.2965294Z w: file:///home/runner/work/portal-backend/portal-backend/api/authentik-api/build/openapi/src/main/kotlin/io/authentik/infrastructure/ApiClient.kt:309:13 Type argument for reified type parameter 'T' was inferred to the intersection of ['Temporal' & 'TemporalAdjuster' & 'Comparable<OffsetDateTime! & OffsetTime! & ChronoLocalDateTime<*>! & ChronoLocalDate! & LocalTime!>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+Build	Run tests	2026-10-07T22:21:18.2999487Z w: file:///home/runner/work/portal-backend/portal-backend/api/authentik-api/build/openapi/src/main/kotlin/io/authentik/infrastructure/Serializer.kt:13:10 'fun setSerializationInclusion(p0: JsonInclude.Include!): ObjectMapper!' is deprecated. Deprecated in Java.
+Build	Run tests	2026-10-07T22:21:18.3802044Z 
+Build	Run tests	2026-10-07T22:21:18.3858197Z > Task :server-external-api:openApiValidate
+Build	Run tests	2026-10-07T22:21:18.3859358Z Validating spec /home/runner/work/portal-backend/portal-backend/api/server-external-api/openapi.yaml
+Build	Run tests	2026-10-07T22:21:18.3860320Z Spec is valid.
+Build	Run tests	2026-10-07T22:21:18.3860555Z 
+Build	Run tests	2026-10-07T22:21:18.3860755Z > Task :helpdesk-api:compileKotlin
+Build	Run tests	2026-10-07T22:21:18.3862251Z w: file:///home/runner/work/portal-backend/portal-backend/api/helpdesk-api/build/openapi/src/main/kotlin/com/helpdesk/infrastructure/ApiClient.kt:141:12 Condition is always 'false'.
+Build	Run tests	2026-10-07T22:21:18.3867965Z w: file:///home/runner/work/portal-backend/portal-backend/api/helpdesk-api/build/openapi/src/main/kotlin/com/helpdesk/infrastructure/ApiClient.kt:299:13 Type argument for reified type parameter 'T' was inferred to the intersection of ['Temporal' & 'TemporalAdjuster' & 'Comparable<OffsetDateTime! & OffsetTime! & ChronoLocalDateTime<*>! & ChronoLocalDate! & LocalTime!>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+Build	Run tests	2026-10-07T22:21:18.3873958Z w: file:///home/runner/work/portal-backend/portal-backend/api/helpdesk-api/build/openapi/src/main/kotlin/com/helpdesk/infrastructure/Serializer.kt:13:10 'fun setSerializationInclusion(p0: JsonInclude.Include!): ObjectMapper!' is deprecated. Deprecated in Java.
+Build	Run tests	2026-10-07T22:21:18.5757752Z 
+Build	Run tests	2026-10-07T22:21:18.5818316Z > Task :server-external-api:openApiGenerate
+Build	Run tests	2026-10-07T22:21:18.5868124Z ################################################################################
+Build	Run tests	2026-10-07T22:21:18.5916012Z # Thanks for using OpenAPI Generator.                                          #
+Build	Run tests	2026-10-07T22:21:18.5948857Z # Please consider donation to help us maintain this project ЁЯЩП                 #
+Build	Run tests	2026-10-07T22:21:18.5968236Z # https://opencollective.com/openapi_generator/donate                          #
+Build	Run tests	2026-10-07T22:21:18.5969282Z ################################################################################
+Build	Run tests	2026-10-07T22:21:18.5970572Z Successfully generated code to /home/runner/work/portal-backend/portal-backend/api/server-external-api/build/openapi
+Build	Run tests	2026-10-07T22:21:18.5971607Z 
+Build	Run tests	2026-10-07T22:21:18.5971929Z > Task :authentik-api:compileJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.5972631Z > Task :authentik-api:classes UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:18.5973290Z > Task :authentik-api:jar
+Build	Run tests	2026-10-07T22:21:18.5973932Z > Task :authentik-api:compileTestKotlin NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.6778364Z > Task :authentik-api:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.6808499Z > Task :authentik-api:testClasses UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:18.6838681Z > Task :authentik-api:test NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.6865161Z > Task :helpdesk-api:compileJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.6887916Z > Task :helpdesk-api:classes UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:18.6888557Z > Task :helpdesk-api:jar
+Build	Run tests	2026-10-07T22:21:18.6889109Z > Task :helpdesk-api:compileTestKotlin NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.6889765Z > Task :helpdesk-api:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.6890821Z > Task :helpdesk-api:testClasses UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:18.6891407Z > Task :helpdesk-api:test NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.7778767Z > Task :server-external-api:processResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.8840807Z > Task :server-external-api:processTestResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:18.8873198Z > Task :service:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:21:18.8952748Z > Task :wordpress-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+Build	Run tests	2026-10-07T22:21:18.8981866Z 
+Build	Run tests	2026-10-07T22:21:18.8982268Z > Task :wordpress-api:openApiValidate
+Build	Run tests	2026-10-07T22:21:18.9068420Z Validating spec /home/runner/work/portal-backend/portal-backend/api/wordpress-api/wordpress.yaml
+Build	Run tests	2026-10-07T22:21:18.9097881Z Spec is valid.
+Build	Run tests	2026-10-07T22:21:19.0757813Z 
+Build	Run tests	2026-10-07T22:21:19.0798508Z > Task :wordpress-api:openApiGenerate
+Build	Run tests	2026-10-07T22:21:19.0892192Z ################################################################################
+Build	Run tests	2026-10-07T22:21:19.0929149Z # Thanks for using OpenAPI Generator.                                          #
+Build	Run tests	2026-10-07T22:21:19.0959177Z # Please consider donation to help us maintain this project ЁЯЩП                 #
+Build	Run tests	2026-10-07T22:21:19.0988091Z # https://opencollective.com/openapi_generator/donate                          #
+Build	Run tests	2026-10-07T22:21:19.1017928Z #                                                                              #
+Build	Run tests	2026-10-07T22:21:19.1048152Z # This generator's contributed by Jim Schubert (https://github.com/jimschubert)#
+Build	Run tests	2026-10-07T22:21:19.1078421Z # Please support his work directly via https://patreon.com/jimschubert ЁЯЩП      #
+Build	Run tests	2026-10-07T22:21:19.1101055Z ################################################################################
+Build	Run tests	2026-10-07T22:21:19.1128271Z Successfully generated code to /home/runner/work/portal-backend/portal-backend/api/wordpress-api/build/openapi
+Build	Run tests	2026-10-07T22:21:19.4757912Z 
+Build	Run tests	2026-10-07T22:21:19.4798316Z > Task :service:processResources
+Build	Run tests	2026-10-07T22:21:19.4835313Z > Task :service:processTestResources
+Build	Run tests	2026-10-07T22:21:19.4858103Z > Task :wordpress-api:processResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:19.4888166Z > Task :wordpress-api:processTestResources NO-SOURCE
+Build	Run tests	2026-10-07T22:21:20.6788571Z > Task :server-external-api:compileKotlin
+Build	Run tests	2026-10-07T22:21:20.6795837Z > Task :server-external-api:compileJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:20.6796911Z > Task :server-external-api:classes UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:20.6797955Z > Task :server-external-api:jar
+Build	Run tests	2026-10-07T22:21:20.6799207Z > Task :server-external-api:compileTestKotlin NO-SOURCE
+Build	Run tests	2026-10-07T22:21:20.6800151Z > Task :server-external-api:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:20.6800991Z > Task :server-external-api:testClasses UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:20.6801789Z > Task :server-external-api:test NO-SOURCE
+Build	Run tests	2026-10-07T22:21:23.8788123Z 
+Build	Run tests	2026-10-07T22:21:23.8848290Z > Task :wordpress-api:compileKotlin
+Build	Run tests	2026-10-07T22:21:23.8912715Z w: file:///home/runner/work/portal-backend/portal-backend/api/wordpress-api/build/openapi/src/main/kotlin/org/wordpress/infrastructure/ApiClient.kt:141:12 Condition is always 'false'.
+Build	Run tests	2026-10-07T22:21:23.8991935Z w: file:///home/runner/work/portal-backend/portal-backend/api/wordpress-api/build/openapi/src/main/kotlin/org/wordpress/infrastructure/ApiClient.kt:309:13 Type argument for reified type parameter 'T' was inferred to the intersection of ['Temporal' & 'TemporalAdjuster' & 'Comparable<OffsetDateTime! & OffsetTime! & ChronoLocalDateTime<*>! & ChronoLocalDate! & LocalTime!>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+Build	Run tests	2026-10-07T22:21:23.9029373Z w: file:///home/runner/work/portal-backend/portal-backend/api/wordpress-api/build/openapi/src/main/kotlin/org/wordpress/infrastructure/Serializer.kt:13:10 'fun setSerializationInclusion(p0: JsonInclude.Include!): ObjectMapper!' is deprecated. Deprecated in Java.
+Build	Run tests	2026-10-07T22:21:23.9777633Z 
+Build	Run tests	2026-10-07T22:21:23.9808126Z > Task :wordpress-api:compileJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:23.9837810Z > Task :wordpress-api:classes UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:23.9867934Z > Task :wordpress-api:jar
+Build	Run tests	2026-10-07T22:21:23.9888072Z > Task :wordpress-api:compileTestKotlin NO-SOURCE
+Build	Run tests	2026-10-07T22:21:23.9907356Z > Task :wordpress-api:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:23.9957948Z > Task :wordpress-api:testClasses UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:23.9967999Z > Task :wordpress-api:test NO-SOURCE
+Build	Run tests	2026-10-07T22:21:30.7767931Z 
+Build	Run tests	2026-10-07T22:21:30.7798509Z > Task :outline-api:compileKotlin
+Build	Run tests	2026-10-07T22:21:30.7829028Z w: file:///home/runner/work/portal-backend/portal-backend/api/outline-api/build/openapi/src/main/kotlin/com/outline/infrastructure/ApiClient.kt:141:12 Condition is always 'false'.
+Build	Run tests	2026-10-07T22:21:30.7834610Z w: file:///home/runner/work/portal-backend/portal-backend/api/outline-api/build/openapi/src/main/kotlin/com/outline/infrastructure/ApiClient.kt:314:13 Type argument for reified type parameter 'T' was inferred to the intersection of ['Temporal' & 'TemporalAdjuster' & 'Comparable<OffsetDateTime! & OffsetTime! & ChronoLocalDateTime<*>! & ChronoLocalDate! & LocalTime!>' & 'Serializable']. Reification of an intersection type results in the common supertype being used. This may lead to subtle issues and an explicit type argument is encouraged. This will become an error in a future release. See https://youtrack.jetbrains.com/issue/KT-71420.
+Build	Run tests	2026-10-07T22:21:30.7869458Z w: file:///home/runner/work/portal-backend/portal-backend/api/outline-api/build/openapi/src/main/kotlin/com/outline/infrastructure/Serializer.kt:13:10 'fun setSerializationInclusion(p0: JsonInclude.Include!): ObjectMapper!' is deprecated. Deprecated in Java.
+Build	Run tests	2026-10-07T22:21:30.8757670Z 
+Build	Run tests	2026-10-07T22:21:30.8768444Z > Task :outline-api:compileJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:30.8797847Z > Task :outline-api:classes UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:31.0753848Z > Task :outline-api:jar
+Build	Run tests	2026-10-07T22:21:31.0798224Z > Task :outline-api:compileTestKotlin NO-SOURCE
+Build	Run tests	2026-10-07T22:21:31.0802211Z > Task :outline-api:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:21:31.0810102Z > Task :outline-api:testClasses UP-TO-DATE
+Build	Run tests	2026-10-07T22:21:31.0824202Z > Task :outline-api:test NO-SOURCE
+Build	Run tests	2026-10-07T22:21:58.6752246Z > Task :service:kaptGenerateStubsKotlin
+Build	Run tests	2026-10-07T22:22:00.6762216Z 
+Build	Run tests	2026-10-07T22:22:00.6788754Z > Task :service:kaptKotlin
+Build	Run tests	2026-10-07T22:22:00.6815188Z Annotation processors discovery from compile classpath is deprecated.
+Build	Run tests	2026-10-07T22:22:00.6838088Z Set 'kapt.include.compile.classpath=false' to disable discovery.
+Build	Run tests	2026-10-07T22:22:00.6838926Z Run the build with '--info' for more details.
+Build	Run tests	2026-10-07T22:22:03.8758495Z Note: Hibernate compile-time tooling 6.6.53.Final
+Build	Run tests	2026-10-07T22:22:03.8809070Z /home/runner/work/portal-backend/portal-backend/service/build/tmp/kapt3/stubs/main/rs/russian/portal/application/domain/Application.java:88: warning: member 'entityId' of 'Note' is not annotated '@ManyToOne'
+Build	Run tests	2026-10-07T22:22:03.8848549Z     @jakarta.persistence.OneToMany(mappedBy = "entityId", cascade = {jakarta.persistence.CascadeType.ALL}, orphanRemoval = true)
+Build	Run tests	2026-10-07T22:22:03.8934885Z                                               ^
+Build	Run tests	2026-10-07T22:22:03.8969017Z /home/runner/work/portal-backend/portal-backend/service/build/tmp/kapt3/stubs/main/rs/russian/portal/application/domain/Application.java:88: warning: member 'entityId' of 'Note' is not of type 'Application'
+Build	Run tests	2026-10-07T22:22:03.8978568Z     @jakarta.persistence.OneToMany(mappedBy = "entityId", cascade = {jakarta.persistence.CascadeType.ALL}, orphanRemoval = true)
+Build	Run tests	2026-10-07T22:22:03.9007815Z                                               ^
+Build	Run tests	2026-10-07T22:22:03.9018849Z /home/runner/work/portal-backend/portal-backend/service/build/tmp/kapt3/stubs/main/rs/russian/portal/report/domain/Report.java:50: warning: member 'entityId' of 'Note' is not annotated '@ManyToOne'
+Build	Run tests	2026-10-07T22:22:03.9038395Z     @jakarta.persistence.OneToMany(mappedBy = "entityId", cascade = {jakarta.persistence.CascadeType.ALL}, orphanRemoval = true)
+Build	Run tests	2026-10-07T22:22:03.9067782Z                                               ^
+Build	Run tests	2026-10-07T22:22:03.9078869Z /home/runner/work/portal-backend/portal-backend/service/build/tmp/kapt3/stubs/main/rs/russian/portal/report/domain/Report.java:50: warning: member 'entityId' of 'Note' is not of type 'Report'
+Build	Run tests	2026-10-07T22:22:03.9108386Z     @jakarta.persistence.OneToMany(mappedBy = "entityId", cascade = {jakarta.persistence.CascadeType.ALL}, orphanRemoval = true)
+Build	Run tests	2026-10-07T22:22:03.9127812Z                                               ^
+Build	Run tests	2026-10-07T22:22:23.0778259Z 
+Build	Run tests	2026-10-07T22:22:23.0790086Z > Task :service:compileKotlin
+Build	Run tests	2026-10-07T22:22:23.0792551Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/achievements/service/AchievementsService.kt:475:48 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+Build	Run tests	2026-10-07T22:22:23.0797048Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/announcement/api/AnnouncementController.kt:34:37 The corresponding parameter in the supertype 'AnnouncementsApi' is named 'announcementCreateRequest'. This may cause problems when calling this function with named arguments.
+Build	Run tests	2026-10-07T22:22:23.0801238Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/inbox/api/InboxDtos.kt:68:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0803775Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0805315Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0806054Z 
+Build	Run tests	2026-10-07T22:22:23.0806632Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.0808801Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/inbox/api/InboxDtos.kt:142:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0810735Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0811951Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0812722Z 
+Build	Run tests	2026-10-07T22:22:23.0813211Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.0815134Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/inbox/api/InboxDtos.kt:154:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0817867Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0819200Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0819787Z 
+Build	Run tests	2026-10-07T22:22:23.0820137Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.0822353Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/shared/jpa/JpaEntity.kt:47:41 Unchecked cast of 'KProperty1<out JpaEntity<ID_TYPE (of class JpaEntity<ID_TYPE : Comparable<ID_TYPE>>)>, Any?>' to 'KProperty1<JpaEntity<*>, Any?>'.
+Build	Run tests	2026-10-07T22:22:23.0826256Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/shared/security/ServiceAccountLoggingFilter.kt:23:57 'constructor(request: HttpServletRequest): ContentCachingRequestWrapper' is deprecated. Deprecated in Java.
+Build	Run tests	2026-10-07T22:22:23.0830085Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/ticket/api/TicketController.kt:15:31 The corresponding parameter in the supertype 'TicketsApi' is named 'ticketCreateRequest'. This may cause problems when calling this function with named arguments.
+Build	Run tests	2026-10-07T22:22:23.0833807Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/ticket/service/TicketService.kt:33:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0836231Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0837845Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0838419Z 
+Build	Run tests	2026-10-07T22:22:23.0838723Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.0839908Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/user/scheduler/DepersonalizationScheduler.kt:23:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0841315Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0842063Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0842400Z 
+Build	Run tests	2026-10-07T22:22:23.0842608Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.0843826Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/user/scheduler/DepersonalizationWarningScheduler.kt:24:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0845259Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0846011Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0846336Z 
+Build	Run tests	2026-10-07T22:22:23.0846531Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.0848086Z w: file:///home/runner/work/portal-backend/portal-backend/service/src/main/kotlin/rs/russian/portal/user/scheduler/DepersonalizationWarningScheduler.kt:26:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+Build	Run tests	2026-10-07T22:22:23.0849541Z - To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+Build	Run tests	2026-10-07T22:22:23.0850270Z - To keep applying to the value parameter only, use the '@param:' annotation target.
+Build	Run tests	2026-10-07T22:22:23.0850599Z 
+Build	Run tests	2026-10-07T22:22:23.0850795Z See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+Build	Run tests	2026-10-07T22:22:23.2752592Z [ant:hibernateEnhance] Extended enhancement is enabled. Classes other than entities may be modified. You should consider access the entities using getter/setter methods and disable this property. Use at your own risk.
+Build	Run tests	2026-10-07T22:22:27.6751620Z 
+Build	Run tests	2026-10-07T22:22:27.6763956Z Note: /home/runner/work/portal-backend/portal-backend/service/build/generated/source/kapt/main/rs/russian/portal/report/mapper/ReportMapperImpl.java uses unchecked or unsafe operations.
+Build	Run tests	2026-10-07T22:22:27.6779431Z > Task :service:compileJava
+Build	Run tests	2026-10-07T22:22:27.6783070Z Note: Recompile with -Xlint:unchecked for details.
+Build	Run tests	2026-10-07T22:22:28.2768634Z Trying to override old definition of task hibernateEnhance
+Build	Run tests	2026-10-07T22:22:28.2773861Z [ant:hibernateEnhance] Extended enhancement is enabled. Classes other than entities may be modified. You should consider access the entities using getter/setter methods and disable this property. Use at your own risk.
+Build	Run tests	2026-10-07T22:22:28.8787769Z 
+Build	Run tests	2026-10-07T22:22:28.8808649Z > Task :service:classes
+Build	Run tests	2026-10-07T22:22:28.8837961Z > Task :service:jar SKIPPED
+Build	Run tests	2026-10-07T22:22:35.1851326Z > Task :service:kaptGenerateStubsTestKotlin
+Build	Run tests	2026-10-07T22:22:36.5757955Z 
+Build	Run tests	2026-10-07T22:22:36.5768347Z > Task :service:kaptTestKotlin
+Build	Run tests	2026-10-07T22:22:36.5828705Z warning: The following options were not recognized by any processor: '[mapstruct.unmappedTargetPolicy, mapstruct.defaultComponentModel, kapt.kotlin.generated]'
+Build	Run tests	2026-10-07T22:22:44.2780291Z 
+Build	Run tests	2026-10-07T22:22:44.2798770Z > Task :service:compileTestKotlin
+Build	Run tests	2026-10-07T22:22:44.2818111Z > Task :service:compileTestJava NO-SOURCE
+Build	Run tests	2026-10-07T22:22:44.2835837Z > Task :service:testClasses
+Build	Run tests	2026-10-07T22:23:14.2799345Z > Task :service:test
+Build	Run tests	2026-10-07T22:23:16.9750689Z 
+Build	Run tests	2026-10-07T22:23:16.9752691Z OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Build	Run tests	2026-10-07T22:23:17.0762389Z OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Build	Run tests	2026-10-07T22:24:07.2768930Z 
+Build	Run tests	2026-10-07T22:24:07.2769937Z > Task :service:test
+Build	Run tests	2026-10-07T22:24:07.2770692Z 
+Build	Run tests	2026-10-07T22:24:07.2771448Z ReportServiceStatusTest > moderator should be assigned when report status is changed() FAILED
+Build	Run tests	2026-10-07T22:24:07.2772674Z     java.lang.AssertionError at ReportServiceStatusTest.kt:79
+Build	Run tests	2026-10-07T22:24:27.4757913Z 
+Build	Run tests	2026-10-07T22:24:27.4760509Z ^[[1;35m07 Oct 22:24:27.395^[[0;39m ^[[34mINFO^[[0;39m ^[[36mo.s.o.j.LocalContainerEntityManagerFactoryBean:^[[0;39m Closing JPA EntityManagerFactory for persistence unit 'default'
+Build	Run tests	2026-10-07T22:24:27.4762982Z ^[[1;35m07 Oct 22:24:27.401^[[0;39m ^[[34mINFO^[[0;39m ^[[36mo.s.o.j.LocalContainerEntityManagerFactoryBean:^[[0;39m Closing JPA EntityManagerFactory for persistence unit 'default'
+Build	Run tests	2026-10-07T22:24:27.4764632Z Hibernate: set client_min_messages = WARNING
+Build	Run tests	2026-10-07T22:24:27.4766425Z ^[[1;35m07 Oct 22:24:27.411^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.p.DockerPostgresDatabaseProvider:^[[0;39m STDERR: 2026-10-07 22:24:27.410 UTC [56] LOG:  checkpoint starting: immediate force wait
+Build	Run tests	2026-10-07T22:24:27.4768505Z Hibernate: alter table if exists application drop constraint if exists FKi2dpv3vokj7nu4l0yttd1tigl
+Build	Run tests	2026-10-07T22:24:27.4771923Z ^[[1;35m07 Oct 22:24:27.412^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.p.DockerPostgresDatabaseProvider:^[[0;39m STDERR: 2026-10-07 22:24:27.412 UTC [56] LOG:  checkpoint complete: wrote 138 buffers (0.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.002 s; sync files=0, longest=0.000 s, average=0.000 s; distance=339 kB, estimate=22612 kB; lsn=0/3E860E8, redo lsn=0/3E860B0
+Build	Run tests	2026-10-07T22:24:27.4774817Z Hibernate: alter table if exists application drop constraint if exists FK26o35yyd2934y6cuodpv5g8bx
+Build	Run tests	2026-10-07T22:24:27.4776045Z Hibernate: alter table if exists program drop constraint if exists FKmm31346maka2lbn7yq5q3f57m
+Build	Run tests	2026-10-07T22:24:27.4777227Z Hibernate: alter table if exists project drop constraint if exists FK7duygmonva8u2awxerjatlxx5
+Build	Run tests	2026-10-07T22:24:27.4778753Z Hibernate: alter table if exists project_statistic_group drop constraint if exists FKr6r1av7y4jja01g3pqyepid68
+Build	Run tests	2026-10-07T22:24:27.4780180Z Hibernate: alter table if exists project_statistic_group drop constraint if exists FK67w0k6busv1s5mondxfkfx9y5
+Build	Run tests	2026-10-07T22:24:27.4781230Z Hibernate: drop table if exists application cascade
+Build	Run tests	2026-10-07T22:24:27.4781856Z Hibernate: drop table if exists note cascade
+Build	Run tests	2026-10-07T22:24:27.4784802Z Hibernate: drop table if exists official_group cascade
+Build	Run tests	2026-10-07T22:24:27.4786219Z Hibernate: drop table if exists program cascade
+Build	Run tests	2026-10-07T22:24:27.4788551Z Hibernate: drop table if exists program_curator cascade
+Build	Run tests	2026-10-07T22:24:27.4789336Z Hibernate: drop table if exists program_curator_delegate cascade
+Build	Run tests	2026-10-07T22:24:27.4790225Z Hibernate: drop table if exists project cascade
+Build	Run tests	2026-10-07T22:24:27.4791126Z Hibernate: drop table if exists project_statistic_group cascade
+Build	Run tests	2026-10-07T22:24:27.4822498Z Hibernate: drop table if exists statistic_group cascade
+Build	Run tests	2026-10-07T22:24:27.4834649Z ^[[1;35m07 Oct 22:24:27.455^[[0;39m ^[[34mINFO^[[0;39m ^[[36mo.s.b.w.e.t.GracefulShutdown:^[[0;39m Commencing graceful shutdown. Waiting for active requests to complete
+Build	Run tests	2026-10-07T22:24:27.4847965Z ^[[1;35m07 Oct 22:24:27.457^[[0;39m ^[[34mINFO^[[0;39m ^[[36mo.s.b.w.e.t.GracefulShutdown:^[[0;39m Graceful shutdown complete
+Build	Run tests	2026-10-07T22:24:27.7752026Z ^[[1;35m07 Oct 22:24:27.738^[[0;39m ^[[34mINFO^[[0;39m ^[[36mo.s.o.j.LocalContainerEntityManagerFactoryBean:^[[0;39m Closing JPA EntityManagerFactory for persistence unit 'default'
+Build	Run tests	2026-10-07T22:24:27.7803971Z ^[[1;35m07 Oct 22:24:27.751^[[0;39m ^[[34mINFO^[[0;39m ^[[36mo.s.o.j.LocalContainerEntityManagerFactoryBean:^[[0;39m Closing JPA EntityManagerFactory for persistence unit 'default'
+Build	Run tests	2026-10-07T22:24:27.7831706Z Hibernate: set client_min_messages = WARNING
+Build	Run tests	2026-10-07T22:24:27.7859215Z ^[[1;35m07 Oct 22:24:27.756^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.p.DockerPostgresDatabaseProvider:^[[0;39m STDERR: 2026-10-07 22:24:27.754 UTC [56] LOG:  checkpoint starting: immediate force wait
+Build	Run tests	2026-10-07T22:24:27.7893475Z ^[[1;35m07 Oct 22:24:27.756^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.p.DockerPostgresDatabaseProvider:^[[0;39m STDERR: 2026-10-07 22:24:27.755 UTC [56] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.001 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=20351 kB; lsn=0/3E86308, redo lsn=0/3E862D0
+Build	Run tests	2026-10-07T22:24:27.7916787Z Hibernate: alter table if exists contract drop constraint if exists FK3oky5oe311txm3xp0kcidymp6
+Build	Run tests	2026-10-07T22:24:27.7956067Z Hibernate: alter table if exists file_info drop constraint if exists FKgm85qvm5ov3ml6bqgk94ide00
+Build	Run tests	2026-10-07T22:24:27.7968126Z Hibernate: alter table if exists program drop constraint if exists FKmm31346maka2lbn7yq5q3f57m
+Build	Run tests	2026-10-07T22:24:27.8001739Z Hibernate: alter table if exists project drop constraint if exists FK7duygmonva8u2awxerjatlxx5
+Build	Run tests	2026-10-07T22:24:27.8034564Z Hibernate: alter table if exists project_statistic_group drop constraint if exists FKr6r1av7y4jja01g3pqyepid68
+Build	Run tests	2026-10-07T22:24:27.8068350Z Hibernate: alter table if exists project_statistic_group drop constraint if exists FK67w0k6busv1s5mondxfkfx9y5
+Build	Run tests	2026-10-07T22:24:27.8088140Z Hibernate: alter table if exists report drop constraint if exists FKo9m30tjo0nnmib3h00iot17t9
+Build	Run tests	2026-10-07T22:24:27.8098087Z Hibernate: alter table if exists report drop constraint if exists FK6g1ir5m32ud839unwe9to8g3u
+Build	Run tests	2026-10-07T22:24:27.8128221Z Hibernate: alter table if exists report drop constraint if exists FKp2wspo0omho7mbnhcgdjihph6
+Build	Run tests	2026-10-07T22:24:27.8140004Z Hibernate: alter table if exists report drop constraint if exists FKfub1qetwu18fm5ull9nnyfmme
+Build	Run tests	2026-10-07T22:24:27.8144821Z Hibernate: alter table if exists report_customer_decision drop constraint if exists FK9ih7xtrhai8ibmcfedhrnjbim
+Build	Run tests	2026-10-07T22:24:27.8750315Z Hibernate: alter table if exists residence_permit drop constraint if exists FKddo9yjk1f0p58tc0gwekon5aw
+Build	Run tests	2026-10-07T22:24:27.8778355Z Hibernate: alter table if exists residence_permit drop constraint if exists FK2dcb336anm1vhuh789397w2x7
+Build	Run tests	2026-10-07T22:24:27.8788277Z Hibernate: alter table if exists residence_permit drop constraint if exists FKn2ny3t84eo47bxg6m7msvwg91
+Build	Run tests	2026-10-07T22:24:27.8800128Z Hibernate: alter table if exists task drop constraint if exists FK60iteiqpg3kt1diyr0gdx4rgo
+Build	Run tests	2026-10-07T22:24:27.8809630Z Hibernate: alter table if exists task drop constraint if exists FKqhrntwa4ll5gplvs23bdocep8
+Build	Run tests	2026-10-07T22:24:27.8811037Z Hibernate: alter table if exists task_to_file drop constraint if exists FKs5o0fdnng9qjwyw1dkpeoya4w
+Build	Run tests	2026-10-07T22:24:27.8812879Z Hibernate: alter table if exists task_to_file drop constraint if exists FKneeee3denw6tsjaepm4n0ob0u
+Build	Run tests	2026-10-07T22:24:27.8814251Z Hibernate: alter table if exists user_info drop constraint if exists FK33iyqry4vwr4v62idc1ggls6u
+Build	Run tests	2026-10-07T22:24:27.8815584Z Hibernate: alter table if exists user_info drop constraint if exists FKh5ykoy99s3y7xh0jogs6qerrx
+Build	Run tests	2026-10-07T22:24:27.8816917Z Hibernate: alter table if exists user_info drop constraint if exists FK5vb4un84bvb3cfoo2m1hh1vpp
+Build	Run tests	2026-10-07T22:24:27.8818682Z Hibernate: alter table if exists user_info drop constraint if exists FK4ry1dr6aacpmfj8kmva41u81q
+Build	Run tests	2026-10-07T22:24:27.8819741Z Hibernate: drop table if exists account cascade
+Build	Run tests	2026-10-07T22:24:27.8820471Z Hibernate: drop table if exists contract cascade
+Build	Run tests	2026-10-07T22:24:27.8821209Z Hibernate: drop table if exists file_info cascade
+Build	Run tests	2026-10-07T22:24:27.8821936Z Hibernate: drop table if exists note cascade
+Build	Run tests	2026-10-07T22:24:27.8822674Z Hibernate: drop table if exists official_group cascade
+Build	Run tests	2026-10-07T22:24:27.8823457Z Hibernate: drop table if exists program cascade
+Build	Run tests	2026-10-07T22:24:27.8824239Z Hibernate: drop table if exists program_curator cascade
+Build	Run tests	2026-10-07T22:24:27.8825139Z Hibernate: drop table if exists program_curator_delegate cascade
+Build	Run tests	2026-10-07T22:24:27.8826011Z Hibernate: drop table if exists project cascade
+Build	Run tests	2026-10-07T22:24:27.8826859Z Hibernate: drop table if exists project_statistic_group cascade
+Build	Run tests	2026-10-07T22:24:27.8828105Z Hibernate: drop table if exists report cascade
+Build	Run tests	2026-10-07T22:24:27.8828990Z Hibernate: drop table if exists report_customer_decision cascade
+Build	Run tests	2026-10-07T22:24:27.8829904Z Hibernate: drop table if exists residence_permit cascade
+Build	Run tests	2026-10-07T22:24:27.8830748Z Hibernate: drop table if exists statistic_group cascade
+Build	Run tests	2026-10-07T22:24:27.8831534Z Hibernate: drop table if exists task cascade
+Build	Run tests	2026-10-07T22:24:27.8832241Z Hibernate: drop table if exists task_to_file cascade
+Build	Run tests	2026-10-07T22:24:27.8833038Z Hibernate: drop table if exists user_secondary_program cascade
+Build	Run tests	2026-10-07T22:24:27.8833881Z Hibernate: drop table if exists user_info cascade
+Build	Run tests	2026-10-07T22:24:27.9751838Z ^[[1;35m07 Oct 22:24:27.931^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.e.EmbeddedPostgres:^[[0;39m waiting for server to shut down.... done
+Build	Run tests	2026-10-07T22:24:27.9753902Z ^[[1;35m07 Oct 22:24:27.932^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.e.EmbeddedPostgres:^[[0;39m server stopped
+Build	Run tests	2026-10-07T22:24:27.9755860Z ^[[1;35m07 Oct 22:24:27.933^[[0;39m ^[[34mINFO^[[0;39m ^[[36mi.z.t.d.p.e.EmbeddedPostgres:^[[0;39m e2e6f6e8-7c32-4da5-98f2-ffc5d3511591 shut down postmaster in 00:00:00.112
+Build	Run tests	2026-10-07T22:24:28.7752783Z 
+Build	Run tests	2026-10-07T22:24:28.7754758Z 
+Build	Run tests	2026-10-07T22:24:28.7755216Z > Task :service:test
+Build	Run tests	2026-10-07T22:24:28.7756045Z 404 tests completed, 1 failed
+Build	Run tests	2026-10-07T22:24:29.3757815Z 
+Build	Run tests	2026-10-07T22:24:29.3757883Z 
+Build	Run tests	2026-10-07T22:24:29.3788128Z FAILURE: Build failed with an exception.
+Build	Run tests	2026-10-07T22:24:29.3788759Z > Task :service:test FAILED
+Build	Run tests	2026-10-07T22:24:29.3817514Z 
+Build	Run tests	2026-10-07T22:24:29.3817792Z * What went wrong:
+Build	Run tests	2026-10-07T22:24:29.3818245Z Execution failed for task ':service:test'.
+Build	Run tests	2026-10-07T22:24:29.3819420Z > There were failing tests. See the report at: file:///home/runner/work/portal-backend/portal-backend/service/build/reports/tests/test/index.html
+Build	Run tests	2026-10-07T22:24:29.3820412Z 
+Build	Run tests	2026-10-07T22:24:29.3820551Z * Try:
+Build	Run tests	2026-10-07T22:24:29.3821113Z > Run with --scan to get full insights from a Build Scan (powered by Develocity).
+Build	Run tests	2026-10-07T22:24:29.3821671Z 
+Build	Run tests	2026-10-07T22:24:29.3821830Z BUILD FAILED in 3m 58s
+Build	Run tests	2026-10-07T22:24:29.3822129Z 
+Build	Run tests	2026-10-07T22:24:29.3848485Z [Incubating] Problems report is available at: file:///home/runner/work/portal-backend/portal-backend/build/reports/problems/problems-report.html
+Build	Run tests	2026-10-07T22:24:29.3867931Z 
+Build	Run tests	2026-10-07T22:24:29.3868673Z Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+Build	Run tests	2026-10-07T22:24:29.3869616Z 
+Build	Run tests	2026-10-07T22:24:29.3870506Z You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+Build	Run tests	2026-10-07T22:24:29.3872035Z 
+Build	Run tests	2026-10-07T22:24:29.3873109Z For more on this, please refer to https://docs.gradle.org/9.7.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+Build	Run tests	2026-10-07T22:24:29.3874511Z 34 actionable tasks: 34 executed
+Build	Run tests	2026-10-07T22:24:29.8403726Z ##[error]Process completed with exit code 1.
