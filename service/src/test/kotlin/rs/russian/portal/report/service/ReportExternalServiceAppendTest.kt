@@ -16,6 +16,7 @@ import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -36,18 +37,30 @@ class ReportExternalServiceAppendTest : AbstractIntegrationTest() {
     @Autowired
     lateinit var defaultUserFilter: DefaultUserFilter
 
+    /** Dedicated volunteer so other integration tests' CREATED auto-reports do not leak in. */
+    private lateinit var volunteerLogin: String
+
     @BeforeEach
     fun setup() {
         SecurityContextHolder.getContext().authentication = defaultUserFilter.getDefaultOAuth2Token()
         ensureUrbanismCurator()
+        volunteerLogin = "ext_append_${UUID.randomUUID().toString().take(8)}"
+        accountService.save(
+            Account(
+                id = (900_000..999_999).random(),
+                username = volunteerLogin,
+                email = "$volunteerLogin@example.com",
+                fullName = "Ext Append Volunteer",
+                groups = setOf(UserGroup.VOLUNTEER),
+            ),
+        )
     }
 
     @Test
     fun `appendOrCreate creates report when none open`() {
-        val login = DefaultUserFilter.USERNAME
         val report = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = listOf(task("First cleanup task name")),
             ),
         )
@@ -60,16 +73,15 @@ class ReportExternalServiceAppendTest : AbstractIntegrationTest() {
 
     @Test
     fun `appendOrCreate appends to existing CREATED auto report`() {
-        val login = DefaultUserFilter.USERNAME
         val first = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = listOf(task("First cleanup task name", result = "https://ekomapa.rs/map?route=1")),
             ),
         )
         val second = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = listOf(task("Second cleanup task name", result = "https://ekomapa.rs/map?route=2")),
             ),
         )
@@ -80,17 +92,16 @@ class ReportExternalServiceAppendTest : AbstractIntegrationTest() {
 
     @Test
     fun `appendOrCreate skips duplicate result URL`() {
-        val login = DefaultUserFilter.USERNAME
         val url = "https://ekomapa.rs/map?route=dup"
         val first = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = listOf(task("First cleanup task name", result = url)),
             ),
         )
         val second = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = listOf(task("Duplicate cleanup task", result = url)),
             ),
         )
@@ -101,10 +112,9 @@ class ReportExternalServiceAppendTest : AbstractIntegrationTest() {
 
     @Test
     fun `appendOrCreate opens new report when existing has 10 tasks`() {
-        val login = DefaultUserFilter.USERNAME
         val first = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = (1..10).map { task("Cleanup task number $it xx", result = "https://ekomapa.rs/map?route=$it") },
             ),
         )
@@ -112,7 +122,7 @@ class ReportExternalServiceAppendTest : AbstractIntegrationTest() {
 
         val second = reportExternalService.appendOrCreate(
             ExtAppendReportTasksRequest(
-                user = login,
+                user = volunteerLogin,
                 tasks = listOf(task("Eleventh cleanup task", result = "https://ekomapa.rs/map?route=11")),
             ),
         )
