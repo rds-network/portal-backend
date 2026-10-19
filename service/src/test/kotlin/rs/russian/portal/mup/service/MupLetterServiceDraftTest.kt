@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import rs.russian.portal.application.domain.Application
 import rs.russian.portal.application.repository.ApplicationRepository
+import rs.russian.portal.city.domain.City
+import rs.russian.portal.city.repository.CityRepository
 import rs.russian.portal.mail.repository.EmailOutboxRepository
 import rs.russian.portal.mail.service.EmailService
 import rs.russian.portal.mup.api.MupLetterReason
@@ -23,6 +25,7 @@ class MupLetterServiceDraftTest {
     private val reportRepository = mockk<ReportRepository>(relaxed = true)
     private val emailService = mockk<EmailService>(relaxed = true)
     private val emailOutboxRepository = mockk<EmailOutboxRepository>(relaxed = true)
+    private val cityRepository = mockk<CityRepository>()
 
     private val service = MupLetterService(
         accountService,
@@ -30,6 +33,7 @@ class MupLetterServiceDraftTest {
         reportRepository,
         emailService,
         emailOutboxRepository,
+        cityRepository,
     )
 
     @Test
@@ -67,6 +71,10 @@ class MupLetterServiceDraftTest {
         every {
             reportRepository.findTopByAccountUsernameAndStatusOrderByCreateTimeDesc(any(), any())
         } returns null
+        every { cityRepository.findAllActive() } returns listOf(
+            City(code = "belgrade", name = "Beograd", nameCyrillic = "Београд", hasMup = true),
+            City(code = "novi-sad", name = "Novi Sad", nameCyrillic = "Нови Сад", hasMup = true),
+        )
 
         val draft = service.draft("volunteer", MupLetterReason.NON_COMPLIANCE)
 
@@ -78,6 +86,36 @@ class MupLetterServiceDraftTest {
         assertTrue(draft.body.contains("Адреса: ${draft.address}"))
         assertTrue(draft.body.contains("Број пасоша: AB1234567"))
         assertTrue(draft.body.contains("Датум рођења: 15.05.1990"))
+        assertTrue(draft.to == "upravazastrance@mup.gov.rs")
+    }
+
+    @Test
+    fun `draft uses Novi Sad MUP office email`() {
+        val account = Account(
+            id = 3,
+            username = "ns-volunteer",
+            email = "ns@example.com",
+            fullName = "Petar Petrović",
+            active = true,
+            groups = emptySet(),
+        )
+        account.info = UserInfo(
+            id = "ns-volunteer",
+            account = account,
+            city = "Novi Sad",
+        )
+        every { accountService.findAccountByLogin("ns-volunteer") } returns account
+        every { applicationRepository.findAllByEmail("ns@example.com") } returns emptyList()
+        every {
+            reportRepository.findTopByAccountUsernameAndStatusOrderByCreateTimeDesc(any(), any())
+        } returns null
+        every { cityRepository.findAllActive() } returns listOf(
+            City(code = "novi-sad", name = "Novi Sad", nameCyrillic = "Нови Сад", hasMup = true),
+        )
+
+        val draft = service.draft("ns-volunteer", MupLetterReason.NON_COMPLIANCE)
+
+        assertTrue(draft.to == "ozs.novisad@mup.gov.rs")
     }
 
     @Test
@@ -96,6 +134,7 @@ class MupLetterServiceDraftTest {
         every { accountService.findAccountByLogin("volunteer") } returns account
         every { accountService.switchActiveState(2, false) } returns account
         every { emailOutboxRepository.findAllByOrderByCreateTimeDesc() } returns emptyList()
+        every { cityRepository.findAllActive() } returns emptyList()
 
         service.send(
             rs.russian.portal.mup.api.MupLetterSendRequest(

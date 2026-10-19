@@ -12,6 +12,8 @@ import rs.russian.portal.mup.service.MupLetterService
 import rs.russian.portal.shared.security.Authorized
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN
 import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_SSO
+import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
+import rs.russian.portal.user.domain.enums.UserGroup.MAIN_VOLUNTEER
 
 @RestController
 @RequestMapping("/mup-letters")
@@ -19,12 +21,13 @@ class MupLetterController(
     private val mupLetterService: MupLetterService,
 ) {
 
-    @Authorized(allowed = [ADMIN, ADMIN_SSO])
+    /** Same manager set as dissolution queue: moderators process «На расторжение». */
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping
     fun list(): ResponseEntity<List<MupLetterDto>> =
         ResponseEntity.ok(mupLetterService.list())
 
-    @Authorized(allowed = [ADMIN, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping("/draft/{username}")
     fun draft(
         @PathVariable username: String,
@@ -32,7 +35,7 @@ class MupLetterController(
     ): ResponseEntity<MupLetterDraft> =
         ResponseEntity.ok(mupLetterService.draft(username, reason))
 
-    @Authorized(allowed = [ADMIN, ADMIN_SSO])
+    @Authorized(allowed = [ADMIN, ADMIN_SSO, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @PostMapping
     fun send(@RequestBody request: MupLetterSendRequest): ResponseEntity<MupLetterDto> =
         ResponseEntity.ok(mupLetterService.send(request))

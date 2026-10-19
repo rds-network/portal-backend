@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import rs.russian.generated.model.ContractTypeEnum
 import rs.russian.portal.application.repository.ApplicationRepository
+import rs.russian.portal.city.repository.CityRepository
 import rs.russian.portal.mail.domain.EmailOutbox
 import rs.russian.portal.mail.repository.EmailOutboxRepository
 import rs.russian.portal.mail.service.EmailService
@@ -27,6 +28,7 @@ class MupLetterService(
     private val reportRepository: ReportRepository,
     private val emailService: EmailService,
     private val emailOutboxRepository: EmailOutboxRepository,
+    private val cityRepository: CityRepository,
 ) {
 
     @Transactional(readOnly = true)
@@ -64,6 +66,8 @@ class MupLetterService(
         val termination = today.format(DATE)
         val from = periodFrom.format(DATE)
         val to = today.format(DATE)
+        val cityRaw = info?.city?.takeIf { it.isNotBlank() } ?: application?.city
+        val mupTo = resolveMupTo(cityRaw)
         return MupLetterDraft(
             username = account.username,
             fullName = fullName,
@@ -72,7 +76,7 @@ class MupLetterService(
             address = address,
             phone = phone,
             email = email,
-            to = "upravazastrance@mup.gov.rs",
+            to = mupTo,
             subject = "Обавештење о престанку уговора о волонтирању – $fullName",
             body = letter(reason, fullName, birth, citizenship, passport, address, termination, from, to),
             reason = reason,
@@ -86,7 +90,9 @@ class MupLetterService(
         if (subject.length < 8 || body.length < 40) {
             throw InvalidRequestException("subject and body are required")
         }
-        val to = request.to?.trim()?.takeIf { it.isNotEmpty() } ?: "upravazastrance@mup.gov.rs"
+        val account = accountService.findAccountByLogin(request.username)
+        val cityRaw = account?.info?.city
+        val to = request.to?.trim()?.takeIf { it.isNotEmpty() } ?: resolveMupTo(cityRaw)
         emailService.sendCommonEmail(to, subject, body.replace("\n", "<br/>"))
         markMupSent(request.username, request.reason)
         val saved = emailOutboxRepository.findAllByOrderByCreateTimeDesc().firstOrNull {
@@ -130,6 +136,21 @@ class MupLetterService(
                     subject.contains("раскиду уговора", ignoreCase = true)
             }
             .map(::toDto)
+
+    private fun resolveMupTo(cityRaw: String?): String {
+        val normalized = MupOfficeEmails.normalize(cityRaw)
+        val matchedCode = if (normalized == null) {
+            null
+        } else {
+            cityRepository.findAllActive().firstOrNull { city ->
+                MupOfficeEmails.normalize(city.name) == normalized ||
+                    MupOfficeEmails.normalize(city.nameCyrillic) == normalized ||
+                    city.code.equals(normalized, ignoreCase = true) ||
+                    city.code.equals(normalized.replace(' ', '-'), ignoreCase = true)
+            }?.code
+        }
+        return MupOfficeEmails.forCityName(cityRaw, matchedCode)
+    }
 
     private fun markMupSent(username: String, reason: MupLetterReason?) {
         val account = accountService.findAccountByLogin(username) ?: return
