@@ -1686,6 +1686,10 @@ components:
           type: string
           nullable: true
           description: Причина письма в МУП (NON_COMPLIANCE / VOLUNTEER_REQUEST)
+        mupLetterOffice:
+          type: string
+          nullable: true
+          description: Город управления МУП, куда ушло письмо (напр. Novi Sad, Beograd)
         dissolutionQueuedAt:
           type: string
           format: date-time

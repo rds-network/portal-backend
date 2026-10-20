@@ -91,10 +91,10 @@ class MupLetterService(
             throw InvalidRequestException("subject and body are required")
         }
         val account = accountService.findAccountByLogin(request.username)
-        val cityRaw = account?.info?.city
+        val cityRaw = account?.info?.city ?: account?.let { applicationRepository.findAllByEmail(it.email).maxByOrNull { a -> a.created }?.city }
         val to = request.to?.trim()?.takeIf { it.isNotEmpty() } ?: resolveMupTo(cityRaw)
         emailService.sendCommonEmail(to, subject, body.replace("\n", "<br/>"))
-        markMupSent(request.username, request.reason)
+        markMupSent(request.username, request.reason, to, cityRaw)
         val saved = emailOutboxRepository.findAllByOrderByCreateTimeDesc().firstOrNull {
             it.properties.subject == subject && it.properties.toList.contains(to)
         }
@@ -152,10 +152,17 @@ class MupLetterService(
         return MupOfficeEmails.forCityName(cityRaw, matchedCode)
     }
 
-    private fun markMupSent(username: String, reason: MupLetterReason?) {
+    private fun markMupSent(
+        username: String,
+        reason: MupLetterReason?,
+        to: String,
+        cityRaw: String?,
+    ) {
         val account = accountService.findAccountByLogin(username) ?: return
         account.mupLetterSentAt = java.time.OffsetDateTime.now()
         account.mupLetterReason = (reason ?: MupLetterReason.NON_COMPLIANCE).name
+        account.mupLetterOffice = MupOfficeEmails.officeLabelForEmail(to).takeIf { it.isNotBlank() }
+            ?: MupOfficeEmails.officeLabel(cityRaw)
         account.dissolutionQueuedAt = null
         account.dissolutionQueuedBy = null
         account.dissolutionQueueReason = null
