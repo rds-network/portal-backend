@@ -26,4 +26,12 @@ class MupOfficeEmailsTest {
         assertEquals("upravazastrance@mup.gov.rs", MupOfficeEmails.forCityName(null))
         assertEquals("upravazastrance@mup.gov.rs", MupOfficeEmails.forCityName("Atlantis"))
     }
+
+    @Test
+    fun `office label for seat cities`() {
+        assertEquals("Beograd", MupOfficeEmails.officeLabel("Zemun"))
+        assertEquals("Novi Sad", MupOfficeEmails.officeLabel("Novi Sad"))
+        assertEquals("Niš", MupOfficeEmails.officeLabelForEmail("ozs.nis@mup.gov.rs"))
+        assertEquals("Beograd", MupOfficeEmails.officeLabelForEmail("upravazastrance@mup.gov.rs"))
+    }
 }
