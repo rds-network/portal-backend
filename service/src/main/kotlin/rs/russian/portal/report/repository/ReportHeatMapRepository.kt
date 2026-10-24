@@ -82,11 +82,11 @@ interface ReportHeatMapRepository : Repository<Report, UUID> {
                 AND lr.start_date <= g.week_end
                 AND lr.end_date >= g.week_start
             ), 0)                                          AS leave_days,
-          GREATEST(0,
-            (
+          -- Норма 10 ч/нед. не уменьшается отпуском: 520 ч/год остаются долгом.
+          GREATEST(0, (
               SELECT COALESCE(SUM(
                   GREATEST(
-                      0, 
+                      0,
                       (LEAST(g.week_end, c.end_date) - GREATEST(g.week_start, c.start_date)) + 1
                   )
               ), 0)
@@ -95,20 +95,7 @@ interface ReportHeatMapRepository : Repository<Report, UUID> {
                 AND c.type     = 'REGULAR'
                 AND c.start_date <= g.week_end
                 AND c.end_date   >= g.week_start
-            ) - COALESCE((
-              SELECT COUNT(DISTINCT gs.d)::int
-              FROM leave_request lr
-              CROSS JOIN LATERAL generate_series(
-                GREATEST(lr.start_date, g.week_start),
-                LEAST(lr.end_date, g.week_end),
-                interval '1 day'
-              ) AS gs(d)
-              WHERE lr.username = g.username
-                AND lr.status = 'ACCEPTED'
-                AND lr.start_date <= g.week_end
-                AND lr.end_date >= g.week_start
-            ), 0)
-          )                                                AS active_days
+          ))                                               AS contract_days
       FROM grid g
       LEFT JOIN worked_minutes wm
              ON wm.username   = g.username
@@ -123,7 +110,7 @@ interface ReportHeatMapRepository : Repository<Report, UUID> {
         wb.week_start                                      AS weekStart,
         wb.week_end                                        AS weekEnd,
         ROUND(wb.minutes_worked / 60.0, 2)::numeric(10,2)  AS hoursWorked,
-        ROUND((wb.active_days::numeric / 7.0) * 10.0)::int AS hoursRequired,
+        ROUND((wb.contract_days::numeric / 7.0) * 10.0)::int AS hoursRequired,
         wb.leave_days                                      AS leaveDays
         
     FROM weekly_base wb

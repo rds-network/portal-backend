@@ -67,6 +67,8 @@ data class InboxUnreadDto(
 data class OverdueWeekDto(
     @JsonFormat(pattern = "yyyy-MM-dd")
     val weekStart: LocalDate,
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    val weekEnd: LocalDate? = null,
     val hoursWorked: Double,
     val hoursRequired: Int,
     val leaveDays: Int = 0,
