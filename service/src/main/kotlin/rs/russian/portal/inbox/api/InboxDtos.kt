@@ -93,6 +93,7 @@ data class ReportOverdueDto(
     val body: String? = null,
     val accountId: Int? = null,
     val dissolutionQueuedAt: OffsetDateTime? = null,
+    val dissolutionQueuedBy: String? = null,
 )
 
 data class OverdueNoticePersonDto(

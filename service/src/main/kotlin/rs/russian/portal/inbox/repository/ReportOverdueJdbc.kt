@@ -41,6 +41,7 @@ class ReportOverdueJdbc(
                 lastReportWeek = rs.getDate("last_report_week")?.toLocalDate(),
                 accountId = rs.getInt("account_id"),
                 dissolutionQueuedAt = rs.getObject("dissolution_queued_at", java.time.OffsetDateTime::class.java),
+                dissolutionQueuedBy = rs.getString("dissolution_queued_by"),
             )
         }
 
@@ -66,6 +67,7 @@ class ReportOverdueJdbc(
             a.username,
             a.full_name,
             a.dissolution_queued_at,
+            a.dissolution_queued_by,
             ui.program_code AS program,
             (
               SELECT MAX(ct.end_date)
@@ -220,6 +222,7 @@ class ReportOverdueJdbc(
           c.program,
           c.contract_end,
           c.dissolution_queued_at,
+          c.dissolution_queued_by,
           s.weeks_missed,
           GREATEST(COALESCE(p.hours_required, 0) - COALESCE(p.hours_worked, 0), 0) AS hours_short,
           COALESCE(p.hours_worked, 0) AS hours_worked,
