@@ -25,6 +25,11 @@ data class InboxDeliveryStatsDto(
     val pending: Long,
 )
 
+data class GratitudeBadgesDto(
+    val curator: Int,
+    val manager: Int,
+)
+
 data class AchievementsMeDto(
     val balance: Long,
     val unlockedCount: Int,
