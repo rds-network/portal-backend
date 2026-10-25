@@ -14,6 +14,10 @@ class ReportOverdueJdbc(
     private val mapper: ObjectMapper,
 ) {
 
+    /** Обычный договор, не ассоциированный, 6+ закрытых недель без отчёта и без отпуска на всю неделю. */
+    fun findUsernamesWithAbsences(minAbsences: Int = 6): List<String> =
+        jdbc.query(ABSENCE_SQL, { rs, _ -> rs.getString("username") }, minAbsences)
+
     fun findOverdue(): List<ReportOverdueDto> =
         jdbc.query(SQL) { rs, _ ->
             val weeks = rs.getInt("weeks_missed")
@@ -96,6 +100,7 @@ class ReportOverdueJdbc(
           SELECT
             c.username,
             w.week_start,
+            w.week_end,
             COALESCE((
               SELECT SUM(t.time_spent)
               FROM report r
@@ -118,8 +123,7 @@ class ReportOverdueJdbc(
                 AND lr.start_date <= w.week_end
                 AND lr.end_date >= w.week_start
             ), 0) AS leave_days,
-            GREATEST(0,
-              (
+            GREATEST(0, (
                 SELECT COALESCE(SUM(
                   GREATEST(0, (LEAST(w.week_end, ct.end_date) - GREATEST(w.week_start, ct.start_date)) + 1)
                 ), 0)
@@ -128,20 +132,7 @@ class ReportOverdueJdbc(
                   AND ct.type = 'REGULAR'
                   AND ct.start_date <= w.week_end
                   AND ct.end_date >= w.week_start
-              ) - COALESCE((
-                SELECT COUNT(DISTINCT gs.d)::int
-                FROM leave_request lr
-                CROSS JOIN LATERAL generate_series(
-                  GREATEST(lr.start_date, w.week_start),
-                  LEAST(lr.end_date, w.week_end),
-                  interval '1 day'
-                ) AS gs(d)
-                WHERE lr.username = c.username
-                  AND lr.status = 'ACCEPTED'
-                  AND lr.start_date <= w.week_end
-                  AND lr.end_date >= w.week_start
-              ), 0)
-            ) AS active_days
+            )) AS contract_days
           FROM contracted c
           CROSS JOIN weeks w
         ),
@@ -149,7 +140,7 @@ class ReportOverdueJdbc(
           SELECT
             wh.username,
             ROUND(SUM(wh.minutes_worked) / 60.0)::int AS hours_worked,
-            SUM(ROUND((wh.active_days::numeric / 7.0) * 10.0))::int AS hours_required
+            SUM(ROUND((wh.contract_days::numeric / 7.0) * 10.0))::int AS hours_required
           FROM week_hours wh
           CROSS JOIN bounds b
           WHERE wh.week_start >= (b.last_monday - interval '4 weeks')
@@ -160,7 +151,7 @@ class ReportOverdueJdbc(
           SELECT
             username,
             SUM(ROUND(minutes_worked / 60.0, 2))::int AS hours_worked,
-            SUM(ROUND((active_days::numeric / 7.0) * 10.0))::int AS hours_required
+            SUM(ROUND((contract_days::numeric / 7.0) * 10.0))::int AS hours_required
           FROM week_hours
           GROUP BY username
         ),
@@ -171,7 +162,8 @@ class ReportOverdueJdbc(
               json_build_object(
                 'weekStart', to_char(week_start, 'YYYY-MM-DD'),
                 'hoursWorked', ROUND((minutes_worked / 60.0)::numeric, 1),
-                'hoursRequired', ROUND((active_days::numeric / 7.0) * 10.0)::int,
+                'weekEnd', to_char(week_end, 'YYYY-MM-DD'),
+                'hoursRequired', ROUND((contract_days::numeric / 7.0) * 10.0)::int,
                 'leaveDays', leave_days
               ) ORDER BY week_start
             ) AS weeks_json
@@ -188,7 +180,8 @@ class ReportOverdueJdbc(
         week_satisfied AS (
           SELECT wh.username, wh.week_start
           FROM week_hours wh
-          WHERE wh.active_days = 0
+          WHERE wh.contract_days = 0
+             OR (wh.contract_days > 0 AND wh.leave_days >= wh.contract_days)
           UNION
           SELECT wr.username, wr.week_start
           FROM week_report wr
@@ -245,6 +238,90 @@ class ReportOverdueJdbc(
             OR (COALESCE(t.hours_required, 0) - COALESCE(t.hours_worked, 0)) >= 20
           )
         ORDER BY s.weeks_missed DESC, hours_short DESC, c.full_name
+        """
+
+        private const val ABSENCE_SQL = """
+        WITH bounds AS (
+          SELECT
+            date_trunc('year', CURRENT_DATE)::date AS year_start,
+            CURRENT_DATE AS today,
+            date_trunc('week', CURRENT_DATE)::date AS this_monday
+        ),
+        people AS (
+          SELECT a.username
+          FROM account a
+          CROSS JOIN bounds b
+          WHERE a.active = true
+            AND a.dissolution_queued_at IS NULL
+            AND EXISTS (
+              SELECT 1 FROM contract c
+              WHERE c.username = a.username
+                AND c.type = 'REGULAR'
+                AND c.start_date <= b.today
+                AND c.end_date >= b.year_start
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM contract ca
+              WHERE ca.username = a.username
+                AND ca.type = 'ASSOCIATED'
+                AND ca.start_date <= b.today
+                AND ca.end_date >= b.today
+            )
+        ),
+        weeks AS (
+          SELECT gs::date AS week_start, (gs::date + 6) AS week_end
+          FROM bounds b,
+               generate_series(
+                 date_trunc('week', b.year_start),
+                 b.this_monday - interval '1 week',
+                 interval '1 week'
+               ) gs
+        ),
+        scored AS (
+          SELECT
+            p.username,
+            (
+              SELECT COALESCE(SUM(
+                GREATEST(0, (LEAST(w.week_end, ct.end_date) - GREATEST(w.week_start, ct.start_date)) + 1)
+              ), 0)
+              FROM contract ct
+              WHERE ct.username = p.username
+                AND ct.type = 'REGULAR'
+                AND ct.start_date <= w.week_end
+                AND ct.end_date >= w.week_start
+            ) AS contract_days,
+            COALESCE((
+              SELECT COUNT(DISTINCT gs.d)::int
+              FROM leave_request lr
+              CROSS JOIN LATERAL generate_series(
+                GREATEST(lr.start_date, w.week_start),
+                LEAST(lr.end_date, w.week_end),
+                interval '1 day'
+              ) AS gs(d)
+              WHERE lr.username = p.username
+                AND lr.status = 'ACCEPTED'
+                AND lr.start_date <= w.week_end
+                AND lr.end_date >= w.week_start
+            ), 0) AS leave_days,
+            COALESCE((
+              SELECT SUM(t.time_spent)
+              FROM report r
+              JOIN task t ON t.report_id = r.id
+              WHERE r.user_login = p.username
+                AND r.deleted = FALSE
+                AND r.status = 'ACCEPTED'
+                AND date_trunc('week', t.date)::date = w.week_start
+            ), 0) AS minutes_worked
+          FROM people p
+          CROSS JOIN weeks w
+        )
+        SELECT username
+        FROM scored
+        WHERE contract_days > 0
+          AND leave_days < contract_days
+          AND minutes_worked = 0
+        GROUP BY username
+        HAVING COUNT(*) >= ?
         """
     }
 }

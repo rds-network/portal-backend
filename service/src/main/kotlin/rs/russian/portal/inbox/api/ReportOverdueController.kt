@@ -23,8 +23,10 @@ class ReportOverdueController(
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping
-    fun list(): ResponseEntity<List<ReportOverdueDto>> =
-        ResponseEntity.ok(reportOverdueService.list())
+    fun list(): ResponseEntity<List<ReportOverdueDto>> {
+        reportOverdueService.enqueueForRepeatedAbsences()
+        return ResponseEntity.ok(reportOverdueService.list())
+    }
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping("/deactivated-active-contract")
@@ -33,8 +35,10 @@ class ReportOverdueController(
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping("/dissolution-queue")
-    fun dissolutionQueue(): ResponseEntity<List<DissolutionQueueDto>> =
-        ResponseEntity.ok(reportOverdueService.listDissolutionQueue())
+    fun dissolutionQueue(): ResponseEntity<List<DissolutionQueueDto>> {
+        reportOverdueService.enqueueForRepeatedAbsences()
+        return ResponseEntity.ok(reportOverdueService.listDissolutionQueue())
+    }
 
     @Authorized(allowed = [ADMIN, ADMIN_VOLUNTEER, MAIN_VOLUNTEER])
     @GetMapping("/preview")

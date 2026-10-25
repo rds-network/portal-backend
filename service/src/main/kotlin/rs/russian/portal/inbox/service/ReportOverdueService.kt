@@ -17,6 +17,7 @@ import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.DissolutionQueueService
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
@@ -28,7 +29,29 @@ class ReportOverdueService(
     private val reportOverdueNoticeRepository: ReportOverdueNoticeRepository,
     private val inboxService: InboxService,
     private val accountService: AccountService,
+    private val dissolutionQueueService: DissolutionQueueService,
 ) {
+
+    /**
+     * Неассоциированный волонтёр с 6 и более пропусками за год попадает в очередь на расторжение.
+     * Отпуск на всю неделю пропуском не считается. Уже стоящих в очереди не трогает.
+     */
+    @Transactional
+    fun enqueueForRepeatedAbsences(): Int {
+        val usernames = reportOverdueJdbc.findUsernamesWithAbsences(ABSENCE_LIMIT)
+        var queued = 0
+        for (username in usernames) {
+            val account = accountService.findAccountByLogin(username) ?: continue
+            if (account.dissolutionQueuedAt != null) continue
+            dissolutionQueueService.enqueueAccount(
+                account,
+                "system",
+                "$ABSENCE_LIMIT пропусков без отчёта",
+            )
+            queued++
+        }
+        return queued
+    }
 
     @Transactional(readOnly = true)
     fun list(): List<ReportOverdueDto> {
@@ -254,6 +277,7 @@ class ReportOverdueService(
     companion object {
         private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
         const val HOURS_SNAPSHOT_KEY = "HOURS-SNAPSHOT"
+        const val ABSENCE_LIMIT = 6
         const val MUP_LEVEL = 99
         const val MUP_PERIOD = "MUP"
         const val SUBJECT_HOURS = "Недосдача часов: текущий срез"

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import rs.russian.portal.inbox.repository.ReportOverdueJdbc
 import rs.russian.portal.inbox.repository.ReportOverdueNoticeRepository
 import rs.russian.portal.user.service.AccountService
+import rs.russian.portal.user.service.DissolutionQueueService
 
 class ReportOverdueServiceNotifyTest {
     private val reportOverdueJdbc = mockk<ReportOverdueJdbc>()
@@ -17,6 +18,7 @@ class ReportOverdueServiceNotifyTest {
     private val noticeRepository = mockk<ReportOverdueNoticeRepository>(relaxed = true)
     private val inboxService = mockk<InboxService>(relaxed = true)
     private val accountService = mockk<AccountService>(relaxed = true)
+    private val dissolutionQueueService = mockk<DissolutionQueueService>(relaxed = true)
 
     private val service = ReportOverdueService(
         reportOverdueJdbc,
@@ -25,6 +27,7 @@ class ReportOverdueServiceNotifyTest {
         noticeRepository,
         inboxService,
         accountService,
+        dissolutionQueueService,
     )
 
     @BeforeEach

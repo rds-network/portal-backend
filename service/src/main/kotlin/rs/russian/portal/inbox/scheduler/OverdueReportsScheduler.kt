@@ -4,22 +4,23 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import java.util.concurrent.atomic.AtomicBoolean
+import rs.russian.portal.inbox.service.ReportOverdueService
 
 /**
- * Cron остаётся, но авторассылка отключена.
- * Порицания выносят модераторы вручную (issueWarning на профиле).
+ * Авторассылка порицаний отключена.
+ * Раз в сутки неассоциированные волонтёры с 6+ пропусками ставятся в очередь на расторжение.
  */
 @Component
-class OverdueReportsScheduler {
-
-    private val logged = AtomicBoolean(false)
+class OverdueReportsScheduler(
+    private val reportOverdueService: ReportOverdueService,
+) {
 
     @Scheduled(cron = "\${app.schedulers.overdue-reports}")
     @SchedulerLock(name = "overdueReports")
     fun run() {
-        if (logged.compareAndSet(false, true)) {
-            log.info("[SCHEDULER] Overdue auto-notify disabled; list only, manual issueWarning")
+        val queued = reportOverdueService.enqueueForRepeatedAbsences()
+        if (queued > 0) {
+            log.info("[SCHEDULER] Dissolution queue: {} volunteers with 6+ absences", queued)
         }
     }
 
