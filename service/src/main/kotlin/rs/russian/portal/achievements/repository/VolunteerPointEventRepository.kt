@@ -21,6 +21,17 @@ interface VolunteerPointEventRepository : JpaRepository<VolunteerPointEvent, UUI
 
     fun countByUsernameAndCode(username: String, code: String): Long
 
+    @Query(
+        """
+        SELECT COUNT(e) FROM VolunteerPointEvent e
+        WHERE LOWER(e.username) = LOWER(:username) AND e.code = :code
+        """
+    )
+    fun countByUsernameIgnoreCaseAndCode(
+        @Param("username") username: String,
+        @Param("code") code: String,
+    ): Long
+
     fun findTop200ByCodeOrderByCreatedAtDesc(code: String): List<VolunteerPointEvent>
 
     @Query(

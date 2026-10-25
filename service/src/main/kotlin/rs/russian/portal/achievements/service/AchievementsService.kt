@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.achievements.api.AchievementDto
 import rs.russian.portal.achievements.api.AchievementsLeaderboardDto
 import rs.russian.portal.achievements.api.AchievementsMeDto
+import rs.russian.portal.achievements.api.GratitudeBadgesDto
 import rs.russian.portal.achievements.api.InboxDeliveryStatsDto
 import rs.russian.portal.achievements.api.PointEventDto
 import rs.russian.portal.achievements.api.PointLeaderDto
@@ -181,6 +182,17 @@ class AchievementsService(
 
     @Transactional(readOnly = true)
     fun balanceOf(username: String): Long = pointEvents.sumPoints(username)
+
+    /** Благодарности куратора и руководителя — для карточки волонтёра. */
+    @Transactional(readOnly = true)
+    fun gratitudeOf(username: String): GratitudeBadgesDto {
+        val login = username.trim()
+        if (login.isEmpty()) return GratitudeBadgesDto(0, 0)
+        return GratitudeBadgesDto(
+            curator = pointEvents.countByUsernameIgnoreCaseAndCode(login, CODE_CURATOR_GRATITUDE).toInt(),
+            manager = pointEvents.countByUsernameIgnoreCaseAndCode(login, CODE_MANAGER_GRATITUDE).toInt(),
+        )
+    }
 
     @Transactional(readOnly = true)
     fun leaderboard(limit: Int = 100): AchievementsLeaderboardDto {
