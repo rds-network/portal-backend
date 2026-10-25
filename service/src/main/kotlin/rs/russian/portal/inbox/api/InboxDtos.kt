@@ -146,6 +146,8 @@ data class DeactivatedActiveContractDto(
     val contractType: String? = null,
     val deactivatedReason: String? = null,
     val mupLetterSentAt: java.time.OffsetDateTime? = null,
+    /** Seat city of the MUP office that was notified (e.g. Novi Sad). */
+    val mupLetterOffice: String? = null,
 )
 
 data class DissolutionQueueDto(

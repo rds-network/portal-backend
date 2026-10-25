@@ -103,6 +103,37 @@ object MupOfficeEmails {
         "сурчин" to "belgrade",
     )
 
+    /** Display name of Policijska uprava seat for UI badges. */
+    private val LABEL_BY_CODE: Map<String, String> = mapOf(
+        "belgrade" to "Beograd",
+        "bor" to "Bor",
+        "valjevo" to "Valjevo",
+        "vranje" to "Vranje",
+        "zajecar" to "Zaječar",
+        "zrenjanin" to "Zrenjanin",
+        "jagodina" to "Jagodina",
+        "kikinda" to "Kikinda",
+        "kragujevac" to "Kragujevac",
+        "kraljevo" to "Kraljevo",
+        "krusevac" to "Kruševac",
+        "leskovac" to "Leskovac",
+        "nis" to "Niš",
+        "novi-pazar" to "Novi Pazar",
+        "novi-sad" to "Novi Sad",
+        "pancevo" to "Pančevo",
+        "pirot" to "Pirot",
+        "pozarevac" to "Požarevac",
+        "prijepolje" to "Prijepolje",
+        "prokuplje" to "Prokuplje",
+        "smederevo" to "Smederevo",
+        "sombor" to "Sombor",
+        "sremska-mitrovica" to "Sremska Mitrovica",
+        "subotica" to "Subotica",
+        "uzice" to "Užice",
+        "cacak" to "Čačak",
+        "sabac" to "Šabac",
+    )
+
     fun forCityCode(code: String?): String {
         if (code.isNullOrBlank()) return DEFAULT
         return BY_CITY_CODE[code.trim().lowercase()] ?: DEFAULT
@@ -120,6 +151,29 @@ object MupOfficeEmails {
         val dashed = normalized.replace(' ', '-')
         if (BY_CITY_CODE.containsKey(dashed)) return forCityCode(dashed)
         return DEFAULT
+    }
+
+    fun cityCodeForName(raw: String?, knownCityCode: String? = null): String? {
+        if (!knownCityCode.isNullOrBlank()) return knownCityCode.trim().lowercase()
+        val normalized = normalize(raw) ?: return null
+        ALIASES[normalized]?.let { return it }
+        if (BY_CITY_CODE.containsKey(normalized)) return normalized
+        val dashed = normalized.replace(' ', '-')
+        if (BY_CITY_CODE.containsKey(dashed)) return dashed
+        return null
+    }
+
+    /** Human-readable seat city for the office that handles [raw] city. */
+    fun officeLabel(raw: String?, knownCityCode: String? = null): String {
+        val code = cityCodeForName(raw, knownCityCode) ?: "belgrade"
+        return LABEL_BY_CODE[code] ?: LABEL_BY_CODE["belgrade"]!!
+    }
+
+    fun officeLabelForEmail(email: String?): String {
+        val trimmed = email?.trim()?.takeIf { it.isNotEmpty() } ?: return LABEL_BY_CODE["belgrade"]!!
+        if (trimmed.equals(DEFAULT, ignoreCase = true)) return LABEL_BY_CODE["belgrade"]!!
+        val code = BY_CITY_CODE.entries.firstOrNull { it.value.equals(trimmed, ignoreCase = true) }?.key
+        return code?.let { LABEL_BY_CODE[it] } ?: trimmed
     }
 
     fun normalize(raw: String?): String? {

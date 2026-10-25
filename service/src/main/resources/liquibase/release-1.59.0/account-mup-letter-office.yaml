@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.59.0-add-mup-letter-office-to-account
+      author: portal
+      changes:
+        - addColumn:
+            tableName: account
+            columns:
+              - column:
+                  name: mup_letter_office
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: true
+                  remarks: Seat city of the MUP foreigners office that received the letter

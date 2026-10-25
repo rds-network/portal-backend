@@ -99,6 +99,9 @@ class Account(
     /** Причина письма в МУП: NON_COMPLIANCE / VOLUNTEER_REQUEST. */
     var mupLetterReason: String? = null,
 
+    /** Город (управление) МУП, куда ушло письмо, напр. Novi Sad / Beograd. */
+    var mupLetterOffice: String? = null,
+
     /** Когда аккаунт поставлен в очередь на расторжение. */
     var dissolutionQueuedAt: OffsetDateTime? = null,
 
