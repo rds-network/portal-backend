@@ -132,6 +132,7 @@ class MupLetterServiceDraftTest {
         account.dissolutionQueuedBy = "moderator"
         account.dissolutionQueueReason = "overdue"
         every { accountService.findAccountByLogin("volunteer") } returns account
+        every { applicationRepository.findAllByEmail("volunteer@example.com") } returns emptyList()
         every { accountService.switchActiveState(2, false) } returns account
         every { emailOutboxRepository.findAllByOrderByCreateTimeDesc() } returns emptyList()
         every { cityRepository.findAllActive() } returns emptyList()
