@@ -305,6 +305,7 @@ class ReportService(
         }
         finalizeStatus(report, ReportStatus.ACCEPTED, moderator, noteText)
         notifyReportDecision(report, ReportStatus.ACCEPTED, noteText, moderator.username)
+        achievementsService.onFirstAcceptedReport(report.account.username)
         if (noteText.isNullOrBlank()) {
             report.id?.let { achievementsService.onReportAcceptedClean(report.account.username, it) }
         }
