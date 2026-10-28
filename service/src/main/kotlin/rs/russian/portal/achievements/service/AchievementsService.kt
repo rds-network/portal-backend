@@ -42,7 +42,7 @@ class AchievementsService(
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         syncWeeklyPresence(login)
         val balance = pointEvents.sumPoints(login)
-        val recent = pointEvents.findByUsernameOrderByCreatedAtDesc(login).take(30).map {
+        val recent = pointEvents.findByUsernameOrderByCreatedAtDesc(login).take(200).map {
             PointEventDto(
                 code = it.code,
                 points = it.points,
