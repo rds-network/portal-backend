@@ -41,6 +41,7 @@ class AchievementsService(
     fun me(): AchievementsMeDto {
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         syncWeeklyPresence(login)
+        syncOneTimeAwards(login)
         val balance = pointEvents.sumPoints(login)
         val recent = pointEvents.findByUsernameOrderByCreatedAtDesc(login).take(200).map {
             PointEventDto(
@@ -139,6 +140,30 @@ class AchievementsService(
                 title = "Нет визита за неделю $prevWeek",
             )
         }
+    }
+
+    /** +20 один раз, когда в профиле есть фото. Повторно не начисляется. */
+    @Transactional
+    fun onProfileAvatar(username: String) {
+        award(
+            username = canonicalUsername(username),
+            code = CODE_PROFILE_AVATAR,
+            points = 20,
+            refId = "once",
+            title = "Лицо сервиса: фото профиля",
+        )
+    }
+
+    /** +30 один раз за первый принятый отчёт, отдельно от +5 за отчёт без замечания. */
+    @Transactional
+    fun onFirstAcceptedReport(username: String) {
+        award(
+            username = canonicalUsername(username),
+            code = CODE_FIRST_ACCEPTED_REPORT,
+            points = 30,
+            refId = "once",
+            title = "Первый принятый отчёт",
+        )
     }
 
     @Transactional
@@ -417,6 +442,24 @@ class AchievementsService(
             }
     }
 
+    private fun syncOneTimeAwards(username: String) {
+        val account = accountRepository.findByUsername(username).orElse(null)
+        if (account?.info?.avatar != null) {
+            onProfileAvatar(username)
+        }
+        val accepted = reportRepository.countByAccountUsernameIgnoreCaseAndStatus(username, ReportStatus.ACCEPTED)
+        if (accepted > 0) {
+            onFirstAcceptedReport(username)
+        }
+    }
+
+    private fun canonicalUsername(username: String): String {
+        val raw = username.trim()
+        if (raw.isEmpty()) return raw
+        return accountRepository.findAllByUsernameLowerIn(listOf(raw.lowercase()))
+            .firstOrNull()?.username ?: raw
+    }
+
     private fun hadActivityBefore(username: String, before: LocalDateTime): Boolean =
         activityEvents.existsByUsernameIgnoreCaseAndCreateTimeBetween(
             username,
@@ -462,6 +505,8 @@ class AchievementsService(
         const val CODE_WEEKLY_LOGIN = "WEEKLY_LOGIN"
         const val CODE_WEEKLY_MISS = "WEEKLY_MISS"
         const val CODE_REPORT_CLEAN = "REPORT_CLEAN"
+        const val CODE_PROFILE_AVATAR = "PROFILE_AVATAR"
+        const val CODE_FIRST_ACCEPTED_REPORT = "FIRST_ACCEPTED_REPORT"
         const val CODE_CURATOR_GRATITUDE = "CURATOR_GRATITUDE"
         const val CODE_MANAGER_GRATITUDE = "MANAGER_GRATITUDE"
         const val CODE_MISSION_CLAIM = "MISSION_CLAIM"
