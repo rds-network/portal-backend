@@ -43,11 +43,10 @@ class LeaveRequestService(
 
     @Transactional(readOnly = true)
     fun meta(): LeaveRequestMetaDto {
-        // Gate on the real OIDC principal — impersonation must not hide the approve queue.
-        val real = realUserLogin() ?: throw NotAuthorizedException()
+        if (realUserLogin() == null) throw NotAuthorizedException()
         return LeaveRequestMetaDto(
             approverUsername = approverUsername(),
-            isLeaveApprover = isLeaveApprover(real),
+            isLeaveApprover = isLeaveApprover(),
         )
     }
 
@@ -57,9 +56,19 @@ class LeaveRequestService(
      * OIDC login may not equal portal username `legkov777`.
      */
     fun isLeaveApprover(login: String? = null, account: Account? = null): Boolean {
+        if (login == null && account == null && impersonating()) {
+            val target = accountService.getCurrentAccount()
+            return PrivilegedOps.isAllowed(target.username, target.groups, target)
+        }
         val real = login ?: realUserLogin()
         val resolved = account ?: resolveAccount(real)
         return PrivilegedOps.isAllowed(real, currentUserRoles(), resolved)
+    }
+
+    private fun impersonating(): Boolean {
+        val real = realUserLogin() ?: return false
+        val effective = currentUserLogin() ?: return false
+        return !effective.equals(real, ignoreCase = true)
     }
 
     fun approverUsername(): String = appProperties.leave.approverUsername.trim()
