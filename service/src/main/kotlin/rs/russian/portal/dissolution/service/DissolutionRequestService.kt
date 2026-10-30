@@ -42,21 +42,31 @@ class DissolutionRequestService(
 
     @Transactional(readOnly = true)
     fun meta(): DissolutionRequestMetaDto {
-        val real = realUserLogin() ?: throw NotAuthorizedException()
+        if (realUserLogin() == null) throw NotAuthorizedException()
         return DissolutionRequestMetaDto(
             approverUsername = approverUsername(),
-            isDissolutionApprover = isDissolutionApprover(real),
+            isDissolutionApprover = isDissolutionApprover(),
         )
     }
 
     /**
      * Same gate as leave: configured approver (username / email / Account) or ADMIN_SSO.
-     * Uses the real OIDC principal so impersonation does not hide the queue.
+     * While viewing as a volunteer, the queue follows that account, not the admin who opened it.
      */
     fun isDissolutionApprover(login: String? = null, account: Account? = null): Boolean {
+        if (login == null && account == null && impersonating()) {
+            val target = accountService.getCurrentAccount()
+            return PrivilegedOps.isAllowed(target.username, target.groups, target)
+        }
         val real = login ?: realUserLogin()
         val resolved = account ?: resolveAccount(real)
         return PrivilegedOps.isAllowed(real, currentUserRoles(), resolved)
+    }
+
+    private fun impersonating(): Boolean {
+        val real = realUserLogin() ?: return false
+        val effective = currentUserLogin() ?: return false
+        return !effective.equals(real, ignoreCase = true)
     }
 
     fun approverUsername(): String = appProperties.leave.approverUsername.trim()
