@@ -1703,6 +1703,11 @@ components:
           type: integer
           nullable: true
           description: ID пользователя в Экомапе (публичный код EVO-{id})
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Когда портал в последний раз видел этот аккаунт (вход и запросы)
     DissolutionQueueRequest:
       type: object
       description: Опциональная причина постановки в очередь на расторжение
