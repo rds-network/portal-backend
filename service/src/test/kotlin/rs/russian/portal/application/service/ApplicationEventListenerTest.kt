@@ -10,6 +10,7 @@ import rs.russian.portal.accountstatus.service.AccountStatusService
 import rs.russian.portal.application.domain.Application
 import rs.russian.portal.application.domain.ApplicationStatus
 import rs.russian.portal.application.domain.ApplicationType
+import rs.russian.portal.application.event.ApplicationCreatedEvent
 import rs.russian.portal.application.event.ApplicationUpdateEvent
 import rs.russian.portal.application.mapper.ApplicationMapper
 import rs.russian.portal.mail.service.EmailService
@@ -105,5 +106,53 @@ class ApplicationEventListenerTest {
             )
         }
         verify { accountService.updateContracts(42, any()) }
+    }
+
+    @Test
+    fun `new join application is copied to the approver by email`() {
+        val id = UUID.randomUUID()
+        val application = Application(
+            id = id,
+            email = "new@example.com",
+            name = "Alla",
+            city = "Novi Sad",
+            type = ApplicationType.NEW,
+        )
+        val approver = Account(
+            id = 1,
+            username = "legkov777",
+            email = "legkov777@gmail.com",
+            fullName = "Gleb",
+        )
+        every { applicationService.get(id) } returns application
+        every { accountStatusService.resolveApprover() } returns approver
+
+        listener.handleApplicationCreate(ApplicationCreatedEvent(id))
+
+        verify {
+            emailService.sendCommonEmail(
+                "Gleb <legkov777@gmail.com>",
+                "Новая заявка на вступление: Alla",
+                match { it.contains("Alla") && it.contains("new@example.com") && it.contains(id.toString()) },
+                "Русская Диаспора <apply@russian.rs>",
+                null,
+            )
+        }
+    }
+
+    @Test
+    fun `prolongation is not copied to the approver`() {
+        val id = UUID.randomUUID()
+        val application = Application(
+            id = id,
+            email = "volunteer@example.com",
+            name = "Ivan",
+            type = ApplicationType.PROLONGATION,
+        )
+        every { applicationService.get(id) } returns application
+
+        listener.handleApplicationCreate(ApplicationCreatedEvent(id))
+
+        verify(exactly = 0) { accountStatusService.resolveApprover() }
     }
 }

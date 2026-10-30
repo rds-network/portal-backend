@@ -8,6 +8,7 @@ import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
 import rs.russian.portal.config.S3Properties
 import rs.russian.portal.file.domain.FileInfo
+import rs.russian.portal.file.domain.enums.FileExt
 import rs.russian.portal.shared.utils.CacheService.Companion.S3_FILE_CACHE_NAME
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
@@ -37,9 +38,13 @@ class S3Service(
 
     @Cacheable(cacheNames = [S3_FILE_CACHE_NAME], key = "#idWithSuffix")
     fun getUrl(idWithSuffix: String): URL {
+        val ext = idWithSuffix.substringAfterLast('.', "")
+        val mime = runCatching { FileExt.of(ext).mime }.getOrDefault("application/octet-stream")
         val getObjectRequest = GetObjectRequest.builder()
             .bucket(s3Properties.bucket)
             .key(idWithSuffix)
+            .responseContentType(mime)
+            .responseContentDisposition("inline")
             .build()
 
         val presignRequest = GetObjectPresignRequest.builder()
@@ -58,6 +63,8 @@ class S3Service(
         val putObjectRequest = PutObjectRequest.builder()
             .bucket(s3Properties.bucket)
             .key(fileInfo.getIdWithSuffix())
+            .contentType(fileInfo.suffix.mime)
+            .contentDisposition("inline; filename=\"${fileInfo.name.replace("\"", "")}\"")
             .build()
         s3Client.putObject(putObjectRequest, RequestBody.fromFile(temp))
         temp.delete()
