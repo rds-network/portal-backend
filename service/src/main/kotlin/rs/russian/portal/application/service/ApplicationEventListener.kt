@@ -45,7 +45,33 @@ class ApplicationEventListener(
             message,
             "Русская Диаспора <apply@russian.rs>"
         )
+        if (application.type == ApplicationType.NEW) {
+            notifyApproverOfJoin(application)
+        }
     }
+
+    private fun notifyApproverOfJoin(application: Application) {
+        val approver = accountStatusService.resolveApprover() ?: return
+        val email = approver.email.trim()
+        if (email.isEmpty()) return
+        val link = "https://portal.russian.rs/application/${application.id}"
+        val city = application.city?.takeIf { it.isNotBlank() }?.let { ", ${escapeHtml(it)}" }.orEmpty()
+        val phone = application.phone?.takeIf { it.isNotBlank() }?.let { "<br/>${escapeHtml(it)}" }.orEmpty()
+        val text = """
+            <p>Новая заявка на вступление.</p>
+            <p><b>${escapeHtml(application.name)}</b>$city<br/>${escapeHtml(application.email)}$phone</p>
+            <p><a href="$link">Открыть заявку</a></p>
+        """.trimIndent()
+        emailService.sendCommonEmail(
+            "${approver.fullName} <$email>",
+            "Новая заявка на вступление: ${application.name}",
+            text,
+            "Русская Диаспора <apply@russian.rs>"
+        )
+    }
+
+    private fun escapeHtml(value: String): String =
+        value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(fallbackExecution = true)
