@@ -23,6 +23,7 @@ import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.repository.UserSecondaryProgramRepository
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.*
 
 @Mapper(
@@ -179,6 +180,7 @@ abstract class UserMapper {
     @Mapping(target = "dissolutionQueuedBy", source = "account.dissolutionQueuedBy")
     @Mapping(target = "ekomapaUserId", source = "account.ekomapaUserId")
     @Mapping(target = "secondaryProgramCodes", ignore = true)
+    @Mapping(target = "lastSeenAt", ignore = true)
     abstract fun map(userInfo: UserInfo?): UserInfoDto
 
     @Mapping(target = "account", source = "account")
@@ -222,6 +224,12 @@ abstract class UserMapper {
         target.reportControllerFullName = accountRepository.findByUsername(login)
             .map { it.fullName }
             .orElse(login)
+    }
+
+    @AfterMapping
+    fun fillLastSeen(userInfo: UserInfo?, @MappingTarget target: UserInfoDto) {
+        val seen = userInfo?.account?.lastSeenAt ?: return
+        target.lastSeenAt = seen.atZone(ZoneId.systemDefault()).toOffsetDateTime()
     }
 
     @AfterMapping
