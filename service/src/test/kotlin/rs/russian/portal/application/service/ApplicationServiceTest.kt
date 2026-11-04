@@ -18,6 +18,7 @@ import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.testconfig.AbstractIntegrationTest
 import rs.russian.portal.user.service.AccountService
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -165,6 +166,47 @@ class ApplicationServiceTest : AbstractIntegrationTest() {
         assertNotNull(account)
         assertEquals("IT", account.info?.program?.code)
         assertEquals("FORMS", account.info?.project?.code)
+    }
+
+    @Test
+    fun `contract document date is fixed on first save`() {
+        val created = applicationService.create(
+            ApplicationDto(
+                id = UUID.randomUUID(),
+                email = uniqueEmail("contract-date"),
+                name = "Contract Date Applicant"
+            )
+        )
+        assertNull(created.contractDocumentDate)
+
+        val start = LocalDate.now().plusDays(10)
+        val saved = applicationService.update(
+            ApplicationDto(
+                id = created.id!!,
+                contract = ContractDto(
+                    id = UUID.randomUUID(),
+                    startDate = start,
+                    endDate = start.plusYears(1),
+                    type = ContractTypeEnum.REGULAR
+                )
+            )
+        )
+        val today = LocalDate.now(ZoneId.of("Europe/Belgrade"))
+        assertEquals(today, saved.contractDocumentDate)
+
+        val moved = applicationService.update(
+            ApplicationDto(
+                id = created.id!!,
+                contract = ContractDto(
+                    id = UUID.randomUUID(),
+                    startDate = start.plusDays(3),
+                    endDate = start.plusYears(1),
+                    type = ContractTypeEnum.REGULAR
+                )
+            )
+        )
+        assertEquals(saved.contractDocumentDate, moved.contractDocumentDate)
+        assertEquals(start.plusDays(3), moved.contractFrom)
     }
 
     private fun uniqueEmail(prefix: String) = "$prefix-${UUID.randomUUID()}@example.com"

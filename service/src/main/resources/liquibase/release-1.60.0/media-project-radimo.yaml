@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.60.0-media-project-radimo
+      author: portal
+      preConditions:
+        - onFail: MARK_RAN
+          sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM project WHERE code = 'RADIMO'
+      changes:
+        - insert:
+            tableName: project
+            columns:
+              - column: { name: code, value: RADIMO }
+              - column: { name: program_code, value: MEDIA }
+              - column: { name: name_ru, value: Радимо }
+              - column: { name: name_en, value: Radimo }
+              - column: { name: name_sr, value: Radimo }

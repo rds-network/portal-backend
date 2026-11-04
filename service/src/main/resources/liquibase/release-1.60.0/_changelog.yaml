@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: liquibase/release-1.60.0/application-contract-document-date.yaml
+  - include:
+      file: liquibase/release-1.60.0/media-project-radimo.yaml

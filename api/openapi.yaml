@@ -2124,6 +2124,12 @@ components:
           default: [ ]
           items:
             $ref: "#/components/schemas/NoteDto"
+        contractDocumentDate:
+          type: string
+          format: date
+          nullable: true
+          readOnly: true
+          description: Дата в шапке договора. Фиксируется в день, когда впервые сохранены даты договора, и больше не меняется.
     ApplicationsFilter:
       type: object
       required:
