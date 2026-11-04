@@ -30,6 +30,8 @@ import rs.russian.portal.user.domain.enums.UserGroup.ADMIN_VOLUNTEER
 import rs.russian.portal.user.domain.enums.UserGroup.INTERVIEWER
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.user.service.AccountService
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.*
 
 @Service
@@ -62,6 +64,7 @@ class ApplicationService(
         }
         val application = Application(email = email, name = name)
         applicationMapper.toEntity(request, application)
+        freezeContractDocumentDate(application)
         normalizeProgramAndProject(application)
         val existUser = accountService.findAccountByEmail(email)
         if (existUser != null) {
@@ -112,6 +115,7 @@ class ApplicationService(
     fun update(applicationDto: ApplicationDto): Application {
         val application = get(applicationDto.id)
         applicationMapper.update(applicationDto, application)
+        freezeContractDocumentDate(application)
         normalizeProgramAndProject(application)
         if (application.status == DONE && application.contractFrom == null) {
             throw InvalidRequestException("Contract dates not specified")
@@ -180,6 +184,16 @@ class ApplicationService(
         return PageImpl(applicationsFull, applications.pageable, applications.totalElements)
     }
 
+    /**
+     * Дата в шапке — день, когда даты договора сохранили впервые.
+     * Повторное открытие и правка срока её не сдвигают.
+     */
+    private fun freezeContractDocumentDate(application: Application) {
+        if (application.contractFrom != null && application.contractDocumentDate == null) {
+            application.contractDocumentDate = LocalDate.now(BELGRADE)
+        }
+    }
+
     private fun normalizeProgramAndProject(application: Application) {
         val projectProgram = application.project?.program
         if (application.project != null) {
@@ -189,5 +203,9 @@ class ApplicationService(
                 throw InvalidRequestException("Project does not belong to program")
             }
         }
+    }
+
+    companion object {
+        private val BELGRADE: ZoneId = ZoneId.of("Europe/Belgrade")
     }
 }

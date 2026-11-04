@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.60.0-application-contract-document-date
+      author: portal
+      changes:
+        - addColumn:
+            tableName: application
+            columns:
+              - column:
+                  name: contract_document_date
+                  type: DATE
+                  constraints:
+                    nullable: true
+                  remarks: Date printed in the contract header. Frozen when contract dates are first saved.
+        - sql:
+            dbms: postgresql
+            sql: >
+              UPDATE application
+              SET contract_document_date = CASE
+                WHEN contract_from > (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Belgrade')::date THEN
+                  LEAST(
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Belgrade')::date,
+                    COALESCE(version::date, created::date, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Belgrade')::date)
+                  )
+                ELSE contract_from
+              END
+              WHERE contract_from IS NOT NULL
+                AND contract_document_date IS NULL

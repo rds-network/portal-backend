@@ -68,6 +68,8 @@ class Application(
 
     var contractFrom: LocalDate? = null,
     var contractUntil: LocalDate? = null,
+    /** Дата в шапке бланка. Ставится один раз, когда даты договора сохраняют впервые. */
+    var contractDocumentDate: LocalDate? = null,
     @Enumerated(STRING)
     var contractType: ContractTypeEnum? = null,
 
