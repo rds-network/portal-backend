@@ -94,7 +94,7 @@ class ApplicationSpecificationTest {
 
         val filter = ApplicationsFilter(
             showCompleted = false,
-            statuses = listOf("PAUSED", "CLARIFICATION"),
+            statuses = mutableListOf("PAUSED", "CLARIFICATION"),
             staleDays = 14,
         )
         assertEquals(listOf("Stale"), names(filter))
