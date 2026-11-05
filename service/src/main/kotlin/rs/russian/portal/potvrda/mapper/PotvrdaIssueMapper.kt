@@ -21,7 +21,7 @@ class PotvrdaIssueMapper {
             issueDate = entity.issueDate,
             periodFrom = entity.periodFrom,
             periodTo = entity.periodTo,
-            totalHours = entity.totalHours?.toDouble(),
+            totalHours = entity.totalHours,
             programCode = entity.programCode,
             servicesDescription = entity.servicesDescription,
             createTime = entity.createTime,

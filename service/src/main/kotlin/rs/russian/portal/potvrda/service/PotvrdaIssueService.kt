@@ -53,7 +53,7 @@ class PotvrdaIssueService(
                 issueDate = request.issueDate,
                 periodFrom = request.periodFrom,
                 periodTo = request.periodTo,
-                totalHours = request.totalHours?.let { BigDecimal.valueOf(it) },
+                totalHours = request.totalHours?.let { BigDecimal.valueOf(it.toDouble()) },
                 programCode = request.programCode?.trim()?.takeIf { it.isNotEmpty() },
                 servicesDescription = request.servicesDescription?.trim()?.takeIf { it.isNotEmpty() },
             )
@@ -67,7 +67,7 @@ class PotvrdaIssueService(
         val page = repository.search(search?.trim()?.takeIf { it.isNotEmpty() }, pageable)
         return PotvrdaIssuePageResponse(
             page = convert(page),
-            content = page.content.map(mapper::toDto),
+            content = page.content.map(mapper::toDto).toMutableList(),
         )
     }
 
