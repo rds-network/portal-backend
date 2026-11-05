@@ -3,6 +3,7 @@ package rs.russian.portal.application.domain.specification
 import io.zonky.test.db.AutoConfigureEmbeddedDatabase
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import jakarta.persistence.EntityManager
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -36,6 +37,9 @@ class ApplicationSpecificationTest {
 
     @Autowired
     lateinit var repository: ApplicationRepository
+
+    @Autowired
+    lateinit var entityManager: EntityManager
 
     @MockitoBean
     lateinit var auditRepository: AuditRepository
@@ -87,9 +91,14 @@ class ApplicationSpecificationTest {
 
     @Test
     fun `statuses and staleDays limit by status and last update`() {
-        val stale = repository.save(Application(name = "Stale", email = "stale@example.com", status = PAUSED))
-        stale.version = LocalDateTime.now().minusDays(20)
-        repository.saveAndFlush(stale)
+        val stale = repository.saveAndFlush(Application(name = "Stale", email = "stale@example.com", status = PAUSED))
+        val staleVersion = LocalDateTime.now().minusDays(20)
+        entityManager.createNativeQuery("UPDATE application SET version = :version WHERE id = :id")
+            .setParameter("version", staleVersion)
+            .setParameter("id", stale.id)
+            .executeUpdate()
+        entityManager.flush()
+        entityManager.clear()
         repository.save(Application(name = "FreshPause", email = "fresh@example.com", status = PAUSED))
 
         val filter = ApplicationsFilter(
