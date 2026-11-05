@@ -21,6 +21,7 @@ import rs.russian.portal.application.repository.ApplicationRepository
 import rs.russian.portal.note.domain.Note
 import rs.russian.portal.program.domain.Program
 import rs.russian.portal.shared.audit.AuditRepository
+import java.time.LocalDateTime
 import kotlin.test.assertEquals
 
 @DataJpaTest(properties = ["spring.liquibase.enabled=false", "spring.jpa.hibernate.ddl-auto=create-drop"])
@@ -82,6 +83,21 @@ class ApplicationSpecificationTest {
         assertEquals(listOf("Unassigned Completed"),
             names(ApplicationsFilter(showCompleted = true, unassigned = true), "completed"))
         assertEquals(listOf("Unassigned"), names(ApplicationsFilter(assignee = "employee", unassigned = true)))
+    }
+
+    @Test
+    fun `statuses and staleDays limit by status and last update`() {
+        val stale = repository.save(Application(name = "Stale", email = "stale@example.com", status = PAUSED))
+        stale.version = LocalDateTime.now().minusDays(20)
+        repository.saveAndFlush(stale)
+        repository.save(Application(name = "FreshPause", email = "fresh@example.com", status = PAUSED))
+
+        val filter = ApplicationsFilter(
+            showCompleted = false,
+            statuses = listOf("PAUSED", "CLARIFICATION"),
+            staleDays = 14,
+        )
+        assertEquals(listOf("Stale"), names(filter))
     }
 
     @Test

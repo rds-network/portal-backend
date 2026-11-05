@@ -71,6 +71,7 @@ abstract class ApplicationMapper {
     @Mapping(target = "contract", source = "application", qualifiedByName = ["contract"])
     @Mapping(target = "program", source = "program.code")
     @Mapping(target = "project", source = "project.code")
+    @Mapping(target = "lastUpdate", source = "version")
     abstract fun toDto(application: Application): ApplicationDto
 
     @Mapping(target = "progress", source = "status")

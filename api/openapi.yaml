@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.45.0
+  version: 1.47.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -1310,6 +1310,79 @@ paths:
                   type: string
                   default: Название группы поддержки для создания тикета
 
+  /potvrda/next-number:
+    get:
+      operationId: getPotvrdaNextNumber
+      description: Следующий номер potvrde в формате NNN/YYYY (без резервирования)
+      tags:
+        - potvrda
+      parameters:
+        - in: query
+          name: year
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PotvrdaNextNumberDto"
+
+  /potvrda/issues:
+    get:
+      operationId: getPotvrdaIssues
+      description: Реестр выданных potvrda
+      tags:
+        - potvrda
+      parameters:
+        - in: query
+          name: pageNumber
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - in: query
+          name: pageSize
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 50
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PotvrdaIssuePageResponse"
+    post:
+      operationId: createPotvrdaIssue
+      description: Зафиксировать выдачу potvrde и выделить номер
+      tags:
+        - potvrda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PotvrdaIssueCreateRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PotvrdaIssueDto"
+
   /csrf:
     get:
       operationId: getCsrfToken
@@ -2039,6 +2112,11 @@ components:
         created:
           type: string
           format: date-time
+        lastUpdate:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Время последнего изменения заявки (статус или поля).
         email:
           type: string
           format: email
@@ -2146,6 +2224,15 @@ components:
           type: boolean
           default: false
           description: Только заявки без ответственного. При true фильтр assignee игнорируется.
+        statuses:
+          type: array
+          items:
+            type: string
+          description: Ограничить список указанными статусами заявки (например PAUSED, CLARIFICATION).
+        staleDays:
+          type: integer
+          minimum: 1
+          description: Только заявки, у которых lastUpdate (version) старше указанного числа дней.
     ApplicationStatusDto:
       type: object
       required:
@@ -2529,3 +2616,127 @@ components:
         count:
           type: integer
           format: int32
+    PotvrdaKindEnum:
+      type: string
+      enum:
+        - OFFICIAL
+        - MEMBERSHIP
+    PotvrdaNextNumberDto:
+      type: object
+      required:
+        - confirmNumber
+        - registryYear
+        - sequenceNumber
+      properties:
+        confirmNumber:
+          type: string
+          example: "009/2025"
+        registryYear:
+          type: integer
+          format: int32
+        sequenceNumber:
+          type: integer
+          format: int32
+    PotvrdaIssueDto:
+      type: object
+      required:
+        - id
+        - confirmNumber
+        - registryYear
+        - sequenceNumber
+        - kind
+        - volunteerUsername
+        - volunteerFullName
+        - issueDate
+        - createTime
+        - issuedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        confirmNumber:
+          type: string
+        registryYear:
+          type: integer
+          format: int32
+        sequenceNumber:
+          type: integer
+          format: int32
+        kind:
+          $ref: "#/components/schemas/PotvrdaKindEnum"
+        volunteerUsername:
+          type: string
+        volunteerFullName:
+          type: string
+        issueDate:
+          type: string
+          format: date
+        periodFrom:
+          type: string
+          format: date
+          nullable: true
+        periodTo:
+          type: string
+          format: date
+          nullable: true
+        totalHours:
+          type: number
+          nullable: true
+        programCode:
+          type: string
+          nullable: true
+        servicesDescription:
+          type: string
+          nullable: true
+        createTime:
+          type: string
+          format: date-time
+        issuedBy:
+          type: string
+    PotvrdaIssueCreateRequest:
+      type: object
+      required:
+        - kind
+        - volunteerUsername
+        - volunteerFullName
+        - issueDate
+      properties:
+        kind:
+          $ref: "#/components/schemas/PotvrdaKindEnum"
+        volunteerUsername:
+          type: string
+        volunteerFullName:
+          type: string
+        issueDate:
+          type: string
+          format: date
+        periodFrom:
+          type: string
+          format: date
+          nullable: true
+        periodTo:
+          type: string
+          format: date
+          nullable: true
+        totalHours:
+          type: number
+          nullable: true
+        programCode:
+          type: string
+          nullable: true
+        servicesDescription:
+          type: string
+          maxLength: 2000
+          nullable: true
+    PotvrdaIssuePageResponse:
+      type: object
+      required:
+        - page
+        - content
+      properties:
+        page:
+          $ref: "#/components/schemas/PageResponse"
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PotvrdaIssueDto"
