@@ -1,0 +1,94 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.61.0-potvrda-issue
+      author: portal
+      changes:
+        - createTable:
+            tableName: potvrda_issue
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_potvrda_issue
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: create_time
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: issued_by
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: confirm_number
+                  type: VARCHAR(32)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: registry_year
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: sequence_number
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: kind
+                  type: VARCHAR(32)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: volunteer_username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: volunteer_full_name
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: issue_date
+                  type: DATE
+              - column:
+                  name: period_from
+                  type: DATE
+              - column:
+                  name: period_to
+                  type: DATE
+              - column:
+                  name: total_hours
+                  type: DECIMAL(10, 2)
+              - column:
+                  name: program_code
+                  type: VARCHAR(64)
+              - column:
+                  name: services_description
+                  type: VARCHAR(2000)
+        - addUniqueConstraint:
+            tableName: potvrda_issue
+            columnNames: confirm_number
+            constraintName: uq_potvrda_issue_confirm_number
+        - addUniqueConstraint:
+            tableName: potvrda_issue
+            columnNames: registry_year, sequence_number
+            constraintName: uq_potvrda_issue_year_seq
+        - createIndex:
+            tableName: potvrda_issue
+            indexName: idx_potvrda_issue_issue_date
+            columns:
+              - column:
+                  name: issue_date
