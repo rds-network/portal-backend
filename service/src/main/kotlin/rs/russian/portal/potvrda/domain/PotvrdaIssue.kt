@@ -14,6 +14,7 @@ import java.util.UUID
 enum class PotvrdaKind {
     OFFICIAL,
     MEMBERSHIP,
+    TERMINATION,
 }
 
 @Entity

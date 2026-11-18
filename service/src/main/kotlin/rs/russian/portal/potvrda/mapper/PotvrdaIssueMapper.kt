@@ -32,11 +32,13 @@ class PotvrdaIssueMapper {
         when (this) {
             PotvrdaKind.OFFICIAL -> PotvrdaKindEnum.OFFICIAL
             PotvrdaKind.MEMBERSHIP -> PotvrdaKindEnum.MEMBERSHIP
+            PotvrdaKind.TERMINATION -> PotvrdaKindEnum.TERMINATION
         }
 
     fun kindFromDto(kind: PotvrdaKindEnum): PotvrdaKind =
         when (kind) {
             PotvrdaKindEnum.OFFICIAL -> PotvrdaKind.OFFICIAL
             PotvrdaKindEnum.MEMBERSHIP -> PotvrdaKind.MEMBERSHIP
+            PotvrdaKindEnum.TERMINATION -> PotvrdaKind.TERMINATION
         }
 }

@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: volunteer-portal-api
-  version: 1.47.0
+  version: 1.48.0
   contact:
     email: dev@russian.rs
     url: https://russian.rs
@@ -2621,6 +2621,7 @@ components:
       enum:
         - OFFICIAL
         - MEMBERSHIP
+        - TERMINATION
     PotvrdaNextNumberDto:
       type: object
       required:
