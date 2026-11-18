@@ -33,4 +33,9 @@ jobs:
         run: |
           echo //npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }} > .npmrc
           npm install
-          npm publish
+          # npm 11+ refuses to publish prerelease (snapshot) versions without an explicit dist-tag.
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            npm publish
+          else
+            npm publish --tag snapshot
+          fi
