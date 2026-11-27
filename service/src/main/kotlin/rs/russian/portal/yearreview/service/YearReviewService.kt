@@ -270,12 +270,24 @@ class YearReviewService(
         )
 
         val program = account?.info?.program
+        val project = account?.info?.project
+        val hoursWorked = (
+            reportRepository.sumAcceptedMinutesInRange(
+                username,
+                ReportStatus.ACCEPTED,
+                fromOd,
+                untilOd,
+            ) / 60.0
+            ).toInt()
+
         val curatorPrograms = curatorRepository.findAllByUsernameIgnoreCase(username)
         val directionsCount = curatorPrograms.map { it.programCode.lowercase() }.distinct().size
         val delegatesCount = curatorDelegateRepository.countByCuratorUsernameIgnoreCase(username).toInt()
         val reportsReviewed = decisionRepository.countAcceptedDecisionsInRange(username, fromOd, untilOd).toInt()
         val peopleHelped = decisionRepository.countDistinctHelpedAuthorsInRange(username, fromOd, untilOd).toInt()
-        val isTeamBuilder = directionsCount > 0 || delegatesCount > 0 || reportsReviewed > 0
+        val isCurator = directionsCount > 0 || delegatesCount > 0
+        val isModerator = account?.groups?.contains(UserGroup.ADMIN_VOLUNTEER) == true
+        val isTeamBuilder = isCurator || isModerator || reportsReviewed > 0
 
         val ideasCreated = talentPostRepository.countByAuthorInRange(username, fromOd, untilOd).toInt()
         val responsesReceived =
@@ -300,10 +312,15 @@ class YearReviewService(
             programNameRu = program?.nameRu,
             programNameEn = program?.nameEn,
             programNameSr = program?.nameSr,
+            projectCode = project?.code,
+            projectNameRu = project?.nameRu,
+            projectNameEn = project?.nameEn,
+            projectNameSr = project?.nameSr,
             activeWeeks = weeklyLogins,
             longestStreak = longestIsoWeekStreak(weeklyRefs),
             earnedPoints = earnedPoints,
             acceptedReports = acceptedReports,
+            hoursWorked = hoursWorked,
             completedTasks = completedTasks,
             badgesEarned = badges,
             currentRank = currentRank,
@@ -312,6 +329,8 @@ class YearReviewService(
             curatorGratitudes = curatorGratitudes,
             managerGratitudes = managerGratitudes,
             isPodium = currentRank != null && currentRank in 1..3,
+            isCurator = isCurator,
+            isModerator = isModerator,
             isTeamBuilder = isTeamBuilder,
             directionsCount = directionsCount,
             delegatesCount = delegatesCount,
