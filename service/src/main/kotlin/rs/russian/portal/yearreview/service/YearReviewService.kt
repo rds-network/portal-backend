@@ -259,10 +259,15 @@ class YearReviewService(
             currentRank = currentRank,
         )
 
+        val program = account?.info?.program
         return YearReviewStatsDto(
             year = year,
             displayName = account?.fullName?.takeIf { it.isNotBlank() } ?: username,
             username = account?.username ?: username,
+            programCode = program?.code,
+            programNameRu = program?.nameRu,
+            programNameEn = program?.nameEn,
+            programNameSr = program?.nameSr,
             activeWeeks = weeklyLogins,
             longestStreak = longestIsoWeekStreak(weeklyRefs),
             earnedPoints = earnedPoints,
