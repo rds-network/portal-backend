@@ -11,6 +11,10 @@ interface ProgramCuratorDelegateRepository : JpaRepository<ProgramCuratorDelegat
 
     fun findAllByCuratorUsernameIgnoreCaseAndProgramCode(curatorUsername: String, programCode: String): List<ProgramCuratorDelegate>
 
+    fun findAllByCuratorUsernameIgnoreCase(curatorUsername: String): List<ProgramCuratorDelegate>
+
+    fun countByCuratorUsernameIgnoreCase(curatorUsername: String): Long
+
     fun existsByProgramCodeAndCuratorUsernameIgnoreCaseAndDelegateUsernameIgnoreCase(
         programCode: String,
         curatorUsername: String,

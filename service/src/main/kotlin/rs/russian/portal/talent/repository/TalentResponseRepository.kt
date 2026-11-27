@@ -27,4 +27,50 @@ interface TalentResponseRepository : JpaRepository<TalentResponse, UUID> {
         @Param("owner") owner: String,
         @Param("since") since: OffsetDateTime,
     ): Long
+
+    @Query(
+        """
+        SELECT COUNT(r) FROM TalentResponse r
+        WHERE LOWER(r.authorUsername) = LOWER(:username)
+          AND r.createdAt >= :from AND r.createdAt < :until
+        """
+    )
+    fun countSentByAuthorInRange(
+        @Param("username") username: String,
+        @Param("from") from: OffsetDateTime,
+        @Param("until") until: OffsetDateTime,
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(r) FROM TalentResponse r
+        JOIN r.post p
+        WHERE LOWER(p.authorUsername) = LOWER(:owner)
+          AND LOWER(r.authorUsername) <> LOWER(:owner)
+          AND r.createdAt >= :from AND r.createdAt < :until
+        """
+    )
+    fun countReceivedOnOwnedPostsInRange(
+        @Param("owner") owner: String,
+        @Param("from") from: OffsetDateTime,
+        @Param("until") until: OffsetDateTime,
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT p.id) FROM TalentResponse r
+        JOIN r.post p
+        WHERE LOWER(r.authorUsername) = LOWER(:username)
+          AND r.createdAt >= :from AND r.createdAt < :until
+          AND p.type IN (
+            rs.russian.portal.talent.domain.enums.TalentPostType.NEED_PEOPLE,
+            rs.russian.portal.talent.domain.enums.TalentPostType.PROJECT_IDEA
+          )
+        """
+    )
+    fun countJoinedTeamsInRange(
+        @Param("username") username: String,
+        @Param("from") from: OffsetDateTime,
+        @Param("until") until: OffsetDateTime,
+    ): Long
 }

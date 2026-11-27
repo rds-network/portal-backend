@@ -34,6 +34,19 @@ interface TalentPostRepository : JpaRepository<TalentPost, UUID>, JpaSpecificati
         authorUsername: String,
         createdAt: OffsetDateTime,
     ): Long
+
+    @Query(
+        """
+        SELECT COUNT(p) FROM TalentPost p
+        WHERE LOWER(p.authorUsername) = LOWER(:username)
+          AND p.createdAt >= :from AND p.createdAt < :until
+        """
+    )
+    fun countByAuthorInRange(
+        @Param("username") username: String,
+        @Param("from") from: OffsetDateTime,
+        @Param("until") until: OffsetDateTime,
+    ): Long
 }
 
 object TalentPostSpecs {
