@@ -195,6 +195,7 @@ class SecurityConfig(
             "/public/maintenance",
             "/public/maintenance/unlock",
             "/public/application-join",
+            "/verify/certificate/**",
         )
 
         // Endpoints that don't need CSRF (public endpoints protected by captcha or non-sensitive)
@@ -206,6 +207,7 @@ class SecurityConfig(
             "/public/maintenance",
             "/public/maintenance/unlock",
             "/public/application-join",
+            "/verify/certificate/**",
         )
     }
 
