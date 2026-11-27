@@ -19,6 +19,7 @@ import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.user.domain.Account
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import java.time.DayOfWeek
@@ -42,7 +43,8 @@ class AchievementsService(
         val login = currentUserLogin() ?: throw NotAuthorizedException()
         syncWeeklyPresence(login)
         syncOneTimeAwards(login)
-        val balance = pointEvents.sumPoints(login)
+        val ledgerPoints = pointEvents.sumPoints(login)
+        val balance = withBaseline(ledgerPoints)
         val recent = pointEvents.findByUsernameOrderByCreatedAtDesc(login).take(200).map {
             PointEventDto(
                 code = it.code,
@@ -51,7 +53,7 @@ class AchievementsService(
                 refId = it.refId,
                 createdAt = it.createdAt.toString(),
             )
-        }
+        } + baselineHistoryEvent()
         val weeklyLogins = pointEvents.countByUsernameAndCode(login, CODE_WEEKLY_LOGIN)
         val cleanReports = pointEvents.countByUsernameAndCode(login, CODE_REPORT_CLEAN)
         val curatorThanks = pointEvents.countByUsernameAndCode(login, CODE_CURATOR_GRATITUDE)
@@ -206,7 +208,7 @@ class AchievementsService(
         pointEvents.existsByUsernameAndCodeAndRefId(username, CODE_MISSION_CLAIM, missionId.toString())
 
     @Transactional(readOnly = true)
-    fun balanceOf(username: String): Long = pointEvents.sumPoints(username)
+    fun balanceOf(username: String): Long = withBaseline(pointEvents.sumPoints(username))
 
     /** Благодарности куратора и руководителя — для карточки волонтёра. */
     @Transactional(readOnly = true)
@@ -245,17 +247,15 @@ class AchievementsService(
         val accountMap = accountRepository.findAllByUsernameLowerIn(lookupNames)
             .associateBy { it.username.lowercase() }
 
-        // Staff / test accounts stay out of the public ranking (GDPR + fair play).
+        // Only active accounts; staff / test accounts stay out (GDPR + fair play).
         val totals = rawTotals.filter { (username, _) ->
-            val account = accountMap[username]
-            !isExcludedFromLeaderboard(username, account?.email, account?.fullName)
-        }
+            isListedOnLeaderboard(username, accountMap[username])
+        }.map { (username, points) -> username to withBaseline(points) }
 
-        val viewerExcluded = login != null && isExcludedFromLeaderboard(
-            login,
-            viewer?.email,
-            viewer?.fullName,
-        )
+        val viewerExcluded = login != null && (
+            viewer?.active != true ||
+                isExcludedFromLeaderboard(login, viewer?.email, viewer?.fullName)
+            )
         // Managers and excluded staff (e.g. portal owners) always see the full table.
         val canSeeFull = isManager || viewerExcluded
 
@@ -292,7 +292,7 @@ class AchievementsService(
                     rank = totals.size + 1,
                     username = account?.username ?: login,
                     fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: login),
-                    points = 0,
+                    points = withBaseline(0),
                     isMe = true,
                 )
             }
@@ -314,11 +314,31 @@ class AchievementsService(
         return LEADERBOARD_EXCLUDED_NAME_MARKERS.any { marker -> name.contains(marker) }
     }
 
-    /** 1-based place among non-excluded users, or -1 if not listed. */
+    /** Active portal accounts only — people who already left the organization stay out. */
+    private fun isListedOnLeaderboard(
+        username: String,
+        account: Account?,
+    ): Boolean {
+        if (account == null || !account.active) return false
+        return !isExcludedFromLeaderboard(username, account.email, account.fullName)
+    }
+
+    private fun withBaseline(points: Long): Long = points + BASELINE_POINTS
+
+    private fun baselineHistoryEvent(): PointEventDto =
+        PointEventDto(
+            code = CODE_BASELINE,
+            points = BASELINE_POINTS,
+            title = "Стартовые баллы",
+            refId = "once",
+            createdAt = "2024-01-01T00:00:00",
+        )
+
+    /** 1-based place among non-excluded active users, or -1 if not listed. */
     private fun leaderboardRankFor(login: String): Int {
         val me = login.lowercase()
         val viewer = accountRepository.findAllByUsernameLowerIn(listOf(me)).firstOrNull()
-        if (isExcludedFromLeaderboard(me, viewer?.email, viewer?.fullName)) return -1
+        if (!isListedOnLeaderboard(me, viewer)) return -1
 
         val rawTotals = pointEvents.sumPointsGrouped().mapNotNull { row ->
             val username = (row[0] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
@@ -326,16 +346,16 @@ class AchievementsService(
                 is Number -> raw.toLong()
                 else -> 0L
             }
-            if (points <= 0) return@mapNotNull null
-            username to points
+            val effective = withBaseline(points)
+            if (effective <= 0) return@mapNotNull null
+            username to effective
         }
         if (rawTotals.isEmpty()) return -1
 
         val accountMap = accountRepository.findAllByUsernameLowerIn(rawTotals.map { it.first })
             .associateBy { it.username.lowercase() }
         val totals = rawTotals.filter { (username, _) ->
-            val account = accountMap[username]
-            !isExcludedFromLeaderboard(username, account?.email, account?.fullName)
+            isListedOnLeaderboard(username, accountMap[username])
         }
         val index = totals.indexOfFirst { it.first == me }
         return if (index >= 0) index + 1 else -1
@@ -369,7 +389,7 @@ class AchievementsService(
         val already = pointEvents.existsByUsernameAndCodeAndRefId(canonical, code, refId) ||
             pointEvents.existsByUsernameAndCodeAndRefId(login.lowercase(), code, refId)
         if (already) {
-            return pointEvents.sumPoints(canonical) to false
+            return withBaseline(pointEvents.sumPoints(canonical)) to false
         }
         award(
             username = canonical,
@@ -378,7 +398,7 @@ class AchievementsService(
             refId = refId,
             title = title,
         )
-        return pointEvents.sumPoints(canonical) to true
+        return withBaseline(pointEvents.sumPoints(canonical)) to true
     }
 
     @Transactional(readOnly = true)
@@ -395,7 +415,7 @@ class AchievementsService(
     ): MissionClaimResult {
         val ref = missionId.toString()
         if (oneTime && pointEvents.existsByUsernameAndCodeAndRefId(username, CODE_MISSION_CLAIM, ref)) {
-            return MissionClaimResult(balance = pointEvents.sumPoints(username), alreadyClaimed = true)
+            return MissionClaimResult(balance = withBaseline(pointEvents.sumPoints(username)), alreadyClaimed = true)
         }
         val refKey = if (oneTime) ref else "${ref}-${System.currentTimeMillis()}"
         award(
@@ -405,7 +425,7 @@ class AchievementsService(
             refId = refKey,
             title = "Миссия: $title",
         )
-        return MissionClaimResult(balance = pointEvents.sumPoints(username), alreadyClaimed = false)
+        return MissionClaimResult(balance = withBaseline(pointEvents.sumPoints(username)), alreadyClaimed = false)
     }
 
     @Transactional
@@ -511,6 +531,9 @@ class AchievementsService(
         const val CODE_MANAGER_GRATITUDE = "MANAGER_GRATITUDE"
         const val CODE_MISSION_CLAIM = "MISSION_CLAIM"
         const val CODE_EKOMAPA_PODIUM = "EKOMAPA_MONTHLY_PODIUM"
+        const val CODE_BASELINE = "BASELINE"
+        /** Everyone starts from this floor so the ranking is not dominated by early negatives. */
+        const val BASELINE_POINTS = 100L
         const val PUBLIC_PODIUM_SIZE = 3
         /** Upper bound for staff export of the full ranking. */
         const val MANAGER_LEADERBOARD_CAP = 10_000
