@@ -230,4 +230,21 @@ interface ReportRepository : JpaRepository<Report, UUID> {
         @Param("from") from: java.time.OffsetDateTime,
         @Param("until") until: java.time.OffsetDateTime,
     ): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(t.timeSpent), 0) FROM Report r
+        JOIN r.tasks t
+        WHERE LOWER(r.account.username) = LOWER(:username)
+          AND r.status = :status
+          AND r.acceptedAt IS NOT NULL
+          AND r.acceptedAt >= :from AND r.acceptedAt < :until
+        """
+    )
+    fun sumAcceptedMinutesInRange(
+        @Param("username") username: String,
+        @Param("status") status: ReportStatus,
+        @Param("from") from: java.time.OffsetDateTime,
+        @Param("until") until: java.time.OffsetDateTime,
+    ): Long
 }

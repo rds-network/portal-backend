@@ -8,10 +8,16 @@ data class YearReviewStatsDto(
     val programNameRu: String?,
     val programNameEn: String?,
     val programNameSr: String?,
+    val projectCode: String?,
+    val projectNameRu: String?,
+    val projectNameEn: String?,
+    val projectNameSr: String?,
     val activeWeeks: Int,
     val longestStreak: Int,
     val earnedPoints: Long,
     val acceptedReports: Int,
+    /** Accepted-report hours (timeSpent minutes / 60). */
+    val hoursWorked: Int,
     val completedTasks: Int,
     val badgesEarned: Int,
     val currentRank: Int?,
@@ -20,7 +26,11 @@ data class YearReviewStatsDto(
     val curatorGratitudes: Int,
     val managerGratitudes: Int,
     val isPodium: Boolean,
-    /** Curator / program-lead role this year (or currently assigned). */
+    /** Program curator assignment (directions). */
+    val isCurator: Boolean,
+    /** Portal moderator role (ADMIN_VOLUNTEER). */
+    val isModerator: Boolean,
+    /** Curator and/or moderator — show team-builder slide. */
     val isTeamBuilder: Boolean,
     val directionsCount: Int,
     val delegatesCount: Int,
