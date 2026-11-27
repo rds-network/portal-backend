@@ -221,7 +221,6 @@ class AchievementsService(
 
     @Transactional(readOnly = true)
     fun leaderboard(limit: Int = 100): AchievementsLeaderboardDto {
-        val cap = limit.coerceIn(1, 200)
         val grouped = pointEvents.sumPointsGrouped()
         val login = currentUserLogin()?.lowercase()
         val viewer = login?.let { accountRepository.findAllByUsernameLowerIn(listOf(it)).firstOrNull() }
@@ -260,7 +259,8 @@ class AchievementsService(
         // Managers and excluded staff (e.g. portal owners) always see the full table.
         val canSeeFull = isManager || viewerExcluded
 
-        val visibleCap = if (canSeeFull) cap else PUBLIC_PODIUM_SIZE
+        // Managers may pull the whole ranking for export.
+        val visibleCap = if (canSeeFull) limit.coerceIn(1, MANAGER_LEADERBOARD_CAP) else PUBLIC_PODIUM_SIZE
         val leaders = totals.take(visibleCap).mapIndexed { index, (username, points) ->
             val account = accountMap[username]
             PointLeaderDto(
@@ -512,6 +512,8 @@ class AchievementsService(
         const val CODE_MISSION_CLAIM = "MISSION_CLAIM"
         const val CODE_EKOMAPA_PODIUM = "EKOMAPA_MONTHLY_PODIUM"
         const val PUBLIC_PODIUM_SIZE = 3
+        /** Upper bound for staff export of the full ranking. */
+        const val MANAGER_LEADERBOARD_CAP = 10_000
 
         /** Portal points for Ekomapa monthly cleanup podium: 1st / 2nd / 3rd. */
         val EKOMAPA_PODIUM_POINTS: Map<Int, Int> = mapOf(1 to 30, 2 to 20, 3 to 10)
