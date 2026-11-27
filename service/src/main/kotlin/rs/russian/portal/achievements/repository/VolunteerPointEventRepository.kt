@@ -43,4 +43,47 @@ interface VolunteerPointEventRepository : JpaRepository<VolunteerPointEvent, UUI
         """
     )
     fun sumPointsGrouped(): List<Array<Any>>
+
+    @Query(
+        """
+        SELECT e FROM VolunteerPointEvent e
+        WHERE LOWER(e.username) = LOWER(:username)
+          AND e.createdAt >= :from AND e.createdAt < :until
+        ORDER BY e.createdAt ASC
+        """
+    )
+    fun findByUsernameAndCreatedAtRange(
+        @Param("username") username: String,
+        @Param("from") from: java.time.LocalDateTime,
+        @Param("until") until: java.time.LocalDateTime,
+    ): List<VolunteerPointEvent>
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(e.points), 0) FROM VolunteerPointEvent e
+        WHERE LOWER(e.username) = LOWER(:username)
+          AND e.points > 0
+          AND e.createdAt >= :from AND e.createdAt < :until
+        """
+    )
+    fun sumPositivePointsInRange(
+        @Param("username") username: String,
+        @Param("from") from: java.time.LocalDateTime,
+        @Param("until") until: java.time.LocalDateTime,
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(e) FROM VolunteerPointEvent e
+        WHERE LOWER(e.username) = LOWER(:username)
+          AND e.code = :code
+          AND e.createdAt >= :from AND e.createdAt < :until
+        """
+    )
+    fun countByUsernameAndCodeInRange(
+        @Param("username") username: String,
+        @Param("code") code: String,
+        @Param("from") from: java.time.LocalDateTime,
+        @Param("until") until: java.time.LocalDateTime,
+    ): Long
 }

@@ -1,0 +1,177 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.62.0-year-review-criteria
+      author: portal
+      changes:
+        - createTable:
+            tableName: year_review_criteria
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_year_review_criteria
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_year_review_criteria_year
+                  name: year
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: top_rank_max
+                  type: INT
+                  defaultValueNumeric: 10
+              - column:
+                  constraints:
+                    nullable: false
+                  name: min_accepted_reports
+                  type: INT
+                  defaultValueNumeric: 3
+              - column:
+                  constraints:
+                    nullable: false
+                  name: min_earned_points
+                  type: INT
+                  defaultValueNumeric: 150
+              - column:
+                  constraints:
+                    nullable: false
+                  name: min_active_weeks
+                  type: INT
+                  defaultValueNumeric: 20
+              - column:
+                  constraints:
+                    nullable: false
+                  name: min_badges
+                  type: INT
+                  defaultValueNumeric: 5
+              - column:
+                  constraints:
+                    nullable: false
+                  name: min_criteria_met
+                  type: INT
+                  defaultValueNumeric: 2
+              - column:
+                  constraints:
+                    nullable: false
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  constraints:
+                    nullable: false
+                  name: updated_at
+                  type: DATETIME
+
+  - changeSet:
+      id: 1.62.0-annual-certificate
+      author: portal
+      changes:
+        - createTable:
+            tableName: annual_certificate
+            columns:
+              - column:
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_annual_certificate
+                  name: id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: version
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: username
+                  type: VARCHAR(255)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: year
+                  type: INT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: certificate_number
+                  type: VARCHAR(64)
+              - column:
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_annual_certificate_token
+                  name: verification_token
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: status
+                  type: VARCHAR(32)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: issue_source
+                  type: VARCHAR(32)
+              - column:
+                  name: qualification_reasons
+                  type: TEXT
+              - column:
+                  name: stats_snapshot
+                  type: TEXT
+              - column:
+                  constraints:
+                    nullable: false
+                  name: template_version
+                  type: VARCHAR(64)
+              - column:
+                  name: recipient_full_name
+                  type: VARCHAR(255)
+              - column:
+                  name: pdf_file_id
+                  type: UUID
+              - column:
+                  constraints:
+                    nullable: false
+                  name: issued_at
+                  type: DATETIME
+              - column:
+                  name: revoked_at
+                  type: DATETIME
+              - column:
+                  name: revoked_by
+                  type: VARCHAR(255)
+              - column:
+                  name: revoke_reason
+                  type: VARCHAR(1000)
+              - column:
+                  constraints:
+                    nullable: false
+                  name: created_at
+                  type: DATETIME
+              - column:
+                  constraints:
+                    nullable: false
+                  name: updated_at
+                  type: DATETIME
+        - addUniqueConstraint:
+            tableName: annual_certificate
+            columnNames: username, year, template_version
+            constraintName: uk_annual_certificate_user_year_tpl
+        - createIndex:
+            tableName: annual_certificate
+            indexName: idx_annual_certificate_username
+            columns:
+              - column:
+                  name: username

@@ -214,4 +214,20 @@ interface ReportRepository : JpaRepository<Report, UUID> {
     ): Long
 
     fun countByAccountUsernameIgnoreCaseAndStatus(username: String, status: ReportStatus): Long
+
+    @Query(
+        """
+        SELECT COUNT(r) FROM Report r
+        WHERE LOWER(r.account.username) = LOWER(:username)
+          AND r.status = :status
+          AND r.acceptedAt IS NOT NULL
+          AND r.acceptedAt >= :from AND r.acceptedAt < :until
+        """
+    )
+    fun countAcceptedInRange(
+        @Param("username") username: String,
+        @Param("status") status: ReportStatus,
+        @Param("from") from: java.time.OffsetDateTime,
+        @Param("until") until: java.time.OffsetDateTime,
+    ): Long
 }
