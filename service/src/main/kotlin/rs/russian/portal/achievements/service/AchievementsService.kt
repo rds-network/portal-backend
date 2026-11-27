@@ -328,7 +328,7 @@ class AchievementsService(
     private fun baselineHistoryEvent(): PointEventDto =
         PointEventDto(
             code = CODE_BASELINE,
-            points = BASELINE_POINTS,
+            points = BASELINE_POINTS.toInt(),
             title = "Стартовые баллы",
             refId = "once",
             createdAt = "2024-01-01T00:00:00",
