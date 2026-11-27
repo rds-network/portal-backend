@@ -31,6 +31,9 @@ data class YearReviewStatsDto(
     val responsesReceived: Int,
     val responsesSent: Int,
     val teamsJoined: Int,
+    /** Soft weekly misses / gaps — used for gentle rank coaching copy. */
+    val missedWeeks: Int,
+    val irregularReporting: Boolean,
 )
 
 data class YearReviewCriterionProgressDto(

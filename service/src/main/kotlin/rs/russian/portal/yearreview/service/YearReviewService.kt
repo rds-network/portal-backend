@@ -282,6 +282,15 @@ class YearReviewService(
             talentResponseRepository.countReceivedOnOwnedPostsInRange(username, fromOd, untilOd).toInt()
         val responsesSent = talentResponseRepository.countSentByAuthorInRange(username, fromOd, untilOd).toInt()
         val teamsJoined = talentResponseRepository.countJoinedTeamsInRange(username, fromOd, untilOd).toInt()
+        val missedWeeks = pointEvents.countByUsernameAndCodeInRange(
+            username,
+            AchievementsService.CODE_WEEKLY_MISS,
+            from,
+            until,
+        ).toInt()
+        // Heuristic: soft weekly misses or sparse accepted reports vs weeks online.
+        val irregularReporting = missedWeeks > 0 ||
+            (weeklyLogins >= 8 && acceptedReports < (weeklyLogins / 2).coerceAtLeast(1))
 
         return YearReviewStatsDto(
             year = year,
@@ -312,6 +321,8 @@ class YearReviewService(
             responsesReceived = responsesReceived,
             responsesSent = responsesSent,
             teamsJoined = teamsJoined,
+            missedWeeks = missedWeeks,
+            irregularReporting = irregularReporting,
         )
     }
 
