@@ -6,12 +6,17 @@ import org.springframework.transaction.annotation.Transactional
 import rs.russian.portal.achievements.repository.VolunteerPointEventRepository
 import rs.russian.portal.achievements.service.AchievementCatalog
 import rs.russian.portal.achievements.service.AchievementsService
+import rs.russian.portal.program.repository.ProgramCuratorDelegateRepository
+import rs.russian.portal.program.repository.ProgramCuratorRepository
 import rs.russian.portal.report.domain.enums.ReportStatus
+import rs.russian.portal.report.repository.ReportCustomerDecisionRepository
 import rs.russian.portal.report.repository.ReportRepository
 import rs.russian.portal.shared.exception.InvalidRequestException
 import rs.russian.portal.shared.exception.NotAuthorizedException
 import rs.russian.portal.shared.security.currentUserLogin
 import rs.russian.portal.shared.security.currentUserRoles
+import rs.russian.portal.talent.repository.TalentPostRepository
+import rs.russian.portal.talent.repository.TalentResponseRepository
 import rs.russian.portal.user.domain.enums.UserGroup
 import rs.russian.portal.user.repository.AccountRepository
 import rs.russian.portal.yearreview.api.AnnualCertificateDto
@@ -39,7 +44,12 @@ import java.util.UUID
 class YearReviewService(
     private val pointEvents: VolunteerPointEventRepository,
     private val reportRepository: ReportRepository,
+    private val decisionRepository: ReportCustomerDecisionRepository,
     private val accountRepository: AccountRepository,
+    private val curatorRepository: ProgramCuratorRepository,
+    private val curatorDelegateRepository: ProgramCuratorDelegateRepository,
+    private val talentPostRepository: TalentPostRepository,
+    private val talentResponseRepository: TalentResponseRepository,
     private val criteriaRepository: YearReviewCriteriaRepository,
     private val certificateRepository: AnnualCertificateRepository,
     private val achievementsService: AchievementsService,
@@ -260,6 +270,19 @@ class YearReviewService(
         )
 
         val program = account?.info?.program
+        val curatorPrograms = curatorRepository.findAllByUsernameIgnoreCase(username)
+        val directionsCount = curatorPrograms.map { it.programCode.lowercase() }.distinct().size
+        val delegatesCount = curatorDelegateRepository.countByCuratorUsernameIgnoreCase(username).toInt()
+        val reportsReviewed = decisionRepository.countAcceptedDecisionsInRange(username, fromOd, untilOd).toInt()
+        val peopleHelped = decisionRepository.countDistinctHelpedAuthorsInRange(username, fromOd, untilOd).toInt()
+        val isTeamBuilder = directionsCount > 0 || delegatesCount > 0 || reportsReviewed > 0
+
+        val ideasCreated = talentPostRepository.countByAuthorInRange(username, fromOd, untilOd).toInt()
+        val responsesReceived =
+            talentResponseRepository.countReceivedOnOwnedPostsInRange(username, fromOd, untilOd).toInt()
+        val responsesSent = talentResponseRepository.countSentByAuthorInRange(username, fromOd, untilOd).toInt()
+        val teamsJoined = talentResponseRepository.countJoinedTeamsInRange(username, fromOd, untilOd).toInt()
+
         return YearReviewStatsDto(
             year = year,
             displayName = account?.fullName?.takeIf { it.isNotBlank() } ?: username,
@@ -280,6 +303,15 @@ class YearReviewService(
             curatorGratitudes = curatorGratitudes,
             managerGratitudes = managerGratitudes,
             isPodium = currentRank != null && currentRank in 1..3,
+            isTeamBuilder = isTeamBuilder,
+            directionsCount = directionsCount,
+            delegatesCount = delegatesCount,
+            reportsReviewed = reportsReviewed,
+            peopleHelped = peopleHelped,
+            ideasCreated = ideasCreated,
+            responsesReceived = responsesReceived,
+            responsesSent = responsesSent,
+            teamsJoined = teamsJoined,
         )
     }
 

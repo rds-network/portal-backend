@@ -20,6 +20,17 @@ data class YearReviewStatsDto(
     val curatorGratitudes: Int,
     val managerGratitudes: Int,
     val isPodium: Boolean,
+    /** Curator / program-lead role this year (or currently assigned). */
+    val isTeamBuilder: Boolean,
+    val directionsCount: Int,
+    val delegatesCount: Int,
+    val reportsReviewed: Int,
+    val peopleHelped: Int,
+    /** Ideas & talent board activity. */
+    val ideasCreated: Int,
+    val responsesReceived: Int,
+    val responsesSent: Int,
+    val teamsJoined: Int,
 )
 
 data class YearReviewCriterionProgressDto(

@@ -21,4 +21,32 @@ interface ReportCustomerDecisionRepository : JpaRepository<ReportCustomerDecisio
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("DELETE FROM ReportCustomerDecision d WHERE d.report.id = :reportId")
     fun deleteAllByReportId(@Param("reportId") reportId: UUID)
+
+    @Query(
+        """
+        SELECT COUNT(d) FROM ReportCustomerDecision d
+        WHERE LOWER(d.decidedBy) = LOWER(:username)
+          AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+          AND d.decidedAt >= :from AND d.decidedAt < :until
+        """
+    )
+    fun countAcceptedDecisionsInRange(
+        @Param("username") username: String,
+        @Param("from") from: java.time.OffsetDateTime,
+        @Param("until") until: java.time.OffsetDateTime,
+    ): Long
+
+    @Query(
+        """
+        SELECT COUNT(DISTINCT LOWER(d.report.account.username)) FROM ReportCustomerDecision d
+        WHERE LOWER(d.decidedBy) = LOWER(:username)
+          AND d.status = rs.russian.portal.report.domain.enums.ReportStatus.ACCEPTED
+          AND d.decidedAt >= :from AND d.decidedAt < :until
+        """
+    )
+    fun countDistinctHelpedAuthorsInRange(
+        @Param("username") username: String,
+        @Param("from") from: java.time.OffsetDateTime,
+        @Param("until") until: java.time.OffsetDateTime,
+    ): Long
 }
