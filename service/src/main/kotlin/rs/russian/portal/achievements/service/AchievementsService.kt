@@ -262,12 +262,11 @@ class AchievementsService(
         // Managers may pull the whole ranking for export.
         val visibleCap = if (canSeeFull) limit.coerceIn(1, MANAGER_LEADERBOARD_CAP) else PUBLIC_PODIUM_SIZE
         val leaders = totals.take(visibleCap).mapIndexed { index, (username, points) ->
-            val account = accountMap[username]
-            PointLeaderDto(
+            toLeaderDto(
                 rank = index + 1,
-                username = account?.username ?: username,
-                fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: username),
+                username = username,
                 points = points,
+                account = accountMap[username],
                 isMe = login != null && username == login && !viewerExcluded,
             )
         }
@@ -277,22 +276,20 @@ class AchievementsService(
             viewerExcluded || login == null -> null
             meRank >= 0 -> {
                 val (username, points) = totals[meRank]
-                val account = accountMap[username]
-                PointLeaderDto(
+                toLeaderDto(
                     rank = meRank + 1,
-                    username = account?.username ?: username,
-                    fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: username),
+                    username = username,
                     points = points,
+                    account = accountMap[username],
                     isMe = true,
                 )
             }
             else -> {
-                val account = accountMap[login]
-                PointLeaderDto(
+                toLeaderDto(
                     rank = totals.size + 1,
-                    username = account?.username ?: login,
-                    fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: login),
+                    username = login,
                     points = withBaseline(0),
+                    account = accountMap[login],
                     isMe = true,
                 )
             }
@@ -322,6 +319,23 @@ class AchievementsService(
         if (account == null || !account.active) return false
         return !isExcludedFromLeaderboard(username, account.email, account.fullName)
     }
+
+    private fun toLeaderDto(
+        rank: Int,
+        username: String,
+        points: Long,
+        account: Account?,
+        isMe: Boolean,
+    ): PointLeaderDto =
+        PointLeaderDto(
+            rank = rank,
+            username = account?.username ?: username,
+            fullName = account?.fullName?.takeIf { it.isNotBlank() } ?: (account?.username ?: username),
+            email = account?.email?.takeIf { it.isNotBlank() },
+            telegram = account?.info?.telegram?.trim()?.takeIf { it.isNotEmpty() },
+            points = points,
+            isMe = isMe,
+        )
 
     private fun withBaseline(points: Long): Long = points + BASELINE_POINTS
 

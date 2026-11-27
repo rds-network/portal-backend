@@ -44,6 +44,8 @@ data class PointLeaderDto(
     val rank: Int,
     val username: String,
     val fullName: String,
+    val email: String? = null,
+    val telegram: String? = null,
     val points: Long,
     val isMe: Boolean = false,
 )
